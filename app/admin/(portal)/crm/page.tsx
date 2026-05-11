@@ -59,7 +59,7 @@ interface AddLeadForm {
 
 type Modal =
   | { type: 'deleteLead'; lead: Lead }
-  | { type: 'addLead' }
+  | { type: 'leadForm'; lead?: Lead }
   | { type: 'leadAdded' }
   | { type: 'viewLead'; lead: Lead }
   | { type: 'viewClient'; client: Client }
@@ -144,7 +144,7 @@ function StatCard({ label, value, sub, subColor, icon }: {
 
 // ─── Action Menu ───────────────────────────────────────────────────────────────
 
-function ActionMenu({ onView, onDelete }: { onView: () => void; onDelete: () => void }) {
+function ActionMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit?: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -164,9 +164,11 @@ function ActionMenu({ onView, onDelete }: { onView: () => void; onDelete: () => 
           <button onClick={() => { setOpen(false); onView() }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
             <Eye size={13} /> View Detail
           </button>
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-            <Pencil size={13} /> Edit
-          </button>
+          {onEdit && (
+             <button onClick={() => { setOpen(false); onEdit() }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+               <Pencil size={13} /> Edit
+             </button>
+          )}
           <button onClick={() => { setOpen(false); onDelete() }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50">
             <Trash2 size={13} /> Delete
           </button>
@@ -177,7 +179,7 @@ function ActionMenu({ onView, onDelete }: { onView: () => void; onDelete: () => 
 }
 
 // ─── Lead Card ─────────────────────────────────────────────────────────────────
-function LeadCard({ lead, onView, onDelete }: { lead: Lead; onView: () => void; onDelete: () => void }) {
+function LeadCard({ lead, onView, onEdit, onDelete }: { lead: Lead; onView: () => void; onEdit: () => void; onDelete: () => void }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-2.5">
@@ -190,7 +192,7 @@ function LeadCard({ lead, onView, onDelete }: { lead: Lead; onView: () => void; 
             <p className="text-[11px] text-gray-400">{lead.company}</p>
           </div>
         </div>
-        <ActionMenu onView={onView} onDelete={onDelete} />
+        <ActionMenu onView={onView} onEdit={onEdit} onDelete={onDelete} />
       </div>
       <div className="space-y-1.5 text-[11px]">
         <div className="flex justify-between">
@@ -288,11 +290,20 @@ function DeleteLeadModal({ lead, onConfirm, onCancel }: { lead: Lead; onConfirm:
   )
 }
 
-// ─── Add Lead Modal ────────────────────────────────────────────────────────────
-function AddLeadModal({ onClose, onSave }: { onClose: () => void; onSave: (v: AddLeadForm) => void }) {
+// ─── Add/Edit Lead Modal ──────────────────────────────────────────────────────
+function LeadFormModal({ lead, onClose, onSave }: { lead?: Lead; onClose: () => void; onSave: (v: AddLeadForm & { id?: number }) => void }) {
   const [v, setV] = useState<AddLeadForm>({
-    firstName: '', lastName: '', company: '', email: '', phone: '', address: '',
-    stage: '', source: '', expectedValue: '', assignedRep: '', notes: '',
+    firstName: lead ? lead.name.split(' ')[0] : '',
+    lastName: lead ? lead.name.split(' ').slice(1).join(' ') : '',
+    company: lead?.company || '',
+    email: lead?.email || '',
+    phone: lead?.phone || '',
+    address: lead?.address || '',
+    stage: lead?.stage || '',
+    source: lead?.source || '',
+    expectedValue: lead?.expectedValue.replace('$', '') || '',
+    assignedRep: lead?.assignedRep || '',
+    notes: lead?.notes || '',
   })
 
   function set<K extends keyof AddLeadForm>(k: K, val: AddLeadForm[K]) {
@@ -302,10 +313,10 @@ function AddLeadModal({ onClose, onSave }: { onClose: () => void; onSave: (v: Ad
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+      <div className="fixed inset-y-0 right-0 z-50 flex">
+        <div className="bg-white w-[480px] max-w-full h-full flex flex-col shadow-2xl">
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-bold text-gray-900">Add New Lead</h2>
+            <h2 className="text-base font-bold text-gray-900">{lead ? 'Edit Lead' : 'Add New Lead'}</h2>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
@@ -314,7 +325,7 @@ function AddLeadModal({ onClose, onSave }: { onClose: () => void; onSave: (v: Ad
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-4">Lead Details</h3>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">First Name</label>
                     <input placeholder="First name" value={v.firstName} onChange={e => set('firstName', e.target.value)} className={inputCls} />
@@ -324,7 +335,7 @@ function AddLeadModal({ onClose, onSave }: { onClose: () => void; onSave: (v: Ad
                     <input placeholder="Last name" value={v.lastName} onChange={e => set('lastName', e.target.value)} className={inputCls} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Company</label>
                     <input placeholder="Company" value={v.company} onChange={e => set('company', e.target.value)} className={inputCls} />
@@ -334,7 +345,7 @@ function AddLeadModal({ onClose, onSave }: { onClose: () => void; onSave: (v: Ad
                     <input placeholder="Email" type="email" value={v.email} onChange={e => set('email', e.target.value)} className={inputCls} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Phone</label>
                     <input placeholder="Phone" value={v.phone} onChange={e => set('phone', e.target.value)} className={inputCls} />
@@ -351,7 +362,7 @@ function AddLeadModal({ onClose, onSave }: { onClose: () => void; onSave: (v: Ad
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-4">Pipeline Info</h3>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Stage</label>
                     <div className="relative">
@@ -377,7 +388,7 @@ function AddLeadModal({ onClose, onSave }: { onClose: () => void; onSave: (v: Ad
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Expected Value ($)</label>
                     <input placeholder="e.g 7500" value={v.expectedValue} onChange={e => set('expectedValue', e.target.value)} className={inputCls} />
@@ -402,8 +413,8 @@ function AddLeadModal({ onClose, onSave }: { onClose: () => void; onSave: (v: Ad
           </div>
 
           <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 shrink-0">
-            <button onClick={onClose} className="px-6 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={() => { if (v.firstName.trim()) onSave(v) }} className="px-6 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">Save</button>
+            <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+            <button onClick={() => { if (v.firstName.trim()) onSave({ ...v, id: lead?.id }) }} className="px-6 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">Save</button>
           </div>
         </div>
       </div>
@@ -678,25 +689,44 @@ export default function CRMPage() {
     showToast(`Lead(${name}) deleted successfully`)
   }
 
-  function handleAddLead(values: AddLeadForm) {
-    const newId = Math.max(...leads.map(l => l.id)) + 1
-    setLeads(prev => [...prev, {
-      id: newId,
-      name: `${values.firstName} ${values.lastName}`.trim(),
-      company: values.company || 'Unknown',
-      email: values.email,
-      address: values.address,
-      manager: values.assignedRep || REPS[0],
-      daysInStage: 0,
-      source: (values.source || 'Referral') as LeadSource,
-      stage: (values.stage || 'New Lead') as LeadStage,
-      avatarColor: LEAD_COLORS[newId % LEAD_COLORS.length],
-      notes: values.notes,
-      phone: values.phone,
-      expectedValue: values.expectedValue ? `$${values.expectedValue}` : '$0',
-      assignedRep: values.assignedRep || REPS[0],
-    }])
-    setModal({ type: 'leadAdded' })
+  function handleSaveLead(values: AddLeadForm & { id?: number }) {
+    if (values.id) {
+       setLeads(prev => prev.map(l => l.id === values.id ? {
+          ...l,
+          name: `${values.firstName} ${values.lastName}`.trim(),
+          company: values.company || 'Unknown',
+          email: values.email,
+          address: values.address,
+          manager: values.assignedRep || REPS[0],
+          source: (values.source || 'Referral') as LeadSource,
+          stage: (values.stage || 'New Lead') as LeadStage,
+          notes: values.notes,
+          phone: values.phone,
+          expectedValue: values.expectedValue ? `$${values.expectedValue}` : '$0',
+          assignedRep: values.assignedRep || REPS[0],
+       } : l))
+       setModal(null)
+       showToast('Lead updated successfully')
+    } else {
+      const newId = Math.max(...leads.map(l => l.id), 0) + 1
+      setLeads(prev => [...prev, {
+        id: newId,
+        name: `${values.firstName} ${values.lastName}`.trim(),
+        company: values.company || 'Unknown',
+        email: values.email,
+        address: values.address,
+        manager: values.assignedRep || REPS[0],
+        daysInStage: 0,
+        source: (values.source || 'Referral') as LeadSource,
+        stage: (values.stage || 'New Lead') as LeadStage,
+        avatarColor: LEAD_COLORS[newId % LEAD_COLORS.length],
+        notes: values.notes,
+        phone: values.phone,
+        expectedValue: values.expectedValue ? `$${values.expectedValue}` : '$0',
+        assignedRep: values.assignedRep || REPS[0],
+      }])
+      setModal({ type: 'leadAdded' })
+    }
   }
 
   const filteredLeads = leads.filter(l =>
@@ -784,7 +814,7 @@ export default function CRMPage() {
             <button className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 bg-white">
               <Filter size={13} /> Filter
             </button>
-            <button onClick={() => setModal({ type: 'addLead' })}
+            <button onClick={() => setModal({ type: 'leadForm' })}
               className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] font-medium">
               <Plus size={13} /> Add Lead
             </button>
@@ -815,6 +845,7 @@ export default function CRMPage() {
                         stageLeads.map(lead => (
                           <LeadCard key={lead.id} lead={lead}
                             onView={() => setModal({ type: 'viewLead', lead })}
+                            onEdit={() => setModal({ type: 'leadForm', lead })}
                             onDelete={() => setModal({ type: 'deleteLead', lead })} />
                         ))
                       )}
@@ -854,7 +885,7 @@ export default function CRMPage() {
 
       {/* Modals */}
       {modal?.type === 'deleteLead' && <DeleteLeadModal lead={modal.lead} onConfirm={confirmDeleteLead} onCancel={() => setModal(null)} />}
-      {modal?.type === 'addLead' && <AddLeadModal onClose={() => setModal(null)} onSave={handleAddLead} />}
+      {modal?.type === 'leadForm' && <LeadFormModal lead={modal.lead} onClose={() => setModal(null)} onSave={handleSaveLead} />}
       {modal?.type === 'leadAdded' && <LeadAddedModal onClose={() => setModal(null)} />}
       {modal?.type === 'viewLead' && (
         <LeadDetailsModal lead={modal.lead} onClose={() => setModal(null)}
