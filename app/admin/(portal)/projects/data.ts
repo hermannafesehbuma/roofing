@@ -1,5 +1,5 @@
-export type ProjectStatus = 'Completed' | 'In Progress' | 'On Hold';
-export type ProjectType = 'Residential' | 'Commercial';
+export type ProjectStatus = 'in_progress' | 'completed' | 'on_hold';
+export type ProjectType = 'residential' | 'commercial' | 'industrial';
 export type PriorityLevel = 'High' | 'Mid' | 'Low';
 export type WorkOrderStatus = 'Open' | 'Closed';
 
@@ -30,16 +30,23 @@ export interface ProjectDetails {
 }
 
 export interface Project {
-  id: string;
+  id: string; // UUID
+  code: string; // "PRJ-001"
   name: string;
   location: string;
   type: ProjectType;
-  manager: string;
-  client: string;
-  dueDate: string;
+  manager_id: string;
+  client_id: string;
+  manager?: { first_name: string; last_name: string; avatar_url?: string };
+  client?: { name: string };
+  due_date: string;
+  start_date: string;
   progress: number;
   status: ProjectStatus;
-  image: string;
+  image_url: string;
+  description?: string;
+  budget?: number;
+  spent?: number;
   details?: ProjectDetails;
 }
 

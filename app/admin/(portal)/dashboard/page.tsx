@@ -1,4 +1,5 @@
 import { Bell, Search } from 'lucide-react'
+import { getEmployees } from '../employees/actions'
 
 function DonutChart({ pct, color }: { pct: number; color: string }) {
   const r = 44
@@ -57,7 +58,11 @@ const workers = [
 const avatarColors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4']
 function initials(name: string) { return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const employees = await getEmployees()
+  const activeCount = employees.filter((e) => e.status === 'active').length
+  const totalCount = employees.length
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <header className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between shrink-0">
@@ -88,7 +93,7 @@ export default function DashboardPage() {
           <StatCard label="Active Projects" value="8" sub="+3 vs last month" subColor="green" />
           <StatCard label="Revenue This Month" value="$94.2k" sub="$342,000 total pipeline" subColor="gray" />
           <StatCard label="Outstanding Invoices" value="11 / 18" sub="5 overdue" subColor="red" />
-          <StatCard label="Clocked-In Now" value="11 / 18" sub="On-site today" subColor="green" />
+          <StatCard label="Active Employees" value={`${activeCount} / ${totalCount}`} sub="Team members" subColor="green" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -198,36 +203,58 @@ export default function DashboardPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <p className="text-sm font-semibold text-gray-800">Clocked-In Workers</p>
-            <button className="text-xs text-[#0D1B2A] font-medium hover:underline">View all</button>
+            <p className="text-sm font-semibold text-gray-800">Team Members</p>
+            <a href="/admin/employees" className="text-xs text-[#0D1B2A] font-medium hover:underline">View all</a>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/60">
-                  {['Employee', 'Project', 'Site / Location', 'Clock In', 'Hours', 'Status'].map((h) => (
+                  {['Employee', 'Role', 'Department', 'Phone', 'Email', 'Status'].map((h) => (
                     <th key={h} className="text-left px-5 py-3 text-gray-500 font-medium">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {workers.map((w, i) => (
-                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: avatarColors[i % avatarColors.length] }}>
-                          <span className="text-white text-[10px] font-semibold">{initials(w.name)}</span>
+                {employees.slice(0, 8).map((emp, i) => {
+                  const statusColors: Record<string, string> = {
+                    active: 'bg-emerald-50 text-emerald-600',
+                    on_leave: 'bg-amber-50 text-amber-600',
+                    inactive: 'bg-gray-100 text-gray-500',
+                  }
+                  const statusLabels: Record<string, string> = {
+                    active: 'Active', on_leave: 'On Leave', inactive: 'Inactive',
+                  }
+                  return (
+                    <tr key={emp.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2.5">
+                          {emp.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={emp.avatar_url} alt={emp.first_name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: avatarColors[i % avatarColors.length] }}>
+                              <span className="text-white text-[10px] font-semibold">{initials(`${emp.first_name} ${emp.last_name}`)}</span>
+                            </div>
+                          )}
+                          <span className="font-medium text-gray-800">{emp.first_name} {emp.last_name}</span>
                         </div>
-                        <span className="font-medium text-gray-800">{w.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-gray-600">{w.project}</td>
-                    <td className="px-5 py-3 text-gray-500">{w.site}</td>
-                    <td className="px-5 py-3 text-gray-600">{w.clockIn}</td>
-                    <td className="px-5 py-3"><div className="h-1.5 bg-gray-100 rounded-full overflow-hidden w-24"><div className="h-full rounded-full bg-[#0D1B2A]" style={{ width: `${w.hrs}%` }} /></div></td>
-                    <td className="px-5 py-3"><span className="bg-emerald-50 text-emerald-600 text-[10px] font-medium px-2 py-0.5 rounded-full">On-Site</span></td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-5 py-3 text-gray-600 capitalize">{emp.role}</td>
+                      <td className="px-5 py-3 text-gray-500">{emp.department ?? '—'}</td>
+                      <td className="px-5 py-3 text-gray-500">{emp.phone ?? '—'}</td>
+                      <td className="px-5 py-3 text-gray-500">{emp.email}</td>
+                      <td className="px-5 py-3">
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusColors[emp.status] ?? ''}`}>
+                          {statusLabels[emp.status] ?? emp.status}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {employees.length === 0 && (
+                  <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400">No employees yet.</td></tr>
+                )}
               </tbody>
             </table>
           </div>

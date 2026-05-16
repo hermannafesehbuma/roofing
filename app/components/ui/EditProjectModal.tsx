@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { X, CalendarDays, ChevronDown, Plus } from 'lucide-react'
+import { X, CalendarDays, ChevronDown, Plus, Loader2 } from 'lucide-react'
 import type { Project, ProjectStatus, ProjectType } from '@/app/admin/(portal)/projects/data'
+import { getProjectOptions, updateProject } from '@/app/admin/(portal)/projects/actions'
 
 interface FormValues {
   name: string
@@ -13,19 +14,18 @@ interface FormValues {
   startDate: string
   endDate: string
   budget: string
-  client: string
-  manager: string
+  client_id: string
+  manager_id: string
   crew: string[]
 }
 
 interface Props {
   project: Project | null
   onClose: () => void
-  onSave: (updated: Project) => void
+  onSave: () => void
 }
 
-const managers = ['Karen Brooks', 'Derek Owens', 'David Park', 'Sarah Mitchell']
-const crewOptions = ['Karen Brook', 'A. Lowe', 'B. Simmons', 'C. Rivera', 'D. Pham', 'N. Torres']
+// Static lists replaced by Supabase lookups
 
 const inputCls = (err?: boolean) =>
   `w-full border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A] transition-colors ${err ? 'border-red-400 bg-red-50/20' : 'border-gray-200'}`
@@ -59,11 +59,16 @@ function FieldLabel({ children, error }: { children: React.ReactNode; error?: st
 export function EditProjectModal({ project, onClose, onSave }: Props) {
   const [values, setValues] = useState<FormValues>({
     name: '', type: '', status: '', location: '', description: '',
-    startDate: '', endDate: '', budget: '', client: '', manager: '', crew: [],
+    startDate: '', endDate: '', budget: '', client_id: '', manager_id: '', crew: [],
   })
   const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({})
   const [crewInput, setCrewInput] = useState('')
   const [showCrewDropdown, setShowCrewDropdown] = useState(false)
+  const [clients, setClients] = useState<{ id: string, name: string }[]>([])
+  const [managers, setManagers] = useState<{ id: string, name: string }[]>([])
+  const [crewOptions, setCrewOptions] = useState<{ id: string, name: string }[]>([])
+  const [isSaving, setIsSaving] = useState(false)
+
   const crewRef = useRef<HTMLDivElement>(null)
 
   // Populate form when project changes
@@ -74,16 +79,25 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
         type: project.type,
         status: project.status,
         location: project.location,
-        description: '',
-        startDate: '',
-        endDate: project.dueDate ? '' : '',
-        budget: '',
-        client: project.client,
-        manager: project.manager,
-        crew: ['Karen Brook', 'A. Lowe'],
+        description: project.description || '',
+        startDate: project.start_date || '',
+        endDate: project.due_date || '',
+        budget: project.budget?.toString() || '',
+        client_id: project.client_id || '',
+        manager_id: project.manager_id || '',
+        crew: [], // Crew would come from project_members
       })
       setErrors({})
       setCrewInput('')
+      
+      // Fetch lookups
+      const fetchLookups = async () => {
+        const { clients, managers, crew } = await getProjectOptions()
+        setClients(clients)
+        setManagers(managers)
+        setCrewOptions(crew)
+      }
+      fetchLookups()
     }
   }, [project])
 
@@ -118,24 +132,39 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
     return errs
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     if (!project) return
-    onSave({
-      ...project,
-      name: values.name,
-      type: (values.type || project.type) as ProjectType,
-      status: (values.status || project.status) as ProjectStatus,
-      location: values.location,
-      manager: values.manager || project.manager,
-      client: values.client,
-    })
-    onClose()
+    
+    setIsSaving(true)
+    try {
+      const res = await updateProject(project.id, {
+        name: values.name,
+        type: values.type,
+        status: values.status,
+        location: values.location,
+        description: values.description,
+        start_date: values.startDate || null,
+        due_date: values.endDate || null,
+        budget: values.budget ? parseFloat(values.budget) : 0,
+        manager_id: values.manager_id || null,
+        client_id: values.client_id || null,
+      })
+
+      if ('error' in res) throw new Error(res.error)
+      onSave()
+      onClose()
+    } catch (error) {
+      console.error('Error updating project:', error)
+      alert('Failed to update project')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const filteredCrew = crewOptions.filter(
-    (c) => c.toLowerCase().includes(crewInput.toLowerCase()) && !values.crew.includes(c)
+    (c) => c.name.toLowerCase().includes(crewInput.toLowerCase()) && !values.crew.includes(c.name)
   )
 
   if (!project) return null
@@ -174,8 +203,9 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
                     <SelectWrapper>
                       <select value={values.type} onChange={(e) => set('type', e.target.value as ProjectType)} className={selectCls}>
                         <option value="">Select Type</option>
-                        <option>Residential</option>
-                        <option>Commercial</option>
+                        <option value="residential">Residential</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="industrial">Industrial</option>
                       </select>
                     </SelectWrapper>
                   </div>
@@ -184,9 +214,9 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
                     <SelectWrapper>
                       <select value={values.status} onChange={(e) => set('status', e.target.value as ProjectStatus)} className={selectCls}>
                         <option value="">Select Status</option>
-                        <option>In Progress</option>
-                        <option>Completed</option>
-                        <option>On Hold</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="on_hold">On Hold</option>
                       </select>
                     </SelectWrapper>
                   </div>
@@ -239,7 +269,12 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
                   </div>
                   <div>
                     <FieldLabel>Client</FieldLabel>
-                    <input placeholder="Enter Client's Name" value={values.client} onChange={(e) => set('client', e.target.value)} className={inputCls()} />
+                    <SelectWrapper>
+                      <select value={values.client_id} onChange={(e) => set('client_id', e.target.value)} className={selectCls}>
+                        <option value="">Select Client</option>
+                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </SelectWrapper>
                   </div>
                 </div>
               </div>
@@ -253,19 +288,19 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
                 <div>
                   <FieldLabel>Assigned Manager</FieldLabel>
                   <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#0D1B2A]/10 focus-within:border-[#0D1B2A] transition-colors">
-                    {values.manager && (
+                    {values.manager_id && (
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center ml-3 shrink-0">
-                        <span className="text-white text-[9px] font-bold">{values.manager.split(' ').map((n) => n[0]).join('')}</span>
+                        <span className="text-white text-[9px] font-bold">{managers.find(m => m.id === values.manager_id)?.name.split(' ').map((n) => n[0]).join('')}</span>
                       </div>
                     )}
-                    <select
-                      value={values.manager}
-                      onChange={(e) => set('manager', e.target.value)}
-                      className={`flex-1 appearance-none py-2.5 text-sm text-gray-800 bg-white focus:outline-none ${values.manager ? 'pl-2 pr-8' : 'px-4'}`}
-                    >
-                      <option value="">Select Manager</option>
-                      {managers.map((m) => <option key={m}>{m}</option>)}
-                    </select>
+                      <select
+                        value={values.manager_id}
+                        onChange={(e) => set('manager_id', e.target.value)}
+                        className={`flex-1 appearance-none py-2.5 text-sm text-gray-800 bg-white focus:outline-none ${values.manager_id ? 'pl-2 pr-8' : 'px-4'}`}
+                      >
+                        <option value="">Select Manager</option>
+                        {managers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </select>
                     <ChevronDown size={14} className="text-gray-400 mr-3 shrink-0 pointer-events-none" />
                   </div>
                 </div>
@@ -307,12 +342,12 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
                     {showCrewDropdown && filteredCrew.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1 max-h-40 overflow-y-auto">
                         {filteredCrew.map((c) => (
-                          <button key={c} onClick={() => addCrew(c)}
+                          <button key={c.id} onClick={() => addCrew(c.name)}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left">
                             <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center shrink-0">
-                              <span className="text-white text-[9px] font-bold">{c.split(' ').map((n) => n[0]).join('')}</span>
+                              <span className="text-white text-[9px] font-bold">{c.name.split(' ').map((n) => n[0]).join('')}</span>
                             </div>
-                            {c}
+                            {c.name}
                           </button>
                         ))}
                       </div>
@@ -328,7 +363,12 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
             <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               Cancel
             </button>
-            <button onClick={handleSubmit} className="px-6 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
+            <button 
+              onClick={handleSubmit} 
+              disabled={isSaving}
+              className="px-6 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {isSaving && <Loader2 size={14} className="animate-spin" />}
               Save Changes
             </button>
           </div>

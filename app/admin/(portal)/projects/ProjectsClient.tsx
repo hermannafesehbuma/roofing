@@ -1,25 +1,34 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Project, mockProjects, ProjectStatus, ProjectType } from './data';
+import { Project, ProjectStatus, ProjectType } from './data';
 import { KanbanView } from '@/app/components/ui/KanbanView';
 import { ListView } from '@/app/components/ui/ListView';
 import { FilterPopover } from '@/app/components/ui/FilterPopover';
 import { DeleteModal } from '@/app/components/ui/DeleteModal';
 import { NewProjectModal } from '@/app/components/ui/NewProjectModal';
 import { EditProjectModal } from '@/app/components/ui/EditProjectModal';
-import { KanbanSquare, List, Search, Download, Plus } from 'lucide-react';
+import { KanbanSquare, List, Search, Download, Plus, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { getProjects, deleteProject } from './actions';
 
 type ViewMode = 'kanban' | 'list';
 
-export function ProjectsClient() {
+export function ProjectsClient({ initialProjects }: { initialProjects: Project[] }) {
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
-  const [projectsData, setProjectsData] = useState<Project[]>(mockProjects);
+  const [projectsData, setProjectsData] = useState<Project[]>(initialProjects);
+  const [loading, setLoading] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
+
+  const fetchProjects = async () => {
+    setLoading(true);
+    const data = await getProjects();
+    setProjectsData(data);
+    setLoading(false);
+  };
   
   const [activeFilters, setActiveFilters] = useState<{
     status: ProjectStatus[];
@@ -35,22 +44,28 @@ export function ProjectsClient() {
     return projectsData.filter((p) => {
       // Search
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            p.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            p.id.toLowerCase().includes(searchQuery.toLowerCase());
+                            (p.client?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            p.code.toLowerCase().includes(searchQuery.toLowerCase());
       
       // Filters
       const matchesStatus = activeFilters.status.length === 0 || activeFilters.status.includes(p.status);
       const matchesType = activeFilters.type.length === 0 || activeFilters.type.includes(p.type);
-      const matchesManager = !activeFilters.manager || p.manager.toLowerCase().includes(activeFilters.manager.toLowerCase());
+      const matchesManager = !activeFilters.manager || 
+        `${p.manager?.first_name} ${p.manager?.last_name}`.toLowerCase().includes(activeFilters.manager.toLowerCase());
 
       return matchesSearch && matchesStatus && matchesType && matchesManager;
     });
   }, [projectsData, searchQuery, activeFilters]);
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (projectToDelete) {
-      setProjectsData(prev => prev.filter(p => p.id !== projectToDelete.id));
-      setProjectToDelete(null);
+      const res = await deleteProject(projectToDelete.id);
+      if ('error' in res) {
+        alert(res.error);
+      } else {
+        setProjectsData(prev => prev.filter(p => p.id !== projectToDelete.id));
+        setProjectToDelete(null);
+      }
     }
   };
 
@@ -137,10 +152,16 @@ export function ProjectsClient() {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-hidden p-8">
-        {viewMode === 'kanban' ? (
-          <KanbanView projects={filteredProjects} onDeleteClick={setProjectToDelete} onEditClick={setProjectToEdit} />
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-8 h-8 animate-spin text-[#0A1629]" />
+          </div>
         ) : (
-          <ListView projects={filteredProjects} onDeleteClick={setProjectToDelete} onEditClick={setProjectToEdit} />
+          viewMode === 'kanban' ? (
+            <KanbanView projects={filteredProjects} onDeleteClick={setProjectToDelete} onEditClick={setProjectToEdit} />
+          ) : (
+            <ListView projects={filteredProjects} onDeleteClick={setProjectToDelete} onEditClick={setProjectToEdit} />
+          )
         )}
       </div>
 
@@ -148,14 +169,7 @@ export function ProjectsClient() {
       <NewProjectModal
         isOpen={showNewProject}
         onClose={() => setShowNewProject(false)}
-        onSave={(project) => {
-          const newId = `PRJ-${String(projectsData.length + 1).padStart(3, '0')}`
-          setProjectsData(prev => [...prev, {
-            ...project,
-            id: newId,
-            image: 'https://images.unsplash.com/photo-1632759145355-6b5d27ffc264?w=500&h=300&fit=crop',
-          }])
-        }}
+        onSave={fetchProjects}
       />
       <EditProjectModal
         project={projectToEdit}

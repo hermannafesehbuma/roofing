@@ -36,10 +36,10 @@ export function ListView({ projects, onDeleteClick, onEditClick }: ListViewProps
               
               let badgeColor = '';
               let badgeText = '';
-              if (p.status === 'Completed') {
+              if (p.status === 'completed') {
                 badgeColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
                 badgeText = 'Completed';
-              } else if (p.status === 'In Progress') {
+              } else if (p.status === 'in_progress') {
                 badgeColor = 'text-amber-700 bg-amber-50 border-amber-200';
                 badgeText = 'In Progress';
               } else {
@@ -55,17 +55,19 @@ export function ListView({ projects, onDeleteClick, onEditClick }: ListViewProps
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 relative bg-gray-200">
-                        <Image src={p.image} alt={p.name} fill className="object-cover" sizes="40px" />
+                        <Image src={p.image_url || 'https://images.unsplash.com/photo-1632759145355-6b5d27ffc264?w=500&h=300&fit=crop'} alt={p.name} fill className="object-cover" sizes="40px" />
                       </div>
                       <div>
                         <div className="font-medium text-sm text-gray-900 group-hover:text-[#0A1629] transition-colors">{p.name}</div>
-                        <div className="text-xs text-gray-400">{p.id}</div>
+                        <div className="text-xs text-gray-400">{p.code}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 text-sm text-gray-600">{p.type}</td>
-                  <td className="p-4 text-sm text-gray-900 font-medium">{p.manager}</td>
-                  <td className="p-4 text-sm text-gray-600">{p.client}</td>
+                  <td className="p-4 text-sm text-gray-600 capitalize">{p.type}</td>
+                  <td className="p-4 text-sm text-gray-900 font-medium">
+                    {p.manager ? `${p.manager.first_name} ${p.manager.last_name}` : 'Unassigned'}
+                  </td>
+                  <td className="p-4 text-sm text-gray-600">{p.client?.name || 'No Client'}</td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                        <div className="w-full bg-gray-100 rounded-full h-1.5 flex-1">
@@ -77,7 +79,7 @@ export function ListView({ projects, onDeleteClick, onEditClick }: ListViewProps
                         <span className="text-xs text-gray-500 w-8 text-right">{p.progress}%</span>
                     </div>
                   </td>
-                  <td className="p-4 text-sm text-gray-600">{p.dueDate}</td>
+                  <td className="p-4 text-sm text-gray-600">{p.due_date}</td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2 py-1 object-fit rounded-md text-[10px] font-bold border ${badgeColor}`}>
                       {badgeText}

@@ -13,9 +13,9 @@ interface KanbanViewProps {
 }
 
 export function KanbanView({ projects, onDeleteClick, onEditClick }: KanbanViewProps) {
-  const completedProjects = projects.filter(p => p.status === 'Completed');
-  const inProgressProjects = projects.filter(p => p.status === 'In Progress');
-  const onHoldProjects = projects.filter(p => p.status === 'On Hold');
+  const completedProjects = projects.filter(p => p.status === 'completed');
+  const inProgressProjects = projects.filter(p => p.status === 'in_progress');
+  const onHoldProjects = projects.filter(p => p.status === 'on_hold');
 
   return (
     <div className="flex gap-6 overflow-x-auto pb-4 h-full">
@@ -68,7 +68,7 @@ function KanbanColumn({
           <div key={project.id} className="bg-white border text-left border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
             <div className="h-32 w-full relative bg-gray-200">
               <Image 
-                src={project.image} 
+                src={project.image_url || 'https://images.unsplash.com/photo-1632759145355-6b5d27ffc264?w=500&h=300&fit=crop'} 
                 alt={project.name}
                 fill
                 className="object-cover"
@@ -85,24 +85,28 @@ function KanbanColumn({
                   onView={() => router.push(`/admin/projects/${project.id}`)}
                 />
               </div>
-              <p className="text-xs text-gray-500 mb-4">{project.type} • {project.location}</p>
+              <p className="text-xs text-gray-500 mb-4 capitalize">{project.type} • {project.location}</p>
               
               <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-xs mb-4">
                 <div className="text-gray-500">Status:</div>
                 <div className="text-right">
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badgeColor}`}>
-                    ● {project.status}
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${badgeColor}`}>
+                    ● {project.status.replace('_', ' ')}
                   </span>
                 </div>
                 
                 <div className="text-gray-500">Manager:</div>
-                <div className="text-right text-gray-900 font-medium">{project.manager}</div>
+                <div className="text-right text-gray-900 font-medium">
+                  {project.manager ? `${project.manager.first_name} ${project.manager.last_name}` : 'Unassigned'}
+                </div>
                 
                 <div className="text-gray-500">Client:</div>
-                <div className="text-right text-gray-900 font-medium truncate" title={project.client}>{project.client}</div>
+                <div className="text-right text-gray-900 font-medium truncate" title={project.client?.name}>
+                  {project.client?.name || 'No Client'}
+                </div>
                 
                 <div className="text-gray-500">Due Date:</div>
-                <div className="text-right text-gray-900 font-medium">{project.dueDate}</div>
+                <div className="text-right text-gray-900 font-medium">{project.due_date}</div>
               </div>
 
               <div className="flex items-center justify-between text-xs text-gray-500 mb-1">

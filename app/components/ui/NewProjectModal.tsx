@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { X, CalendarDays, ChevronDown, Plus, Check } from 'lucide-react'
-import type { Project, ProjectStatus, ProjectType } from '@/app/admin/(portal)/projects/data'
+import { X, CalendarDays, ChevronDown, Plus, Check, Loader2, ImagePlus, Trash2 } from 'lucide-react'
+import type { ProjectStatus, ProjectType } from '@/app/admin/(portal)/projects/data'
+import { getProjectOptions, createProject, uploadProjectImage } from '@/app/admin/(portal)/projects/actions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FormValues {
@@ -14,19 +15,18 @@ interface FormValues {
   startDate: string
   endDate: string
   budget: string
-  client: string
-  manager: string
+  client_id: string
+  manager_id: string
   crew: string[]
 }
 
 interface Props {
   isOpen: boolean
   onClose: () => void
-  onSave: (project: Omit<Project, 'id' | 'image'>) => void
+  onSave: () => void
 }
 
-const managers = ['Karen Brooks', 'Derek Owens', 'David Park', 'Sarah Mitchell']
-const crewOptions = ['Karen Brook', 'A. Lowe', 'B. Simmons', 'C. Rivera', 'D. Pham', 'N. Torres']
+// Static lists replaced by Supabase lookups
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const inputCls = (err?: boolean) =>
@@ -88,17 +88,36 @@ function SuccessModal({ onClose }: { onClose: () => void }) {
 export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
   const empty: FormValues = {
     name: '', type: '', status: '', location: '', description: '',
-    startDate: '', endDate: '', budget: '', client: '', manager: '', crew: [],
+    startDate: '', endDate: '', budget: '', client_id: '', manager_id: '', crew: [],
   }
   const [values, setValues] = useState<FormValues>(empty)
   const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({})
   const [crewInput, setCrewInput] = useState('')
   const [showCrewDropdown, setShowCrewDropdown] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  
+  const [clients, setClients] = useState<{ id: string, name: string }[]>([])
+  const [managers, setManagers] = useState<{ id: string, name: string }[]>([])
+  const [crewOptions, setCrewOptions] = useState<{ id: string, name: string }[]>([])
+  
   const crewRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!isOpen) { setValues(empty); setErrors({}); setCrewInput(''); setShowSuccess(false) }
+    if (!isOpen) { setValues(empty); setErrors({}); setCrewInput(''); setShowSuccess(false); setImageFile(null); setImagePreview(null) }
+    else {
+      // Fetch lookups
+      const fetchLookups = async () => {
+        const { clients, managers, crew } = await getProjectOptions()
+        setClients(clients)
+        setManagers(managers)
+        setCrewOptions(crew)
+      }
+      fetchLookups()
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
@@ -131,20 +150,62 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
     return errs
   }
 
-  function handleSubmit() {
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    setImageFile(file)
+    if (file) {
+      const url = URL.createObjectURL(file)
+      setImagePreview(url)
+    } else {
+      setImagePreview(null)
+    }
+  }
+
+  function removeImage() {
+    setImageFile(null)
+    setImagePreview(null)
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }
+
+  async function handleSubmit() {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
-    onSave({
-      name: values.name,
-      type: (values.type || 'Residential') as ProjectType,
-      status: (values.status || 'In Progress') as ProjectStatus,
-      location: values.location,
-      manager: values.manager || managers[0],
-      client: values.client,
-      dueDate: values.endDate || '—',
-      progress: 0,
-    })
-    setShowSuccess(true)
+
+    setIsSaving(true)
+    try {
+      let image_url: string | null = null
+      if (imageFile) {
+        const fd = new FormData()
+        fd.append('file', imageFile)
+        const uploadRes = await uploadProjectImage(fd)
+        if ('error' in uploadRes) throw new Error(uploadRes.error)
+        image_url = uploadRes.url
+      }
+
+      const res = await createProject({
+        name: values.name,
+        type: values.type || 'residential',
+        status: values.status || 'in_progress',
+        location: values.location,
+        description: values.description,
+        start_date: values.startDate || null,
+        due_date: values.endDate || null,
+        budget: values.budget ? parseFloat(values.budget) : 0,
+        manager_id: values.manager_id || null,
+        client_id: values.client_id || null,
+        image_url,
+      })
+
+      if ('error' in res) throw new Error(res.error)
+
+      setShowSuccess(true)
+      onSave()
+    } catch (error) {
+      console.error('Error creating project:', error)
+      alert('Failed to create project')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   function handleSuccessClose() {
@@ -153,7 +214,7 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
   }
 
   const filteredCrew = crewOptions.filter(
-    (c) => c.toLowerCase().includes(crewInput.toLowerCase()) && !values.crew.includes(c)
+    (c) => c.name.toLowerCase().includes(crewInput.toLowerCase()) && !values.crew.includes(c.name)
   )
 
   if (!isOpen) return null
@@ -199,8 +260,9 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
                     <SelectWrapper>
                       <select value={values.type} onChange={(e) => set('type', e.target.value as ProjectType)} className={selectCls}>
                         <option value="">Select Type</option>
-                        <option>Residential</option>
-                        <option>Commercial</option>
+                        <option value="residential">Residential</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="industrial">Industrial</option>
                       </select>
                     </SelectWrapper>
                   </div>
@@ -209,9 +271,9 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
                     <SelectWrapper>
                       <select value={values.status} onChange={(e) => set('status', e.target.value as ProjectStatus)} className={selectCls}>
                         <option value="">Select Status</option>
-                        <option>In Progress</option>
-                        <option>Completed</option>
-                        <option>On Hold</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="on_hold">On Hold</option>
                       </select>
                     </SelectWrapper>
                   </div>
@@ -233,6 +295,39 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
                     rows={3}
                     className={`${inputCls()} resize-none`}
                   />
+                </div>
+
+                {/* Project Image */}
+                <div>
+                  <FieldLabel>Project Image</FieldLabel>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
+                  />
+                  {imagePreview ? (
+                    <div className="relative rounded-xl overflow-hidden border border-gray-200 h-36">
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center shadow text-gray-500 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="w-full h-24 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors bg-gray-50/50"
+                    >
+                      <ImagePlus size={20} />
+                      <span className="text-xs font-medium">Click to upload image</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -273,7 +368,12 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
                   </div>
                   <div>
                     <FieldLabel>Client</FieldLabel>
-                    <input placeholder="Enter Client's Name" value={values.client} onChange={(e) => set('client', e.target.value)} className={inputCls()} />
+                    <SelectWrapper>
+                      <select value={values.client_id} onChange={(e) => set('client_id', e.target.value)} className={selectCls}>
+                        <option value="">Select Client</option>
+                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </SelectWrapper>
                   </div>
                 </div>
               </div>
@@ -294,12 +394,12 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
                         </div>
                       )}
                       <select
-                        value={values.manager}
-                        onChange={(e) => set('manager', e.target.value)}
-                        className={`flex-1 appearance-none px-3 py-2.5 text-sm text-gray-800 bg-white focus:outline-none ${values.manager ? 'pl-2' : 'pl-4'}`}
+                        value={values.manager_id}
+                        onChange={(e) => set('manager_id', e.target.value)}
+                        className={`flex-1 appearance-none px-3 py-2.5 text-sm text-gray-800 bg-white focus:outline-none ${values.manager_id ? 'pl-2' : 'pl-4'}`}
                       >
                         <option value="">Select Manager</option>
-                        {managers.map((m) => <option key={m}>{m}</option>)}
+                        {managers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </select>
                       <ChevronDown size={14} className="text-gray-400 mr-3 shrink-0 pointer-events-none" />
                     </div>
@@ -344,12 +444,12 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
                     {showCrewDropdown && filteredCrew.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1 max-h-40 overflow-y-auto">
                         {filteredCrew.map((c) => (
-                          <button key={c} onClick={() => addCrew(c)}
+                          <button key={c.id} onClick={() => addCrew(c.name)}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left">
                             <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center shrink-0">
-                              <span className="text-white text-[9px] font-bold">{c.split(' ').map((n) => n[0]).join('')}</span>
+                              <span className="text-white text-[9px] font-bold">{c.name.split(' ').map((n) => n[0]).join('')}</span>
                             </div>
-                            {c}
+                            {c.name}
                           </button>
                         ))}
                       </div>
@@ -365,7 +465,12 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
             <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               Cancel
             </button>
-            <button onClick={handleSubmit} className="px-6 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
+            <button 
+              onClick={handleSubmit} 
+              disabled={isSaving}
+              className="px-6 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {isSaving && <Loader2 size={14} className="animate-spin" />}
               Save Project
             </button>
           </div>
