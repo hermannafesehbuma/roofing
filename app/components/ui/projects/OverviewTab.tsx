@@ -64,16 +64,16 @@ export function OverviewTab({ project }: OverviewTabProps) {
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500">Status</span>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border text-amber-700 bg-amber-50 border-amber-200">
-              ● {project.status}
+              ● {project.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
             </span>
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500">Client</span>
-            <span className="font-medium text-gray-900">{project.client}</span>
+            <span className="font-medium text-gray-900">{project.client?.name ?? 'Unknown'}</span>
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500">Manager</span>
-            <span className="font-medium text-gray-900">{project.manager}</span>
+            <span className="font-medium text-gray-900">{project.manager ? `${project.manager.first_name} ${project.manager.last_name}` : 'Unassigned'}</span>
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500">Location</span>
@@ -85,7 +85,7 @@ export function OverviewTab({ project }: OverviewTabProps) {
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500">End</span>
-            <span className="font-medium text-gray-900">{project.dueDate}</span>
+            <span className="font-medium text-gray-900">{project.due_date}</span>
           </div>
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500">Crew Size</span>

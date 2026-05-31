@@ -368,15 +368,7 @@ export function SettingsEmployeeDetailClient({ employee: initialEmployee }: { em
               <Bell size={14} />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
             </button>
-            <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shrink-0">
-                <span className="text-white text-xs font-semibold">JD</span>
-              </div>
-              <div className="text-left leading-none">
-                <p className="text-xs font-semibold text-gray-800">John Doe</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">john.doe@email.com</p>
-              </div>
-            </div>
+            <UserHeaderBadge />
           </div>
         </header>
 

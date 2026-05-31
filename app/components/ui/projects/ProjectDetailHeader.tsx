@@ -13,9 +13,9 @@ interface ProjectDetailHeaderProps {
 export function ProjectDetailHeader({ project }: ProjectDetailHeaderProps) {
   
   let badgeColor = '';
-  if (project.status === 'Completed') {
+  if (project.status === 'completed') {
     badgeColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-  } else if (project.status === 'In Progress') {
+  } else if (project.status === 'in_progress') {
     badgeColor = 'text-amber-700 bg-amber-50 border-amber-200';
   } else {
     badgeColor = 'text-red-700 bg-red-50 border-red-200';
@@ -34,7 +34,7 @@ export function ProjectDetailHeader({ project }: ProjectDetailHeaderProps) {
 
       <div className="w-full h-80 relative rounded-2xl overflow-hidden mb-6 bg-gray-200 border border-gray-100 shadow-sm">
         <Image 
-          src={project.image} 
+          src={project.image_url} 
           alt={project.name}
           fill
           className="object-cover"
@@ -49,7 +49,7 @@ export function ProjectDetailHeader({ project }: ProjectDetailHeaderProps) {
         </div>
         <div className="flex items-center gap-3">
           <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold border ${badgeColor}`}>
-            ● {project.status}
+            ● {project.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
           </span>
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm bg-white">
             <Edit2 className="w-4 h-4" /> Edit

@@ -748,11 +748,9 @@ export function InvoicesClient({
         if ('error' in res) { showToast(`Error: ${res.error}`); return }
         const newInv: InvoiceRow = {
           id: res.id, code: res.code,
-          client_id: v.client_id,
           client_name: client?.name ?? 'Unknown',
           client_company: client?.company ?? null,
           client_email: client?.email ?? '',
-          project_id: v.project_id || null,
           project_name: project?.name ?? null,
           ...input,
           items: v.items.map((it, i) => ({ id: it._key, description: it.description, qty: it.qty, rate: it.rate, sort_order: i })),
@@ -823,7 +821,6 @@ export function InvoicesClient({
         if ('error' in res) { showToast(`Error: ${res.error}`); return }
         const newRec: RecurringRow = {
           id: res.id, code: res.code,
-          client_id: v.client_id,
           client_name: client?.name ?? 'Unknown',
           client_company: client?.company ?? null,
           ...input,

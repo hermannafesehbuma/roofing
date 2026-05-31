@@ -22,7 +22,7 @@ interface FormValues {
 interface Props {
   project: Project | null
   onClose: () => void
-  onSave: () => void
+  onSave: (updated: Project) => void
 }
 
 // Static lists replaced by Supabase lookups
@@ -167,10 +167,10 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
         image_url = null
       }
 
-      const res = await updateProject(project.id, {
+      const updateData = {
         name: values.name,
-        type: values.type,
-        status: values.status,
+        type: values.type as ProjectType,
+        status: values.status as ProjectStatus,
         location: values.location,
         description: values.description,
         start_date: values.startDate || null,
@@ -179,10 +179,12 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
         manager_id: values.manager_id || null,
         client_id: values.client_id || null,
         image_url,
-      })
+      }
+
+      const res = await updateProject(project.id, updateData)
 
       if ('error' in res) throw new Error(res.error)
-      onSave()
+      onSave({ ...project, ...updateData } as unknown as Project)
       onClose()
     } catch (error) {
       console.error('Error updating project:', error)
