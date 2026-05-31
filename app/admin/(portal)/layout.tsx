@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import Sidebar from './Sidebar'
 import PageAccessGuard from './PageAccessGuard'
 
