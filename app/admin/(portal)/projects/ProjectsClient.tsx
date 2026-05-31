@@ -8,7 +8,8 @@ import { FilterPopover } from '@/app/components/ui/FilterPopover';
 import { DeleteModal } from '@/app/components/ui/DeleteModal';
 import { NewProjectModal } from '@/app/components/ui/NewProjectModal';
 import { EditProjectModal } from '@/app/components/ui/EditProjectModal';
-import { KanbanSquare, List, Search, Download, Plus, Loader2 } from 'lucide-react';
+import { KanbanSquare, List, Search, Download, Plus, Loader2 } from 'lucide-react'
+import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge';
 import Image from 'next/image';
 import { getProjects, deleteProject } from './actions';
 
@@ -79,21 +80,7 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
             <p className="text-gray-500 text-sm mt-1">Manage all your projects, timelines, and team assignments in one place.</p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="text-right flex flex-col items-end">
-                <span className="text-sm font-semibold text-gray-900 block">John Doe</span>
-                <span className="text-xs text-gray-500 block">john.doe@peakroofing.com</span>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden relative border border-gray-100">
-                <Image 
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop" 
-                  alt="Avatar" 
-                  fill
-                  sizes="40px"
-                  className="object-cover"
-                />
-              </div>
-            </div>
+            <UserHeaderBadge />
           </div>
         </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from 'react'
 import { KanbanSquare, List, Calendar, Search, Plus, Check } from 'lucide-react'
+import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
 import {
   createTask, updateTask, deleteTask,
   type TaskRow, type ProjectOption, type AssigneeOption,
@@ -178,13 +179,7 @@ export function TasksClient({
             <p className="text-gray-500 text-xs mt-0.5">Track, assign, and manage all project tasks across your team.</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-900">John Doe</p>
-              <p className="text-xs text-gray-400">john.doe@peakroofing.com</p>
-            </div>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shrink-0">
-              <span className="text-white text-xs font-semibold">JD</span>
-            </div>
+            <UserHeaderBadge />
           </div>
         </div>
 

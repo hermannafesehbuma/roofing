@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { X, CalendarDays, ChevronDown, Plus, Loader2 } from 'lucide-react'
+import { X, CalendarDays, ChevronDown, Plus, Loader2, ImagePlus, Trash2 } from 'lucide-react'
 import type { Project, ProjectStatus, ProjectType } from '@/app/admin/(portal)/projects/data'
-import { getProjectOptions, updateProject } from '@/app/admin/(portal)/projects/actions'
+import { getProjectOptions, updateProject, uploadProjectImage } from '@/app/admin/(portal)/projects/actions'
 
 interface FormValues {
   name: string
@@ -68,6 +68,9 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
   const [managers, setManagers] = useState<{ id: string, name: string }[]>([])
   const [crewOptions, setCrewOptions] = useState<{ id: string, name: string }[]>([])
   const [isSaving, setIsSaving] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const crewRef = useRef<HTMLDivElement>(null)
 
@@ -85,12 +88,13 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
         budget: project.budget?.toString() || '',
         client_id: project.client_id || '',
         manager_id: project.manager_id || '',
-        crew: [], // Crew would come from project_members
+        crew: [],
       })
       setErrors({})
       setCrewInput('')
-      
-      // Fetch lookups
+      setImageFile(null)
+      setImagePreview((project as any).image_url ?? null)
+
       const fetchLookups = async () => {
         const { clients, managers, crew } = await getProjectOptions()
         setClients(clients)
@@ -100,6 +104,19 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
       fetchLookups()
     }
   }, [project])
+
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  function removeImage() {
+    setImageFile(null)
+    setImagePreview(null)
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }
 
   useEffect(() => {
     function h(e: MouseEvent) {
@@ -136,9 +153,20 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     if (!project) return
-    
+
     setIsSaving(true)
     try {
+      let image_url: string | null = (project as any).image_url ?? null
+      if (imageFile) {
+        const fd = new FormData()
+        fd.append('file', imageFile)
+        const uploadRes = await uploadProjectImage(fd)
+        if ('error' in uploadRes) throw new Error(uploadRes.error)
+        image_url = uploadRes.url
+      } else if (!imagePreview) {
+        image_url = null
+      }
+
       const res = await updateProject(project.id, {
         name: values.name,
         type: values.type,
@@ -150,6 +178,7 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
         budget: values.budget ? parseFloat(values.budget) : 0,
         manager_id: values.manager_id || null,
         client_id: values.client_id || null,
+        image_url,
       })
 
       if ('error' in res) throw new Error(res.error)
@@ -236,6 +265,33 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
                     rows={3}
                     className={`${inputCls()} resize-none`}
                   />
+                </div>
+
+                {/* Project Image */}
+                <div>
+                  <FieldLabel>Project Image</FieldLabel>
+                  <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                  {imagePreview ? (
+                    <div className="relative rounded-xl overflow-hidden border border-gray-200 h-36">
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 w-6 h-6 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="w-full h-24 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors"
+                    >
+                      <ImagePlus size={20} />
+                      <span className="text-xs">Click to upload image</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

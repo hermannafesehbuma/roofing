@@ -1,5 +1,6 @@
 import { Bell, Search } from 'lucide-react'
 import { getEmployees } from '../employees/actions'
+import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
 
 function DonutChart({ pct, color }: { pct: number; color: string }) {
   const r = 44
@@ -76,15 +77,7 @@ export default async function DashboardPage() {
             <Bell size={14} />
             <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
           </button>
-          <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-              <span className="text-white text-[10px] font-semibold">JD</span>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-800 leading-none">John Doe</p>
-              <p className="text-[10px] text-gray-400">Admin</p>
-            </div>
-          </div>
+          <UserHeaderBadge />
         </div>
       </header>
 

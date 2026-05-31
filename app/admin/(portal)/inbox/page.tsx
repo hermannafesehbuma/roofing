@@ -7,6 +7,7 @@ import {
    X, Phone, Mail, Calendar, DollarSign, Briefcase,
    CheckCheck, Check
 } from 'lucide-react'
+import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface User {
@@ -244,11 +245,7 @@ export default function InboxPage() {
                   <p className="text-gray-400 text-xs mt-0.5 font-medium">Team messages, project threads, and client communications.</p>
                </div>
                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                     <p className="text-sm font-extrabold text-gray-900">John Doe</p>
-                     <p className="text-[11px] text-gray-400">john.doe@peakroofing.com</p>
-                  </div>
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-black ring-2 ring-white shadow-sm">JD</div>
+                  <UserHeaderBadge />
                </div>
             </div>
          </div>

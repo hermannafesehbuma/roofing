@@ -388,9 +388,9 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
                   <FieldLabel>Assigned Manager</FieldLabel>
                   <div className="relative">
                     <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#0D1B2A]/10 focus-within:border-[#0D1B2A] transition-colors">
-                      {values.manager && (
+                      {values.manager_id && (
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center ml-3 shrink-0">
-                          <span className="text-white text-[9px] font-bold">{values.manager.split(' ').map((n) => n[0]).join('')}</span>
+                          <span className="text-white text-[9px] font-bold">{managers.find(m => m.id === values.manager_id)?.name.split(' ').map((n) => n[0]).join('')}</span>
                         </div>
                       )}
                       <select

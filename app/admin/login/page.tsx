@@ -3,17 +3,51 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
+import { loginUser } from './actions'
 
 export default function AdminLoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
-  const [role, setRole] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    router.push('/admin/dashboard')
+    setErrorMsg('')
+    setIsLoading(true)
+
+    try {
+      const res = await loginUser(email, password)
+
+      if (!res.success || !res.user) {
+        setErrorMsg(res.error || 'Authentication failed.')
+        setIsLoading(false)
+        return
+      }
+
+      localStorage.setItem('is_authenticated', 'true')
+      localStorage.setItem('user_role', res.user.role)
+      localStorage.setItem('user_email', res.user.email || email)
+      localStorage.setItem('user_first_name', res.user.firstName)
+      localStorage.setItem('user_last_name', res.user.lastName)
+
+      // Store permissions from database
+      if (res.permissions) {
+        localStorage.setItem('peak_permissions', JSON.stringify(res.permissions))
+      }
+      
+      // Dispatch events to notify other components immediately
+      window.dispatchEvent(new Event('auth-changed'))
+      window.dispatchEvent(new Event('role-changed'))
+      window.dispatchEvent(new Event('permissions-changed'))
+      
+      router.push('/admin/dashboard')
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An unexpected error occurred.')
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -33,30 +67,13 @@ export default function AdminLoginPage() {
             Access your dashboard and keep every project securely on track.
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Role */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
-              <div className="relative">
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full appearance-none border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/20 focus:border-[#0D1B2A]"
-                >
-                  <option value="">Select Role</option>
-                  <option value="admin">Admin</option>
-                  <option value="manager">Project Manager</option>
-                  <option value="crew">Crew Member</option>
-                  <option value="client">Client</option>
-                </select>
-                <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-              </div>
+          {errorMsg && (
+            <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-xs font-semibold text-red-600">
+              {errorMsg}
             </div>
+          )}
 
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
@@ -65,6 +82,7 @@ export default function AdminLoginPage() {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
                 className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/20 focus:border-[#0D1B2A]"
               />
             </div>
@@ -77,6 +95,7 @@ export default function AdminLoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
                   className="w-full border border-gray-200 rounded-lg px-4 py-3 pr-12 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/20 focus:border-[#0D1B2A]"
                 />
                 <button
