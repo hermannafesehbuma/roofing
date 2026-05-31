@@ -55,9 +55,8 @@ export default function AdminLoginPage() {
       {/* Left panel — form */}
       <div className="w-full lg:w-[45%] flex flex-col justify-center px-8 sm:px-14 lg:px-16 bg-white">
         <div className="max-w-sm w-full mx-auto">
-          {/* Logo */}
           <div className="mb-10">
-            <div className="inline-flex items-center justify-center w-11 h-11 bg-[#0D1B2A] rounded-md">
+            <div className="inline-flex items-center justify-center h-11 px-3.5 bg-[#0D1B2A] rounded-md">
               <span className="text-white font-bold text-xs tracking-widest">PEAK</span>
             </div>
           </div>

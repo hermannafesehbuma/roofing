@@ -14,18 +14,18 @@ export type PermissionRow = {
 
 const defaultPermissions: PermissionRow[] = [
   { id: 'create_projects', name: 'Create projects', category: 'Projects', admin: true, manager: false, staff: false, client: false },
-  { id: 'view_projects', name: 'View all projects', category: 'Projects', admin: true, manager: true, staff: false, client: false },
+  { id: 'view_projects', name: 'View all projects', category: 'Projects', admin: true, manager: true, staff: true, client: false },
   { id: 'edit_projects', name: 'Edit project details', category: 'Projects', admin: true, manager: false, staff: false, client: false },
   { id: 'add_staff', name: 'Add new staff', category: 'Staff', admin: true, manager: true, staff: false, client: false },
   { id: 'manage_staff_accounts', name: 'Manage staff accounts', category: 'Staff', admin: true, manager: true, staff: false, client: false },
   { id: 'export_reports', name: 'Export reports', category: 'Staff', admin: true, manager: true, staff: false, client: false },
-  { id: 'assign_crew', name: 'Assign crew member', category: 'Staff', admin: true, manager: true, staff: false, client: false },
+  { id: 'assign_crew', name: 'Assign crew member', category: 'Staff', admin: true, manager: true, staff: true, client: false },
   { id: 'access_invoicing', name: 'Access invoicing', category: 'Finance', admin: true, manager: true, staff: false, client: false },
   { id: 'create_task', name: 'Create Task', category: 'Task', admin: true, manager: true, staff: true, client: true },
-  { id: 'assign_task', name: 'Assign Task', category: 'Task', admin: true, manager: true, staff: false, client: false },
-  { id: 'view_task', name: 'View Task', category: 'Task', admin: true, manager: true, staff: false, client: false },
+  { id: 'assign_task', name: 'Assign Task', category: 'Task', admin: true, manager: true, staff: true, client: false },
+  { id: 'view_task', name: 'View Task', category: 'Task', admin: true, manager: true, staff: true, client: false },
   { id: 'add_lead', name: 'Add New Lead', category: 'CRM', admin: true, manager: false, staff: false, client: false },
-  { id: 'view_crm_leads', name: 'View CRM leads', category: 'CRM', admin: true, manager: false, staff: false, client: false },
+  { id: 'view_crm_leads', name: 'View CRM leads', category: 'CRM', admin: true, manager: false, staff: false, client: false }
 ]
 
 async function fetchPermissions(supabase: any): Promise<PermissionRow[]> {

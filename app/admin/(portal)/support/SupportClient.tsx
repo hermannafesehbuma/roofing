@@ -465,14 +465,14 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                    <th className="text-left px-6 py-4">Ticket ID</th>
-                    <th className="text-left px-6 py-4">Client</th>
-                    <th className="text-left px-6 py-4 w-1/3">Complaint</th>
-                    <th className="text-center px-4 py-4 w-28">Status</th>
-                    <th className="text-center px-4 py-4 w-28">Priority</th>
-                    <th className="text-left px-6 py-4">Agent</th>
-                    <th className="text-left px-6 py-4">Date Submitted</th>
-                    <th className="text-center px-4 py-4 w-16">Actions</th>
+                    <th className="text-left px-6 py-4 whitespace-nowrap">Ticket ID</th>
+                    <th className="text-left px-6 py-4 whitespace-nowrap">Client</th>
+                    <th className="text-left px-6 py-4 w-1/3 whitespace-nowrap">Complaint</th>
+                    <th className="text-center px-4 py-4 w-28 whitespace-nowrap">Status</th>
+                    <th className="text-center px-4 py-4 w-28 whitespace-nowrap">Priority</th>
+                    <th className="text-left px-6 py-4 whitespace-nowrap">Agent</th>
+                    <th className="text-left px-6 py-4 whitespace-nowrap">Date Submitted</th>
+                    <th className="text-center px-4 py-4 w-16 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">

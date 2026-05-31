@@ -163,11 +163,11 @@ export default async function DashboardPage() {
               </div>
               <p className="text-[10px] text-gray-400 mt-1">March – April 2026 · -13%</p>
             </div>
-            <div className="flex items-end gap-2 h-24">
+            <div className="flex items-end justify-between gap-3 h-24 mt-4">
               {monthlyRevenue.map(({ month, val }) => (
-                <div key={month} className="flex flex-col items-center gap-1.5">
-                  <div className="w-8 bg-gray-100 rounded-t-md relative overflow-hidden" style={{ height: 80 }}>
-                    <div className="absolute bottom-0 w-full rounded-t-md" style={{ height: `${val}%`, background: month === 'Apr' ? '#0D1B2A' : '#E5E7EB' }} />
+                <div key={month} className="flex flex-col items-center gap-1.5 flex-1">
+                  <div className="w-full max-w-[48px] bg-gray-100 rounded-t-md relative overflow-hidden" style={{ height: 80 }}>
+                    <div className="absolute bottom-0 w-full rounded-t-md transition-all duration-500" style={{ height: `${val}%`, background: month === 'Apr' ? '#0D1B2A' : '#E5E7EB' }} />
                   </div>
                   <span className="text-[10px] text-gray-400">{month}</span>
                 </div>

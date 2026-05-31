@@ -400,8 +400,11 @@ export function SettingsClient({
 
   // Permissions state
   const [permissions, setPermissions] = useState<Permission[]>(initialPermissions)
+  const [userRole, setUserRole] = useState<string>('admin')
 
   useEffect(() => {
+    const r = localStorage.getItem('user_role')
+    if (r) setUserRole(r)
     const stored = localStorage.getItem('peak_permissions')
     if (stored) {
       try {
@@ -412,6 +415,28 @@ export function SettingsClient({
     }
   }, [])
 
+  const allowedTabs = React.useMemo(() => {
+    const hasPerm = (permId: string) => {
+      if (userRole === 'admin') return true
+      const p = permissions.find(x => x.id === permId)
+      if (!p) return false
+      return !!p[userRole as keyof Permission]
+    }
+    const tabs: ('Staff Directory' | 'Permissions' | 'Audit log' | 'Security')[] = []
+    if (hasPerm('manage_staff_accounts')) tabs.push('Staff Directory')
+    if (userRole === 'admin') {
+      tabs.push('Permissions')
+      tabs.push('Audit log')
+    }
+    tabs.push('Security')
+    return tabs
+  }, [userRole, permissions])
+
+  useEffect(() => {
+    if (allowedTabs.length > 0 && !allowedTabs.includes(activeTab)) {
+      setActiveTab(allowedTabs[0])
+    }
+  }, [allowedTabs, activeTab])
   // Audit log state
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(initialAuditLogs)
 
@@ -700,7 +725,7 @@ export function SettingsClient({
           {/* Sub Navigation Tabs */}
           <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden flex flex-col">
             <div className="flex border-b border-gray-100 px-6">
-              {(['Staff Directory', 'Permissions', 'Audit log', 'Security'] as const).map((tab) => (
+              {allowedTabs.map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}

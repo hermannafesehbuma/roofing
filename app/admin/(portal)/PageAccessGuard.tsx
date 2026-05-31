@@ -7,16 +7,16 @@ import { ShieldAlert, ArrowLeft } from 'lucide-react'
 // Copy of default permissions fallback
 const defaultPermissions = [
   { id: 'create_projects', name: 'Create projects', category: 'Projects', admin: true, manager: false, staff: false, client: false },
-  { id: 'view_projects', name: 'View all projects', category: 'Projects', admin: true, manager: true, staff: false, client: false },
+  { id: 'view_projects', name: 'View all projects', category: 'Projects', admin: true, manager: true, staff: true, client: false },
   { id: 'edit_projects', name: 'Edit project details', category: 'Projects', admin: true, manager: false, staff: false, client: false },
   { id: 'add_staff', name: 'Add new staff', category: 'Staff', admin: true, manager: true, staff: false, client: false },
   { id: 'manage_staff_accounts', name: 'Manage staff accounts', category: 'Staff', admin: true, manager: true, staff: false, client: false },
   { id: 'export_reports', name: 'Export reports', category: 'Staff', admin: true, manager: true, staff: false, client: false },
-  { id: 'assign_crew', name: 'Assign crew member', category: 'Staff', admin: true, manager: true, staff: false, client: false },
+  { id: 'assign_crew', name: 'Assign crew member', category: 'Staff', admin: true, manager: true, staff: true, client: false },
   { id: 'access_invoicing', name: 'Access invoicing', category: 'Finance', admin: true, manager: true, staff: false, client: true },
   { id: 'create_task', name: 'Create Task', category: 'Task', admin: true, manager: true, staff: true, client: true },
-  { id: 'assign_task', name: 'Assign Task', category: 'Task', admin: true, manager: true, staff: false, client: false },
-  { id: 'view_task', name: 'View Task', category: 'Task', admin: true, manager: true, staff: false, client: false },
+  { id: 'assign_task', name: 'Assign Task', category: 'Task', admin: true, manager: true, staff: true, client: false },
+  { id: 'view_task', name: 'View Task', category: 'Task', admin: true, manager: true, staff: true, client: false },
   { id: 'add_lead', name: 'Add New Lead', category: 'CRM', admin: true, manager: false, staff: false, client: false },
   { id: 'view_crm_leads', name: 'View CRM leads', category: 'CRM', admin: true, manager: false, staff: false, client: false }
 ]
@@ -106,13 +106,8 @@ export default function PageAccessGuard({ children }: { children: React.ReactNod
     return <Fragment>{children}</Fragment>
   }
 
-  // Settings is admin only
-  if (pathname.startsWith('/admin/settings') && role !== 'admin') {
-    return <AccessRestrictedView pageName="Settings" onBack={() => router.push('/admin/dashboard')} />
-  }
-
-  // Dashboard and Support are accessible to all authenticated users
-  if (pathname.startsWith('/admin/dashboard') || pathname.startsWith('/admin/support')) {
+  // Dashboard, Support, and Settings are accessible to all authenticated users
+  if (pathname.startsWith('/admin/dashboard') || pathname.startsWith('/admin/support') || pathname.startsWith('/admin/settings')) {
     return <Fragment>{children}</Fragment>
   }
 

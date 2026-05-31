@@ -499,7 +499,7 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
               {/* Header */}
               <div className="flex justify-between items-start mb-8">
                 <div>
-                  <div className="w-10 h-10 bg-gray-900 text-white rounded-lg flex items-center justify-center font-black tracking-widest text-xs mb-2">PEAK</div>
+                  <div className="h-10 px-3.5 bg-gray-900 text-white rounded-lg flex items-center justify-center font-black tracking-widest text-xs mb-2">PEAK</div>
                   <h3 className="font-bold text-gray-900 text-base tracking-tight">PEAK</h3>
                   <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">ROOFING CO.</p>
                 </div>
