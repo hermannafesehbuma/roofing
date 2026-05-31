@@ -13,6 +13,7 @@ import {
   createPolicy, updatePolicy, deletePolicy,
   createCertification, updateCertification, deleteCertification,
 } from './actions'
+import { createClient } from '@/lib/supabase/client'
 
 // ─── Display maps ──────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<DbPolicyStatus, string> = {
@@ -87,6 +88,7 @@ interface PolicyFormValues {
   effective_date: string
   expiry_date: string
   renewal_reminder: number
+  file?: File | null
 }
 
 interface CertFormValues {
@@ -97,6 +99,7 @@ interface CertFormValues {
   department: string
   issue_date: string
   expiry_date: string
+  file?: File | null
 }
 
 interface Filters {
@@ -754,10 +757,19 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
     effective_date: policy?.effective_date ?? '',
     expiry_date: policy?.expiry_date ?? '',
     renewal_reminder: policy?.renewal_reminder ?? 90,
+    file: null,
   })
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   function set<K extends keyof PolicyFormValues>(k: K, val: PolicyFormValues[K]) {
     setV(prev => ({ ...prev, [k]: val }))
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      set('file', e.target.files[0])
+    }
   }
 
   const canSave = v.policy_holder.trim() && v.coverage_type && v.insurer.trim() && v.expiry_date
@@ -834,12 +846,17 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-4">Document Upload</h3>
               <p className="text-xs text-gray-500 mb-2">Upload COI Document (PDF)</p>
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors">
+              <input type="file" ref={fileInputRef} hidden accept=".pdf,image/*" onChange={handleFileChange} />
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+              >
                 <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative mb-2">
                   <FileText className="text-red-500" size={24} />
                   <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[8px] font-bold px-1 rounded">PDF</span>
                 </div>
-                <span className="text-xs text-gray-500">Click to upload PDF</span>
+                <span className="text-xs font-medium text-gray-800">{v.file ? v.file.name : 'Click to upload document'}</span>
+                {v.file && <span className="text-[10px] text-gray-400 mt-1">Ready to upload</span>}
               </div>
             </div>
           </div>
@@ -872,10 +889,19 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
     department: cert?.department ?? '',
     issue_date: cert?.issue_date ?? '',
     expiry_date: cert?.expiry_date ?? '',
+    file: null,
   })
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   function set<K extends keyof CertFormValues>(k: K, val: CertFormValues[K]) {
     setV(prev => ({ ...prev, [k]: val }))
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      set('file', e.target.files[0])
+    }
   }
 
   const canSave = v.user_id && v.cert_name.trim() && v.expiry_date
@@ -942,12 +968,17 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-4">Document Upload</h3>
               <p className="text-xs text-gray-500 mb-2">Upload Certificate (PDF / Image)</p>
-              <div className="border border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center bg-gray-50 text-center min-h-[140px]">
+              <input type="file" ref={fileInputRef} hidden accept=".pdf,image/*" onChange={handleFileChange} />
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors min-h-[140px]"
+              >
                 <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative mb-2">
                   <FileText className="text-red-500" size={22} />
                   <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[7px] font-bold px-1 rounded">PDF</span>
                 </div>
-                <p className="text-xs text-gray-500 font-medium">Click to upload</p>
+                <p className="text-xs font-medium text-gray-800">{v.file ? v.file.name : 'Click to upload document'}</p>
+                {v.file && <span className="text-[10px] text-gray-400 mt-1">Ready to upload</span>}
               </div>
             </div>
           </div>
@@ -990,8 +1021,27 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
     setTimeout(() => setToast(null), 3000)
   }
 
+  const supabase = createClient()
+
+  async function uploadDocument(file: File): Promise<string | null> {
+    const ext = file.name.split('.').pop()
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+    const { data, error } = await supabase.storage.from('insurance_documents').upload(fileName, file)
+    if (error) {
+      console.error('Upload error:', error)
+      showToast(`Upload failed: ${error.message}`)
+      return null
+    }
+    return data.path
+  }
+
   function handleSavePolicy(values: PolicyFormValues) {
     startTransition(async () => {
+      let file_url = null
+      if (values.file) {
+        file_url = await uploadDocument(values.file)
+      }
+
       const coverage_amount = values.coverage_amount ? (parseFloat(values.coverage_amount) || null) : null
       const days = values.expiry_date ? daysDiff(values.expiry_date) : 0
       const status = computeStatus(days, values.renewal_reminder)
@@ -1007,6 +1057,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
           expiry_date: values.expiry_date,
           renewal_reminder: values.renewal_reminder,
           status,
+          ...(file_url ? { file_url } : {})
         })
         if (res?.error) { showToast(`Error: ${res.error}`); return }
         setPolicies(prev => prev.map(p => p.id === values.id ? {
@@ -1034,6 +1085,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
           expiry_date: values.expiry_date,
           renewal_reminder: values.renewal_reminder,
           status,
+          file_url,
         })
         if ('error' in res) { showToast(`Error: ${res.error}`); return }
         const newPolicy: PolicyRow = {
@@ -1059,6 +1111,11 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
 
   function handleSaveCert(values: CertFormValues) {
     startTransition(async () => {
+      let file_url = null
+      if (values.file) {
+        file_url = await uploadDocument(values.file)
+      }
+
       const employee = employees.find(e => e.id === values.user_id)
       const days = values.expiry_date ? daysDiff(values.expiry_date) : 0
       const status = computeCertStatus(days)
@@ -1072,6 +1129,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
           issue_date: values.issue_date,
           expiry_date: values.expiry_date,
           status,
+          ...(file_url ? { file_url } : {})
         })
         if (res?.error) { showToast(`Error: ${res.error}`); return }
         setCerts(prev => prev.map(c => c.id === values.certId ? {
@@ -1098,6 +1156,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
           issue_date: values.issue_date,
           expiry_date: values.expiry_date,
           status,
+          file_url,
         })
         if ('error' in res) { showToast(`Error: ${res.error}`); return }
         const newCert: CertRow = {

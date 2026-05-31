@@ -718,46 +718,51 @@ export function InvoicesClient({
   // ─── Invoice save ────────────────────────────────────────────────────────────
   function handleSaveInvoice(v: InvoiceFormValues, asDraft: boolean) {
     startTransition(async () => {
-      const input = {
-        client_id:   v.client_id,
-        project_id:  v.project_id || null,
-        issued_date: v.issued_date || new Date().toISOString().split('T')[0],
-        due_date:    v.due_date,
-        status:      (asDraft ? 'draft' : 'sent') as DbInvoiceStatus,
-        tax:         v.tax,
-        notes:       null,
-        items:       v.items.map(({ description, qty, rate }) => ({ description, qty, rate })),
-      }
-      const client  = clients.find(c => c.id === v.client_id)
-      const project = projects.find(p => p.id === v.project_id)
-
-      if (v.invoiceId) {
-        const res = await updateInvoice(v.invoiceId, input)
-        if ('error' in res) { showToast(`Error: ${res.error}`); return }
-        setInvoices(prev => prev.map(inv => inv.id !== v.invoiceId ? inv : {
-          ...inv, ...input,
-          client_name: client?.name ?? inv.client_name,
-          client_company: client?.company ?? inv.client_company,
-          client_email: client?.email ?? inv.client_email,
-          project_name: project?.name ?? inv.project_name,
-          items: v.items.map((it, i) => ({ id: it._key, description: it.description, qty: it.qty, rate: it.rate, sort_order: i })),
-        }))
-        setModal({ type: 'success', title: 'Invoice updated' })
-      } else {
-        const res = await createInvoice(input)
-        if ('error' in res) { showToast(`Error: ${res.error}`); return }
-        const newInv: InvoiceRow = {
-          id: res.id, code: res.code,
-          client_name: client?.name ?? 'Unknown',
-          client_company: client?.company ?? null,
-          client_email: client?.email ?? '',
-          project_name: project?.name ?? null,
-          ...input,
-          items: v.items.map((it, i) => ({ id: it._key, description: it.description, qty: it.qty, rate: it.rate, sort_order: i })),
-          created_at: new Date().toISOString(),
+      try {
+        const input = {
+          client_id:   v.client_id,
+          project_id:  v.project_id || null,
+          issued_date: v.issued_date || new Date().toISOString().split('T')[0],
+          due_date:    v.due_date,
+          status:      (asDraft ? 'draft' : 'sent') as DbInvoiceStatus,
+          tax:         v.tax,
+          notes:       null,
+          items:       v.items.map(({ description, qty, rate }) => ({ description, qty, rate })),
         }
-        setInvoices(prev => [newInv, ...prev])
-        setModal({ type: 'success', title: asDraft ? 'Invoice saved as draft' : 'Invoice sent successfully' })
+        const client  = clients.find(c => c.id === v.client_id)
+        const project = projects.find(p => p.id === v.project_id)
+
+        if (v.invoiceId) {
+          const res = await updateInvoice(v.invoiceId, input)
+          if ('error' in res) { showToast(`Error: ${res.error}`); return }
+          setInvoices(prev => prev.map(inv => inv.id !== v.invoiceId ? inv : {
+            ...inv, ...input,
+            client_name: client?.name ?? inv.client_name,
+            client_company: client?.company ?? inv.client_company,
+            client_email: client?.email ?? inv.client_email,
+            project_name: project?.name ?? inv.project_name,
+            items: v.items.map((it, i) => ({ id: it._key, description: it.description, qty: it.qty, rate: it.rate, sort_order: i })),
+          }))
+          setModal({ type: 'success', title: 'Invoice updated' })
+        } else {
+          const res = await createInvoice(input)
+          if ('error' in res) { showToast(`Error: ${res.error}`); return }
+          const newInv: InvoiceRow = {
+            id: (res as any).id, code: (res as any).code,
+            client_name: client?.name ?? 'Unknown',
+            client_company: client?.company ?? null,
+            client_email: client?.email ?? '',
+            project_name: project?.name ?? null,
+            ...input,
+            items: v.items.map((it, i) => ({ id: it._key, description: it.description, qty: it.qty, rate: it.rate, sort_order: i })),
+            created_at: new Date().toISOString(),
+          }
+          setInvoices(prev => [newInv, ...prev])
+          setModal({ type: 'success', title: asDraft ? 'Invoice saved as draft' : 'Invoice sent successfully' })
+        }
+      } catch (e: any) {
+        console.error('Invoice save error:', e)
+        showToast('An unexpected error occurred while saving.')
       }
     })
   }

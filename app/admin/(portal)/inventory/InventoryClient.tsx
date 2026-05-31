@@ -514,27 +514,43 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
     const editing = modal.type === 'addItem' ? modal.item : undefined
     if (editing) {
       startTransition(async () => {
-        const res = await updateInventoryItem(editing.id, input)
-        if (!('error' in res)) {
-          setItems(prev => prev.map(i => i.id === editing.id
-            ? { ...i, ...input, project_name: projects.find(p => p.id === input.project_id)?.name ?? null }
-            : i))
-          setModal({ type: 'success', message: 'Item updated successfully' })
+        try {
+          const res = await updateInventoryItem(editing.id, input)
+          if (!('error' in res)) {
+            setItems(prev => prev.map(i => i.id === editing.id
+              ? { ...i, ...input, project_name: projects.find(p => p.id === input.project_id)?.name ?? null }
+              : i))
+            setModal({ type: 'success', message: 'Item updated successfully' })
+          } else {
+            console.error('Update err:', res.error)
+            alert(`Error: ${res.error}`)
+          }
+        } catch (err: any) {
+          console.error(err)
+          alert('Update failed: ' + err.message)
         }
       })
     } else {
       startTransition(async () => {
-        const res = await createInventoryItem(input)
-        if ('id' in res) {
-          const newItem: InventoryItemRow = {
-            ...input,
-            id: res.id,
-            code: res.code ?? '',
-            project_name: projects.find(p => p.id === input.project_id)?.name ?? null,
-            created_at: new Date().toISOString(),
+        try {
+          const res = await createInventoryItem(input)
+          if ('id' in res) {
+            const newItem: InventoryItemRow = {
+              ...input,
+              id: res.id,
+              code: res.code ?? '',
+              project_name: projects.find(p => p.id === input.project_id)?.name ?? null,
+              created_at: new Date().toISOString(),
+            }
+            setItems(prev => [newItem, ...prev])
+            setModal({ type: 'success', message: 'Item added successfully' })
+          } else {
+            console.error('Create err:', res.error)
+            alert(`Error: ${res.error}`)
           }
-          setItems(prev => [newItem, ...prev])
-          setModal({ type: 'success', message: 'Item added successfully' })
+        } catch (err: any) {
+          console.error(err)
+          alert('Create failed: ' + err.message)
         }
       })
     }

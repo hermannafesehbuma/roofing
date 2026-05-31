@@ -37,17 +37,6 @@ export type UsageLogRow = {
   created_at:   string
 }
 
-async function nextCode(admin: ReturnType<typeof createAdminClient>) {
-  const { data } = await admin
-    .from('inventory_items')
-    .select('code')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  const last = (data as any)?.code ? parseInt((data as any).code.replace(/\D/g, '')) : 0
-  return `SKU-${String((isNaN(last) ? 0 : last) + 1).padStart(4, '0')}`
-}
-
 // ─── Queries ──────────────────────────────────────────────────────────────────
 export async function getInventoryItems(): Promise<InventoryItemRow[]> {
   const admin = createAdminClient()
@@ -60,7 +49,7 @@ export async function getInventoryItems(): Promise<InventoryItemRow[]> {
 
   return (data ?? []).map((row: any) => ({
     id:              row.id,
-    code:            row.code,
+    code:            row.sku, // map code to sku since DB does not have code
     name:            row.name,
     sku:             row.sku,
     category:        row.category,
@@ -128,17 +117,16 @@ export type CreateInventoryInput = {
 
 export async function createInventoryItem(input: CreateInventoryInput) {
   const admin = createAdminClient()
-  const code  = await nextCode(admin)
 
   const { data, error } = await admin
     .from('inventory_items')
-    .insert({ ...input, code })
-    .select('id')
+    .insert({ ...input })
+    .select('id, sku')
     .single()
 
   if (error) return { error: error.message }
   revalidatePath('/admin/inventory')
-  return { id: data.id, code }
+  return { id: data.id, code: data.sku }
 }
 
 export async function updateInventoryItem(id: string, input: Partial<CreateInventoryInput>) {

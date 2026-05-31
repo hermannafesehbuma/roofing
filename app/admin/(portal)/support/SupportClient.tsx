@@ -20,7 +20,8 @@ import {
   MapPin,
   Calendar,
   AlertTriangle,
-  FolderOpen
+  FolderOpen,
+  Plus
 } from 'lucide-react'
 import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
 import {
@@ -29,7 +30,9 @@ import {
   TicketPriority,
   ChatMessage,
   saveTicketDetails,
-  addChatMessage
+  addChatMessage,
+  createSupportTicket,
+  CreateSupportTicketInput
 } from './actions'
 
 type SupportClientProps = {
@@ -59,6 +62,16 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
   const [filterPriority, setFilterPriority] = useState<TicketPriority | null>(null)
   const [showFilterPopover, setShowFilterPopover] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+
+  // New Ticket state
+  const [showNewTicketModal, setShowNewTicketModal] = useState(false)
+  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false)
+  const [newTicketData, setNewTicketData] = useState<CreateSupportTicketInput>({
+    type: 'General Inquiry',
+    priority: 'medium',
+    location: '',
+    complaint: ''
+  })
 
   // Chat message input state
   const [newMessageText, setNewMessageText] = useState('')
@@ -160,10 +173,10 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
         notes: drawerNotes
       })
 
-      if (response.success) {
+      if (response.success && response.ticket) {
         // Update both the list and the active selection
         setTickets((prev) =>
-          prev.map((t) => (t.id === selectedTicket.id ? response.ticket : t))
+          prev.map((t) => (t.id === selectedTicket.id ? response.ticket! : t))
         )
         setSelectedTicket(response.ticket)
         setShowDetailsDrawer(false)
@@ -191,11 +204,11 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
         text: textToSend
       })
 
-      if (response.success) {
+      if (response.success && response.chatMessage) {
         const updatedTicket = {
           ...selectedTicket,
           messages: [...selectedTicket.messages, response.chatMessage]
-        }
+        } as SupportTicket
         setTickets((prev) =>
           prev.map((t) => (t.id === selectedTicket.id ? updatedTicket : t))
         )
@@ -222,8 +235,8 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
         notes: ticket.notes
       })
 
-      if (response.success) {
-        setTickets((prev) => prev.map((t) => (t.id === ticketId ? response.ticket : t)))
+      if (response.success && response.ticket) {
+        setTickets((prev) => prev.map((t) => (t.id === ticketId ? response.ticket! : t)))
         if (selectedTicket && selectedTicket.id === ticketId) {
           setSelectedTicket(response.ticket)
         }
@@ -234,6 +247,31 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
     } catch (e) {
       console.error(e)
       showToast('Failed to update status', 'error')
+    }
+  }
+
+  // Handle Create Ticket
+  const handleCreateTicket = async () => {
+    if (!newTicketData.complaint.trim() || !newTicketData.location.trim()) {
+      showToast('Please fill out all required fields', 'error')
+      return
+    }
+
+    setIsSubmittingTicket(true)
+    try {
+      const response = await createSupportTicket(newTicketData)
+      if (response.error) {
+        showToast(response.error, 'error')
+      } else {
+        showToast('Ticket created successfully!', 'success')
+        setShowNewTicketModal(false)
+        setNewTicketData({ type: 'General Inquiry', priority: 'medium', location: '', complaint: '' })
+        // A full page refresh or server action revalidatePath will handle appending the ticket.
+      }
+    } catch (e) {
+      showToast('Failed to create ticket', 'error')
+    } finally {
+      setIsSubmittingTicket(true) // will be reset when component unmounts or modal closes
     }
   }
 
@@ -262,7 +300,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
               </button>
               <div>
                 <h1 className="text-lg font-bold text-gray-900 leading-tight">
-                  {selectedTicket.id}
+                  {selectedTicket.code}
                 </h1>
                 <p className="text-[10px] text-gray-400 font-semibold mt-0.5">
                   Assignee: {selectedTicket.agentName}
@@ -271,7 +309,15 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
             </div>
           ) : (
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Support Tickets</h1>
+              <div className="flex items-center gap-4">
+                <h1 className="text-xl font-bold text-gray-900">Support Tickets</h1>
+                <button 
+                  onClick={() => setShowNewTicketModal(true)}
+                  className="bg-[#0D1B2A] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#162437] transition-colors flex items-center gap-1.5"
+                >
+                  <Plus size={14} /> New Ticket
+                </button>
+              </div>
               <p className="text-xs text-gray-400 mt-0.5">Manage and respond to user support requests.</p>
             </div>
           )}
@@ -440,7 +486,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                     paginatedTickets.map((t) => (
                       <tr key={t.id} className="hover:bg-gray-50/30 transition-colors">
                         {/* ID */}
-                        <td className="px-6 py-4 font-bold text-gray-900">{t.id}</td>
+                        <td className="px-6 py-4 font-bold text-gray-900">{t.code}</td>
 
                         {/* Client */}
                         <td className="px-6 py-4">
@@ -1038,6 +1084,91 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
           )}
         </div>
       )}
+
+      {/* NEW TICKET MODAL */}
+      {showNewTicketModal && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={() => setShowNewTicketModal(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#F8FAFC]">
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">Create Support Ticket</h2>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Submit a new request or issue to the support team</p>
+                </div>
+                <button onClick={() => setShowNewTicketModal(false)} className="p-1.5 rounded-full hover:bg-gray-200 text-gray-400">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-6 space-y-5 flex-1 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Issue Type</label>
+                    <select
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 bg-white"
+                      value={newTicketData.type}
+                      onChange={(e) => setNewTicketData({ ...newTicketData, type: e.target.value })}
+                    >
+                      <option value="General Inquiry">General Inquiry</option>
+                      <option value="Technical Issue">Technical Issue</option>
+                      <option value="Billing Issue">Billing Issue</option>
+                      <option value="Feature Request">Feature Request</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Priority</label>
+                    <select
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 bg-white"
+                      value={newTicketData.priority}
+                      onChange={(e) => setNewTicketData({ ...newTicketData, priority: e.target.value as TicketPriority })}
+                    >
+                      <option value="low">Low Priority</option>
+                      <option value="medium">Medium Priority</option>
+                      <option value="high">High Priority</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Location / Context</label>
+                  <input
+                    type="text"
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500"
+                    placeholder="e.g. Project A, Dashboard, Payment Page"
+                    value={newTicketData.location}
+                    onChange={(e) => setNewTicketData({ ...newTicketData, location: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Description</label>
+                  <textarea
+                    rows={4}
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 resize-none"
+                    placeholder="Please describe your issue in detail..."
+                    value={newTicketData.complaint}
+                    onChange={(e) => setNewTicketData({ ...newTicketData, complaint: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-[#F8FAFC]">
+                <button
+                  onClick={() => setShowNewTicketModal(false)}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateTicket}
+                  className="px-4 py-2 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSubmittingTicket && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  Submit Ticket
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
   )
 }

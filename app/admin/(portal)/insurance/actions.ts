@@ -147,6 +147,7 @@ export type CreatePolicyInput = {
   expiry_date: string
   renewal_reminder: number
   status: DbPolicyStatus
+  file_url: string | null
 }
 
 export async function createPolicy(input: CreatePolicyInput) {
@@ -187,6 +188,7 @@ export type CreateCertInput = {
   issue_date: string
   expiry_date: string
   status: DbCertStatus
+  file_url: string | null
 }
 
 export async function createCertification(input: CreateCertInput) {

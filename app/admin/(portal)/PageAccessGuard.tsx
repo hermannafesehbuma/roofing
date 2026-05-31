@@ -13,7 +13,7 @@ const defaultPermissions = [
   { id: 'manage_staff_accounts', name: 'Manage staff accounts', category: 'Staff', admin: true, manager: true, staff: false, client: false },
   { id: 'export_reports', name: 'Export reports', category: 'Staff', admin: true, manager: true, staff: false, client: false },
   { id: 'assign_crew', name: 'Assign crew member', category: 'Staff', admin: true, manager: true, staff: false, client: false },
-  { id: 'access_invoicing', name: 'Access invoicing', category: 'Finance', admin: true, manager: true, staff: false, client: false },
+  { id: 'access_invoicing', name: 'Access invoicing', category: 'Finance', admin: true, manager: true, staff: false, client: true },
   { id: 'create_task', name: 'Create Task', category: 'Task', admin: true, manager: true, staff: true, client: true },
   { id: 'assign_task', name: 'Assign Task', category: 'Task', admin: true, manager: true, staff: false, client: false },
   { id: 'view_task', name: 'View Task', category: 'Task', admin: true, manager: true, staff: false, client: false },
