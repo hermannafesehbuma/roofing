@@ -1,134 +1,214 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Filter, Search } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ListFilter, Search, ChevronDown } from 'lucide-react';
 import { ProjectStatus, ProjectType } from '@/app/admin/(portal)/projects/data';
 
+export type ProjectFilters = {
+  status: ProjectStatus[];
+  type: ProjectType[];
+  managerIds: string[];
+};
+
+export type FilterManager = { id: string; name: string; avatarUrl?: string };
+
 interface FilterPopoverProps {
-  onFilterChange: (filters: { status: ProjectStatus[], type: ProjectType[], manager: string }) => void;
+  managers: FilterManager[];
+  filters: ProjectFilters;
+  onFilterChange: (filters: ProjectFilters) => void;
 }
 
-export function FilterPopover({ onFilterChange }: FilterPopoverProps) {
+const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'on_hold', label: 'On Hold' },
+  { value: 'completed', label: 'Completed' },
+];
+
+const TYPE_OPTIONS: { value: ProjectType; label: string }[] = [
+  { value: 'residential', label: 'Residential' },
+  { value: 'commercial', label: 'Commercial' },
+  { value: 'industrial', label: 'Industrial' },
+];
+
+function toggle<T>(list: T[], value: T): T[] {
+  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+function Pill({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-2.5 py-1 text-[11px] rounded-full border transition-colors ${
+        selected
+          ? 'bg-[#0D1B2A]/5 border-[#0D1B2A]/25 text-[#0D1B2A] font-medium'
+          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function GroupLabel({ children }: { children: React.ReactNode }) {
+  return <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">{children}</p>;
+}
+
+export function FilterPopover({ managers, filters, onFilterChange }: FilterPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [managerListOpen, setManagerListOpen] = useState(false);
+  const [managerSearch, setManagerSearch] = useState('');
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const [selectedStatus, setSelectedStatus] = useState<ProjectStatus[]>([]);
-  const [selectedType, setSelectedType] = useState<ProjectType[]>([]);
-  const [managerSearch, setManagerSearch] = useState('');
+  const activeCount = filters.status.length + filters.type.length + filters.managerIds.length;
 
-  // Sample managers for the mockup
-  const managers = ['Karen Brooks', 'Michael Chen', 'Aisha Patel', 'Liam O\'Sullivan', 'Nina Rodriguez', 'Derek Owens', 'David Park'];
-  
-  const filteredManagers = managers.filter(m => m.toLowerCase().includes(managerSearch.toLowerCase()));
+  const filteredManagers = useMemo(
+    () => managers.filter((m) => m.name.toLowerCase().includes(managerSearch.trim().toLowerCase())),
+    [managers, managerSearch]
+  );
+
+  const selectedManagerLabel = useMemo(() => {
+    const picked = managers.filter((m) => filters.managerIds.includes(m.id));
+    if (picked.length === 0) return null;
+    if (picked.length === 1) return picked[0].name;
+    return `${picked[0].name} +${picked.length - 1}`;
+  }, [managers, filters.managerIds]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setManagerListOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') { setIsOpen(false); setManagerListOpen(false); }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
-
-  const toggleStatus = (status: ProjectStatus) => {
-    setSelectedStatus(prev => 
-      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
-    );
-  };
-
-  const toggleType = (type: ProjectType) => {
-    setSelectedType(prev => 
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    );
-  };
-
-  // We notify parent when filters change. For full implementation, adding "Apply" button or auto-apply.
-  // We'll auto-apply for simplicity.
-  useEffect(() => {
-    onFilterChange({ status: selectedStatus, type: selectedType, manager: '' }); 
-    // Manager single-select could be implemented if needed, but mockup shows a list with checkboxes/radios.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStatus, selectedType]);
 
   return (
     <div className="relative" ref={popoverRef}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 bg-white shadow-sm font-medium"
+      <button
+        onClick={() => setIsOpen((v) => !v)}
+        className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-xs transition-colors ${
+          isOpen || activeCount > 0 ? 'border-gray-300 bg-gray-50 text-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+        }`}
       >
-        <Filter className="w-4 h-4" /> Filter
+        <ListFilter size={13} /> Filter
+        {activeCount > 0 && (
+          <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#0D1B2A] text-white text-[10px] font-semibold flex items-center justify-center">
+            {activeCount}
+          </span>
+        )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-4 z-50">
-          <div className="mb-4">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2 px-1">Status</h4>
-            <div className="flex flex-wrap gap-2">
-              {['In Progress', 'On Hold', 'Completed'].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => toggleStatus(s as ProjectStatus)}
-                  className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
-                    selectedStatus.includes(s as ProjectStatus) 
-                      ? 'bg-navy/5 border-navy/20 text-[#0A1629] font-medium' 
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  {s}
-                </button>
+        <div className="absolute right-0 top-10 w-72 max-w-[calc(100vw-3rem)] bg-white rounded-xl border border-gray-100 shadow-xl p-4 z-50">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-semibold text-gray-800">Filter</h4>
+            <button
+              onClick={() => { onFilterChange({ status: [], type: [], managerIds: [] }); setManagerSearch(''); }}
+              disabled={activeCount === 0}
+              className="text-[11px] text-gray-500 hover:text-gray-800 disabled:opacity-40 disabled:hover:text-gray-500"
+            >
+              Clear all
+            </button>
+          </div>
+
+          {/* Status */}
+          <div className="mb-3.5">
+            <GroupLabel>Status</GroupLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {STATUS_OPTIONS.map((o) => (
+                <Pill
+                  key={o.value}
+                  label={o.label}
+                  selected={filters.status.includes(o.value)}
+                  onClick={() => onFilterChange({ ...filters, status: toggle(filters.status, o.value) })}
+                />
               ))}
             </div>
           </div>
 
-          <div className="mb-4">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2 px-1">Type</h4>
-            <div className="flex flex-wrap gap-2">
-              {['Residential', 'Commercial'].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => toggleType(t as ProjectType)}
-                  className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
-                    selectedType.includes(t as ProjectType) 
-                      ? 'bg-navy/5 border-navy/20 text-[#0A1629] font-medium' 
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  {t}
-                </button>
+          {/* Type */}
+          <div className="mb-3.5">
+            <GroupLabel>Type</GroupLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {TYPE_OPTIONS.map((o) => (
+                <Pill
+                  key={o.value}
+                  label={o.label}
+                  selected={filters.type.includes(o.value)}
+                  onClick={() => onFilterChange({ ...filters, type: toggle(filters.type, o.value) })}
+                />
               ))}
             </div>
           </div>
 
-          <div>
-            <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2 px-1">Manager</h4>
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="flex items-center px-3 py-2 border-b border-gray-100 bg-gray-50/50">
-                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                <input 
-                  type="text" 
-                  placeholder="Search" 
-                  className="bg-transparent border-none outline-none text-sm w-full text-gray-700"
+          {/* Manager */}
+          <GroupLabel>Manager</GroupLabel>
+          <button
+            type="button"
+            onClick={() => setManagerListOpen((v) => !v)}
+            className="w-full px-2.5 py-2 rounded-lg border border-gray-200 flex items-center justify-between text-[11px] hover:border-gray-300 transition-colors"
+          >
+            <span className={selectedManagerLabel ? 'text-gray-900' : 'text-gray-400'}>
+              {selectedManagerLabel ?? 'Select'}
+            </span>
+            <ChevronDown size={12} className={`text-gray-400 shrink-0 transition-transform ${managerListOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {managerListOpen && (
+            <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
+              <div className="flex items-center px-2.5 py-2 border-b border-gray-100 bg-gray-50/50">
+                <Search size={12} className="text-gray-400 mr-2 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search"
                   value={managerSearch}
                   onChange={(e) => setManagerSearch(e.target.value)}
+                  className="bg-transparent outline-none text-[11px] w-full text-gray-700 placeholder-gray-400"
                 />
               </div>
-              <div className="max-h-40 overflow-y-auto p-1">
-                {filteredManagers.map(m => (
-                  <label key={m} className="flex items-center justify-between px-2 py-2 hover:bg-gray-50 rounded cursor-pointer group">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold">
-                        {m.charAt(0)}
-                      </div>
-                      <span className="text-sm text-gray-700">{m}</span>
-                    </div>
-                    <input type="checkbox" className="rounded border-gray-300 text-[#0A1629] focus:ring-[#0A1629]" />
-                  </label>
-                ))}
+
+              <div className="max-h-32 overflow-y-auto p-1">
+                {filteredManagers.length === 0 && (
+                  <p className="px-2 py-1.5 text-[11px] text-gray-400">No match.</p>
+                )}
+                {filteredManagers.map((m) => {
+                  const checked = filters.managerIds.includes(m.id);
+                  return (
+                    <label
+                      key={m.id}
+                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"
+                    >
+                      {m.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={m.avatarUrl} alt={m.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[8px] font-semibold text-gray-500 shrink-0">
+                          {m.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-[11px] text-gray-700 flex-1 truncate">{m.name}</span>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => onFilterChange({ ...filters, managerIds: toggle(filters.managerIds, m.id) })}
+                        className="rounded border-gray-300 text-[#0D1B2A] focus:ring-[#0D1B2A] shrink-0"
+                      />
+                    </label>
+                  );
+                })}
               </div>
             </div>
-          </div>
-          
+          )}
         </div>
       )}
     </div>

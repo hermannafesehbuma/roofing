@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCurrentUser, initialsOf } from './useCurrentUser'
 
 const roleGradients: Record<string, string> = {
   admin: 'from-blue-400 to-blue-600',
@@ -17,44 +17,24 @@ const roleTitles: Record<string, string> = {
 }
 
 export default function UserHeaderBadge() {
-  const [name, setName] = useState('')
-  const [role, setRole] = useState('')
-  const [initials, setInitials] = useState('')
+  const profile = useCurrentUser()
 
-  useEffect(() => {
-    const load = () => {
-      const firstName = localStorage.getItem('user_first_name') || ''
-      const lastName = localStorage.getItem('user_last_name') || ''
-      const r = localStorage.getItem('user_role') || 'admin'
-      const fullName = firstName && lastName ? `${firstName} ${lastName}` : r.charAt(0).toUpperCase() + r.slice(1)
-      setName(fullName)
-      setRole(r)
-      setInitials(
-        fullName
-          .split(' ')
-          .map(n => n[0])
-          .join('')
-          .toUpperCase()
-          .slice(0, 2) || 'U'
-      )
-    }
-    load()
-    window.addEventListener('auth-changed', load)
-    window.addEventListener('role-changed', load)
-    return () => {
-      window.removeEventListener('auth-changed', load)
-      window.removeEventListener('role-changed', load)
-    }
-  }, [])
+  if (!profile) return null
 
   return (
-    <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
-      <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${roleGradients[role] || roleGradients.admin} flex items-center justify-center`}>
-        <span className="text-white text-[10px] font-semibold">{initials}</span>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-gray-800 leading-none">{name}</p>
-        <p className="text-[10px] text-gray-400">{roleTitles[role] || role}</p>
+    <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200">
+      {profile.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={profile.avatarUrl} alt={profile.name}
+          className="w-8 h-8 rounded-full object-cover border border-gray-100" />
+      ) : (
+        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${roleGradients[profile.role] || roleGradients.admin} flex items-center justify-center`}>
+          <span className="text-white text-[11px] font-semibold">{initialsOf(profile.name)}</span>
+        </div>
+      )}
+      <div className="leading-tight">
+        <p className="text-xs font-semibold text-gray-800">{profile.name}</p>
+        <p className="text-[10px] text-gray-400">{roleTitles[profile.role] || profile.role}</p>
       </div>
     </div>
   )

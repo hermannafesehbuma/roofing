@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { Eye, Edit2, Trash2, MoreHorizontal } from 'lucide-react';
+import { Eye, PenLine, Trash2, MoreHorizontal } from 'lucide-react';
 
 interface ActionsDropdownProps {
   onView?: () => void;
@@ -33,24 +33,26 @@ export function ActionsDropdown({ onView, onEdit, onDelete }: ActionsDropdownPro
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50">
-          <button 
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-            onClick={() => { setIsOpen(false); onView?.(); }}
-          >
-            <Eye className="w-4 h-4" /> View Detail
-          </button>
-          <button 
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+        <div className="absolute right-0 mt-2 w-[215px] bg-white rounded-2xl shadow-[0_8px_30px_rgba(16,24,40,0.14)] p-1.5 z-50">
+          {onView && (
+            <button
+              className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-[15px] text-[#1D2939] hover:bg-[#F2F4F7] transition-colors"
+              onClick={() => { setIsOpen(false); onView(); }}
+            >
+              <Eye size={19} className="text-[#1D2939] shrink-0" strokeWidth={1.6} /> View Detail
+            </button>
+          )}
+          <button
+            className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-[15px] text-[#1D2939] hover:bg-[#F2F4F7] transition-colors"
             onClick={() => { setIsOpen(false); onEdit?.(); }}
           >
-            <Edit2 className="w-4 h-4" /> Edit
+            <PenLine size={19} className="text-[#1D2939] shrink-0" strokeWidth={1.6} /> Edit
           </button>
-          <button 
-            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          <button
+            className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-[15px] text-[#1D2939] hover:bg-[#F2F4F7] transition-colors"
             onClick={() => { setIsOpen(false); onDelete?.(); }}
           >
-            <Trash2 className="w-4 h-4" /> Delete
+            <Trash2 size={19} className="text-[#F04438] shrink-0" strokeWidth={1.6} /> Delete
           </button>
         </div>
       )}

@@ -28,7 +28,7 @@ export function DeleteModal({ isOpen, onClose, onConfirm, projectName }: DeleteM
           <div className="absolute top-2 -left-4 w-1.5 h-1.5 bg-red-300 rounded-full"></div>
         </div>
 
-        <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Project</h3>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Delete Project</h3>
         <p className="text-gray-500 text-sm mb-8">
           Are you sure want to delete this {projectName} project?
         </p>

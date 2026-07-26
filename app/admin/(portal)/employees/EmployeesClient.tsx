@@ -3,16 +3,17 @@
 import { useState, useRef, useEffect, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Search, Filter, Download, Plus, Eye, Pencil, Trash2,
-  MoreHorizontal, LayoutGrid, List, Bell, ChevronLeft,
-  ChevronRight, X, Check,
+  Search, ListFilter, Download, Plus, Eye, Pencil, Trash2,
+  MoreHorizontal, LayoutGrid, List, ChevronLeft,
+  ChevronRight, X, Check, Upload, FileText, PenLine,
 } from 'lucide-react'
-import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
 import {
-  createEmployee, updateEmployee, deleteEmployee, uploadAvatar,
+  createEmployee, updateEmployee, deleteEmployee, uploadAvatar, importEmployees,
   type EmployeeRow, type CreateEmployeeInput, type UpdateEmployeeInput,
 } from './actions'
 import { EmployeeFormPanel, type FormValues } from './EmployeeFormPanel'
+import { ViewToggle } from '@/app/components/ui/ViewToggle'
+import { SuccessModal } from '@/app/components/ui/SuccessModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Status = 'active' | 'on_leave' | 'inactive'
@@ -21,6 +22,7 @@ type Modal =
   | { type: 'delete'; employee: EmployeeRow }
   | { type: 'form'; employee: EmployeeRow | null }
   | { type: 'success'; name: string; id: string }
+  | { type: 'import'; summary: ImportSummary }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const statusConfig: Record<Status, { label: string; dot: string; text: string; bg: string }> = {
@@ -39,6 +41,125 @@ function avatarColor(id: string) {
   let hash = 0
   for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash)
   return avatarColors[Math.abs(hash) % avatarColors.length]
+}
+
+// ─── CSV import / export ──────────────────────────────────────────────────────
+const CSV_COLUMNS = [
+  'First Name', 'Last Name', 'Email', 'Employee ID', 'Role', 'Employee Type',
+  'Status', 'Department', 'Gender', 'Phone', 'Rate of Pay', 'Start Date',
+] as const
+
+type ImportSummary = {
+  added: number
+  skipped: string[]
+  failed: { row: string; reason: string }[]
+}
+
+function csvCell(value: string | number | null) {
+  const s = value == null ? '' : String(value)
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+function toCsv(rows: EmployeeRow[]) {
+  const lines = [CSV_COLUMNS.join(',')]
+  for (const e of rows) {
+    lines.push([
+      e.first_name, e.last_name, e.email, e.employee_id, e.role, e.employee_type,
+      e.status, e.department, e.gender, e.phone, e.rate_of_pay, e.start_date,
+    ].map(csvCell).join(','))
+  }
+  return lines.join('\r\n')
+}
+
+function downloadCsv(filename: string, csv: string) {
+  // BOM keeps Excel from mangling non-ASCII names
+  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+/** Minimal RFC-4180 reader — handles quoted fields, escaped quotes and CRLF. */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let quoted = false
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]
+    if (quoted) {
+      if (c !== '"') field += c
+      else if (text[i + 1] === '"') { field += '"'; i++ }
+      else quoted = false
+    } else if (c === '"') quoted = true
+    else if (c === ',') { row.push(field); field = '' }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = '' }
+    else if (c !== '\r') field += c
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row) }
+
+  return rows.filter((r) => r.some((cell) => cell.trim() !== ''))
+}
+
+const normalize = (s: string) => s.trim().toLowerCase().replace(/[\s_-]+/g, '')
+
+function matchEnum<T extends string>(raw: string, allowed: readonly T[], fallback: T): T {
+  return allowed.find((a) => normalize(a) === normalize(raw)) ?? fallback
+}
+
+/** Turns raw CSV text into create-inputs, collecting per-row problems instead of throwing. */
+function parseEmployeeCsv(text: string): { rows: CreateEmployeeInput[]; failed: ImportSummary['failed'] } {
+  const table = parseCsv(text.replace(/^\uFEFF/, ''))
+  const rows: CreateEmployeeInput[] = []
+  const failed: ImportSummary['failed'] = []
+  if (table.length < 2) return { rows, failed }
+
+  const header = table[0].map(normalize)
+  const col = (name: string) => header.indexOf(normalize(name))
+  const idx = {
+    firstName: col('First Name'), lastName: col('Last Name'), email: col('Email'),
+    employeeId: col('Employee ID'), role: col('Role'), employeeType: col('Employee Type'),
+    status: col('Status'), department: col('Department'), gender: col('Gender'),
+    phone: col('Phone'), rateOfPay: col('Rate of Pay'), startDate: col('Start Date'),
+  }
+
+  if (idx.email === -1 || idx.firstName === -1) {
+    return { rows, failed: [{ row: 'Header', reason: 'CSV needs at least "First Name" and "Email" columns' }] }
+  }
+
+  for (const cells of table.slice(1)) {
+    const at = (i: number) => (i === -1 ? '' : (cells[i] ?? '').trim())
+    const email = at(idx.email)
+    const firstName = at(idx.firstName)
+    const label = email || firstName || 'Unnamed row'
+
+    if (!firstName || !email) { failed.push({ row: label, reason: 'Missing first name or email' }); continue }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { failed.push({ row: label, reason: 'Invalid email address' }); continue }
+
+    const rate = parseFloat(at(idx.rateOfPay).replace(/[^0-9.]/g, ''))
+    const startDate = at(idx.startDate)
+
+    rows.push({
+      firstName,
+      lastName: at(idx.lastName),
+      email,
+      employeeId: at(idx.employeeId),
+      role: matchEnum(at(idx.role), ['admin', 'manager', 'technician'] as const, 'technician'),
+      employeeType: matchEnum(at(idx.employeeType), ['full_time', 'part_time', 'contractor', 'subcontractor'] as const, 'full_time'),
+      status: matchEnum(at(idx.status), ['active', 'on_leave', 'inactive'] as const, 'active'),
+      department: at(idx.department),
+      gender: at(idx.gender),
+      rateOfPay: isNaN(rate) ? null : rate,
+      startDate: /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : null,
+      avatarUrl: null,
+      phone: at(idx.phone),
+    })
+  }
+
+  return { rows, failed }
 }
 
 // ─── Overlay ──────────────────────────────────────────────────────────────────
@@ -66,7 +187,7 @@ function DeleteModal({ employee, onConfirm, onCancel, loading }: {
               <Trash2 size={20} className="text-red-500" />
             </div>
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Delete Employee</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete Employee</h2>
           <p className="text-sm text-gray-500 leading-relaxed mb-7">
             Are you sure want to delete <span className="font-medium text-gray-800">{employee.first_name} {employee.last_name}</span> from Employees management?
           </p>
@@ -86,10 +207,9 @@ function DeleteModal({ employee, onConfirm, onCancel, loading }: {
   )
 }
 
-// ─── Success Modal ────────────────────────────────────────────────────────────
-function SuccessModal({ name, id, onView, onClose }: {
-  name: string; id: string; onView: () => void; onClose: () => void
-}) {
+// ─── Import Summary Modal ─────────────────────────────────────────────────────
+function ImportSummaryModal({ summary, onClose }: { summary: ImportSummary; onClose: () => void }) {
+  const clean = summary.failed.length === 0 && summary.skipped.length === 0
   return (
     <>
       <Overlay onClick={onClose} />
@@ -98,20 +218,226 @@ function SuccessModal({ name, id, onView, onClose }: {
           <button onClick={onClose} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
             <X size={16} />
           </button>
-          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-5">
-            <Check size={28} className="text-emerald-600" strokeWidth={2.5} />
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-5 ${clean ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+            {clean
+              ? <Check size={28} className="text-emerald-600" strokeWidth={2.5} />
+              : <Upload size={26} className="text-amber-600" strokeWidth={2.2} />}
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Employee added successfully</h2>
-          <p className="text-sm text-gray-500 leading-relaxed mb-7">
-            They&apos;ve been added to your team and can now access the system based on their role.
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            {summary.added > 0 ? `${summary.added} employee${summary.added === 1 ? '' : 's'} imported` : 'Nothing imported'}
+          </h2>
+          <p className="text-sm text-gray-500 leading-relaxed mb-5">
+            {clean
+              ? 'Every row in the file was added to your team.'
+              : `${summary.skipped.length} skipped as duplicates, ${summary.failed.length} could not be imported.`}
           </p>
-          <button onClick={onView}
+
+          {(summary.skipped.length > 0 || summary.failed.length > 0) && (
+            <div className="w-full max-h-44 overflow-y-auto text-left border border-gray-100 rounded-lg divide-y divide-gray-50 mb-6">
+              {summary.skipped.map((email) => (
+                <div key={email} className="px-3 py-2 text-xs">
+                  <span className="text-gray-700">{email}</span>
+                  <span className="text-gray-400"> — already on the team</span>
+                </div>
+              ))}
+              {summary.failed.map((f, i) => (
+                <div key={`${f.row}-${i}`} className="px-3 py-2 text-xs">
+                  <span className="text-gray-700">{f.row}</span>
+                  <span className="text-red-500"> — {f.reason}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button onClick={onClose}
             className="w-full py-3 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
-            View Employee
+            Done
           </button>
         </div>
       </div>
     </>
+  )
+}
+
+// ─── Filter Popover ───────────────────────────────────────────────────────────
+type Filters = {
+  role: string[]
+  status: string[]
+  employeeType: string[]
+  department: string[]
+}
+
+const EMPTY_FILTERS: Filters = { role: [], status: [], employeeType: [], department: [] }
+
+const roleOptions = ['admin', 'manager', 'technician']
+const statusOptions: Status[] = ['active', 'on_leave', 'inactive']
+const typeOptions = ['full_time', 'part_time', 'contractor', 'subcontractor']
+
+const typeLabels: Record<string, string> = {
+  full_time: 'Full-Time', part_time: 'Part-Time',
+  contractor: 'Contractor', subcontractor: 'Subcontractor',
+}
+
+function countFilters(f: Filters) {
+  return f.role.length + f.status.length + f.employeeType.length + f.department.length
+}
+
+function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2.5 py-1 text-[11px] rounded-full border transition-colors ${
+        active
+          ? 'bg-[#0D1B2A]/5 border-[#0D1B2A]/25 text-[#0D1B2A] font-medium'
+          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function FilterPopover({ filters, departments, onChange, onClose }: {
+  filters: Filters
+  departments: string[]
+  onChange: (next: Filters) => void
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [deptSearch, setDeptSearch] = useState('')
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  /** Adds or removes one value from a filter group. */
+  function toggle(group: keyof Filters, value: string) {
+    const current = filters[group]
+    onChange({
+      ...filters,
+      [group]: current.includes(value) ? current.filter((v) => v !== value) : [...current, value],
+    })
+  }
+
+  const visibleDepts = departments.filter((d) => d.toLowerCase().includes(deptSearch.toLowerCase()))
+
+  return (
+    <div ref={ref} className="absolute right-0 top-10 z-30 w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-xs font-semibold text-gray-800">Filter</h4>
+        <button
+          onClick={() => onChange(EMPTY_FILTERS)}
+          disabled={countFilters(filters) === 0}
+          className="text-[11px] text-gray-500 hover:text-gray-800 disabled:opacity-40 disabled:hover:text-gray-500"
+        >
+          Clear all
+        </button>
+      </div>
+
+      <div className="mb-3.5">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Role</p>
+        <div className="flex flex-wrap gap-1.5">
+          {roleOptions.map((r) => (
+            <Chip key={r} label={r.charAt(0).toUpperCase() + r.slice(1)} active={filters.role.includes(r)} onClick={() => toggle('role', r)} />
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-3.5">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</p>
+        <div className="flex flex-wrap gap-1.5">
+          {statusOptions.map((s) => (
+            <Chip key={s} label={statusConfig[s].label} active={filters.status.includes(s)} onClick={() => toggle('status', s)} />
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-3.5">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Employee Type</p>
+        <div className="flex flex-wrap gap-1.5">
+          {typeOptions.map((t) => (
+            <Chip key={t} label={typeLabels[t]} active={filters.employeeType.includes(t)} onClick={() => toggle('employeeType', t)} />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Department</p>
+        {departments.length === 0 ? (
+          <p className="text-[11px] text-gray-400">No departments set.</p>
+        ) : (
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="flex items-center px-2.5 py-2 border-b border-gray-100 bg-gray-50/50">
+              <Search size={12} className="text-gray-400 mr-2 shrink-0" />
+              <input
+                value={deptSearch}
+                onChange={(e) => setDeptSearch(e.target.value)}
+                placeholder="Search"
+                className="bg-transparent outline-none text-[11px] w-full text-gray-700 placeholder-gray-400"
+              />
+            </div>
+            <div className="max-h-32 overflow-y-auto p-1">
+              {visibleDepts.map((d) => (
+                <label key={d} className="flex items-center justify-between px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer">
+                  <span className="text-[11px] text-gray-700 truncate">{d}</span>
+                  <input
+                    type="checkbox"
+                    checked={filters.department.includes(d)}
+                    onChange={() => toggle('department', d)}
+                    className="rounded border-gray-300 text-[#0D1B2A] focus:ring-[#0D1B2A] shrink-0"
+                  />
+                </label>
+              ))}
+              {visibleDepts.length === 0 && <p className="px-2 py-1.5 text-[11px] text-gray-400">No match.</p>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Import / Export Menu ─────────────────────────────────────────────────────
+function ImportExportMenu({ exportCount, onClose, onImport, onExport, onTemplate }: {
+  exportCount: number
+  onClose: () => void
+  onImport: () => void
+  onExport: () => void
+  onTemplate: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [onClose])
+
+  const item = 'w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors text-left disabled:opacity-40 disabled:hover:bg-transparent'
+
+  return (
+    <div ref={ref} className="absolute right-0 top-10 z-30 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5">
+      <button onClick={() => { onImport(); onClose() }} className={item}>
+        <Upload size={13} className="text-gray-400 shrink-0" />
+        Import from CSV
+      </button>
+      <button onClick={() => { onExport(); onClose() }} disabled={exportCount === 0} className={item}>
+        <Download size={13} className="text-gray-400 shrink-0" />
+        Export CSV
+        <span className="ml-auto text-[10px] text-gray-400">{exportCount}</span>
+      </button>
+      <div className="h-px bg-gray-100 my-1" />
+      <button onClick={() => { onTemplate(); onClose() }} className={item}>
+        <FileText size={13} className="text-gray-400 shrink-0" />
+        Download template
+      </button>
+    </div>
   )
 }
 
@@ -130,26 +456,20 @@ function ActionMenu({ onClose, onView, onEdit, onDelete }: {
   }, [onClose])
 
   return (
-    <div ref={ref} className="absolute right-2 top-10 z-30 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5">
+    <div ref={ref} className="absolute right-2 top-10 z-30 w-[215px] bg-white rounded-2xl shadow-[0_8px_30px_rgba(16,24,40,0.14)] p-1.5">
       <button onClick={() => { onView(); onClose() }}
-        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-        <div className="w-8 h-8 rounded-full border-2 border-gray-200 flex items-center justify-center shrink-0">
-          <Eye size={14} className="text-gray-500" />
-        </div>
+        className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-[15px] text-[#1D2939] hover:bg-[#F2F4F7] transition-colors">
+        <Eye size={19} className="text-[#1D2939] shrink-0" strokeWidth={1.6} />
         View Detail
       </button>
       <button onClick={() => { onEdit(); onClose() }}
-        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-        <div className="w-8 h-8 rounded-full border-2 border-gray-200 flex items-center justify-center shrink-0">
-          <Pencil size={13} className="text-gray-500" />
-        </div>
+        className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-[15px] text-[#1D2939] hover:bg-[#F2F4F7] transition-colors">
+        <PenLine size={19} className="text-[#1D2939] shrink-0" strokeWidth={1.6} />
         Edit
       </button>
       <button onClick={() => { onDelete(); onClose() }}
-        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
-        <div className="w-8 h-8 rounded-full bg-red-50 border-2 border-red-100 flex items-center justify-center shrink-0">
-          <Trash2 size={13} className="text-red-500" />
-        </div>
+        className="w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-[15px] text-[#1D2939] hover:bg-[#F2F4F7] transition-colors">
+        <Trash2 size={19} className="text-[#F04438] shrink-0" strokeWidth={1.6} />
         Delete
       </button>
     </div>
@@ -172,7 +492,7 @@ function EmployeeCard({ emp, onEdit, onDelete, onView }: {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={emp.avatar_url} alt={emp.first_name} className="w-20 h-20 rounded-full object-cover shadow-md" />
         ) : (
-          <div className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-md"
+          <div className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-semibold text-white shadow-md"
             style={{ backgroundColor: color }}>
             {initials(emp.first_name, emp.last_name)}
           </div>
@@ -223,15 +543,30 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
   const [page, setPage] = useState(1)
   const [modal, setModal] = useState<Modal | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [ioOpen, setIoOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
+  const fileRef = useRef<HTMLInputElement>(null)
   const pageSize = 20
+
+  const departments = [...new Set(employees.map((e) => e.department).filter((d): d is string => !!d))].sort()
+  const activeFilterCount = countFilters(filters)
 
   const filtered = employees.filter((e) => {
     const q = search.toLowerCase()
-    return (
+    const matchesSearch =
       e.first_name.toLowerCase().includes(q) ||
       e.last_name.toLowerCase().includes(q) ||
       e.email.toLowerCase().includes(q) ||
       (e.department ?? '').toLowerCase().includes(q)
+
+    // An empty group means "no constraint", so every group must either be empty or contain the value.
+    return (
+      matchesSearch &&
+      (filters.role.length === 0 || filters.role.includes(e.role)) &&
+      (filters.status.length === 0 || filters.status.includes(e.status)) &&
+      (filters.employeeType.length === 0 || filters.employeeType.includes(e.employee_type ?? '')) &&
+      (filters.department.length === 0 || filters.department.includes(e.department ?? ''))
     )
   })
 
@@ -241,6 +576,66 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
   function handleDelete(emp: EmployeeRow) { setModal({ type: 'delete', employee: emp }) }
   function handleEdit(emp: EmployeeRow) { setFormError(null); setModal({ type: 'form', employee: emp }) }
   function handleView(emp: EmployeeRow) { router.push(`/admin/employees/${emp.id}`) }
+
+  /** Exports what's on screen — the search filter carries through to the file. */
+  function handleExport() {
+    const stamp = new Date().toISOString().slice(0, 10)
+    downloadCsv(`employees-${stamp}.csv`, toCsv(filtered))
+  }
+
+  function handleTemplate() {
+    downloadCsv('employees-template.csv', [
+      CSV_COLUMNS.join(','),
+      'Jane,Doe,jane.doe@example.com,EMP-001,technician,full_time,active,Field Ops,female,+15550000000,32.50,2026-01-15',
+    ].join('\r\n'))
+  }
+
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // let the same file be picked again after a fix
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const { rows, failed } = parseEmployeeCsv(String(reader.result ?? ''))
+      const existing = new Set(employees.map((emp) => emp.email.toLowerCase()))
+      const skipped = rows.filter((r) => existing.has(r.email.toLowerCase())).map((r) => r.email)
+      const toCreate = rows.filter((r) => !existing.has(r.email.toLowerCase()))
+
+      if (toCreate.length === 0) {
+        setModal({ type: 'import', summary: { added: 0, skipped, failed } })
+        return
+      }
+
+      startTransition(async () => {
+        const results = await importEmployees(toCreate)
+        const created: EmployeeRow[] = []
+        const allFailed = [...failed]
+
+        results.forEach((result, i) => {
+          const input = toCreate[i]
+          if (!result.id) {
+            allFailed.push({ row: input.email, reason: result.error ?? 'Unknown error' })
+            return
+          }
+          created.push({
+            id: result.id,
+            first_name: input.firstName, last_name: input.lastName,
+            email: input.email, employee_id: input.employeeId || null,
+            role: input.role, status: input.status,
+            phone: input.phone || null, department: input.department || null,
+            employee_type: input.employeeType, gender: input.gender || null,
+            rate_of_pay: input.rateOfPay, start_date: input.startDate,
+            avatar_url: null,
+          })
+        })
+
+        setEmployees((prev) => [...created, ...prev])
+        setModal({ type: 'import', summary: { added: created.length, skipped, failed: allFailed } })
+      })
+    }
+    reader.readAsText(file)
+  }
 
   function confirmDelete() {
     if (modal?.type !== 'delete') return
@@ -275,7 +670,7 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
         const input: UpdateEmployeeInput = {
           id: modal.employee!.id,
           firstName: values.firstName, lastName: values.lastName,
-          email: values.email, role: values.role,
+          email: values.email, employeeId: values.employeeId, role: values.role,
           employeeType: values.employeeType, status: values.status,
           department: values.department, gender: values.gender,
           rateOfPay, startDate: values.startDate || null,
@@ -286,7 +681,7 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
         setEmployees((prev) => prev.map((e) =>
           e.id === modal.employee!.id
             ? { ...e, first_name: values.firstName, last_name: values.lastName,
-                email: values.email, role: values.role, status: values.status,
+                email: values.email, employee_id: values.employeeId || null, role: values.role, status: values.status,
                 department: values.department, phone: values.phone,
                 employee_type: values.employeeType, gender: values.gender,
                 rate_of_pay: rateOfPay, start_date: values.startDate || null,
@@ -307,7 +702,7 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
         }
         const input: CreateEmployeeInput = {
           firstName: values.firstName, lastName: values.lastName,
-          email: values.email, role: values.role,
+          email: values.email, employeeId: values.employeeId, role: values.role,
           employeeType: values.employeeType, status: values.status,
           department: values.department, gender: values.gender,
           rateOfPay, startDate: values.startDate || null,
@@ -318,13 +713,21 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
         const newEmp: EmployeeRow = {
           id: result.id!,
           first_name: values.firstName, last_name: values.lastName,
-          email: values.email, role: values.role, status: values.status,
+          email: values.email, employee_id: values.employeeId || null, role: values.role, status: values.status,
           phone: values.phone || null, department: values.department || null,
           employee_type: values.employeeType, gender: values.gender || null,
           rate_of_pay: rateOfPay, start_date: values.startDate || null,
           avatar_url: avatarUrl,
         }
-        setEmployees((prev) => [newEmp, ...prev])
+        // Insert in the same order the server returns (by first name) and drop
+        // any active search/filter/page so the new employee is actually on screen.
+        setEmployees((prev) =>
+          [...prev, newEmp].sort((a, b) => a.first_name.localeCompare(b.first_name))
+        )
+        setSearch('')
+        setFilters(EMPTY_FILTERS)
+        setPage(1)
+        router.refresh() // keep the server-rendered list in sync for the next visit
         setModal({ type: 'success', name: `${values.firstName} ${values.lastName}`, id: result.id! })
       })
     }
@@ -342,54 +745,82 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
           <EmployeeFormPanel employee={modal.employee} onSave={handleSave} onCancel={() => setModal(null)} loading={isPending} errorMsg={formError} />
         </>
       )}
+      {modal?.type === 'import' && (
+        <ImportSummaryModal summary={modal.summary} onClose={() => setModal(null)} />
+      )}
       {modal?.type === 'success' && (
         <SuccessModal
-          name={modal.name} id={modal.id}
-          onView={() => { setModal(null); router.push(`/admin/employees/${modal.id}`) }}
+          title="Employee added successfully"
+          subtitle="They've been added to your team and can now access the system based on their role."
+          actionLabel="View Employee"
+          onAction={() => { setModal(null); router.push(`/admin/employees/${modal.id}`) }}
           onClose={() => setModal(null)}
         />
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-base font-semibold text-gray-900">Employees</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Manage all your team members in one place.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="relative w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50">
-              <Bell size={14} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-            </button>
-            <UserHeaderBadge />
-          </div>
-        </header>
-
         {/* Toolbar */}
         <div className="bg-white border-b border-gray-100 px-7 py-3 flex items-center gap-3">
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
-            <button onClick={() => setView('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${view === 'kanban' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              <LayoutGrid size={13} /> Kanban
-            </button>
-            <button onClick={() => setView('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${view === 'list' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              <List size={13} /> List
-            </button>
-          </div>
+          <ViewToggle
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'kanban', label: 'Kanban', icon: LayoutGrid },
+              { value: 'list', label: 'List', icon: List },
+            ]}
+          />
           <div className="relative flex-1 max-w-xs">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Search"
               className="w-full pl-8 pr-4 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A]" />
           </div>
           <div className="flex-1" />
-          <button className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            <Filter size={13} /> Filter
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            <Download size={13} /> Import/Export
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setFilterOpen((o) => !o)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs border rounded-lg transition-colors ${
+                filterOpen || activeFilterCount > 0
+                  ? 'border-gray-300 bg-gray-50 text-gray-800'
+                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <ListFilter size={13} /> Filter
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#0D1B2A] text-white text-[10px] font-semibold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            {filterOpen && (
+              <FilterPopover
+                filters={filters}
+                departments={departments}
+                onChange={(next) => { setFilters(next); setPage(1) }}
+                onClose={() => setFilterOpen(false)}
+              />
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setIoOpen((o) => !o)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs border rounded-lg transition-colors ${
+                ioOpen ? 'border-gray-300 bg-gray-50 text-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Download size={13} /> Import/Export
+            </button>
+            {ioOpen && (
+              <ImportExportMenu
+                exportCount={filtered.length}
+                onClose={() => setIoOpen(false)}
+                onImport={() => fileRef.current?.click()}
+                onExport={handleExport}
+                onTemplate={handleTemplate}
+              />
+            )}
+            <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleImportFile} className="hidden" />
+          </div>
           <button
             onClick={() => { setFormError(null); setModal({ type: 'form', employee: null }) }}
             className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] transition-colors font-medium"

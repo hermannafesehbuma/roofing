@@ -3,6 +3,7 @@
 import { useState, useEffect, Fragment } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { ShieldAlert, ArrowLeft } from 'lucide-react'
+import { isRouteAllowedForRole, homeRouteForRole } from '@/lib/navigation'
 
 // Copy of default permissions fallback
 const defaultPermissions = [
@@ -34,6 +35,8 @@ const pathPermissionMap: Record<string, string> = {
 }
 
 const pageNames: Record<string, string> = {
+  '/admin/documents': 'Documents',
+  '/admin/dashboard': 'Dashboard',
   '/admin/employees': 'Employees',
   '/admin/projects': 'Projects',
   '/admin/crm': 'CRM / Leads',
@@ -101,6 +104,19 @@ export default function PageAccessGuard({ children }: { children: React.ReactNod
     return <div className="flex-1 bg-[#F4F6F9]" />
   }
 
+  // Clients get a four-page portal and nothing else, whatever the permissions
+  // matrix says — a typed URL lands on the restricted screen.
+  if (role === 'client') {
+    if (isRouteAllowedForRole(pathname, 'client')) return <Fragment>{children}</Fragment>
+    return (
+      <AccessRestrictedView
+        pageName={pageNames[Object.keys(pageNames).find(prefix => pathname.startsWith(prefix)) || ''] || 'Requested Page'}
+        onBack={() => router.push(homeRouteForRole('client'))}
+        backLabel="Back to Projects"
+      />
+    )
+  }
+
   // Admin has access to everything
   if (role === 'admin') {
     return <Fragment>{children}</Fragment>
@@ -136,23 +152,23 @@ export default function PageAccessGuard({ children }: { children: React.ReactNod
   return <Fragment>{children}</Fragment>
 }
 
-function AccessRestrictedView({ pageName, onBack }: { pageName: string; onBack: () => void }) {
+function AccessRestrictedView({ pageName, onBack, backLabel = 'Back to Dashboard' }: { pageName: string; onBack: () => void; backLabel?: string }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#F4F6F9] min-h-[500px]">
       <div className="bg-white rounded-2xl p-10 max-w-md w-full shadow-lg border border-gray-100 flex flex-col items-center text-center">
         <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-6 animate-pulse">
           <ShieldAlert size={30} className="text-red-500" />
         </div>
-        <h2 className="text-lg font-bold text-gray-900 mb-2">Access Restricted</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">Access Restricted</h2>
         <p className="text-xs text-gray-400 font-medium mb-1">Module: <span className="text-gray-600 font-semibold">{pageName}</span></p>
         <p className="text-xs text-gray-500 leading-relaxed mb-8 max-w-xs">
           Your current user role configuration does not have the required permissions to view this screen. Please switch roles in the sidebar or update the permissions matrix under Settings.
         </p>
         <button
           onClick={onBack}
-          className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#0D1B2A] hover:bg-[#162437] text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+          className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#0D1B2A] hover:bg-[#162437] text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
         >
-          <ArrowLeft size={14} /> Back to Dashboard
+          <ArrowLeft size={14} /> {backLabel}
         </button>
       </div>
     </div>

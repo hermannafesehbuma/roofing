@@ -89,7 +89,7 @@ export async function loginUser(email: string, password: string) {
     // Fetch the authenticated user's role from public.users table
     const { data: userData } = await supabase
       .from('users')
-      .select('role, first_name, last_name')
+      .select('role, first_name, last_name, avatar_url')
       .eq('supabase_id', data.user.id)
       .single()
 
@@ -107,6 +107,7 @@ export async function loginUser(email: string, password: string) {
         role: mappedRole,
         firstName: userData?.first_name || '',
         lastName: userData?.last_name || '',
+        avatarUrl: userData?.avatar_url ?? null,
       },
       permissions,
     }

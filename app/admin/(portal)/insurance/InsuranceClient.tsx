@@ -7,6 +7,7 @@ import {
   AlertTriangle, ShieldCheck, FileWarning, Trash,
   Calendar, History, ChevronLeft, ChevronRight, ArrowUpRight,
 } from 'lucide-react'
+import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import {
   type PolicyRow, type CertRow, type EmployeeOption,
   type DbPolicyStatus, type DbCoverageType, type DbCertStatus,
@@ -125,13 +126,13 @@ const selectCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm 
 function PaginationBar() {
   return (
     <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-gray-100">
-      <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer">
+      <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer">
         <ChevronLeft size={14} /> Previous
       </button>
       <div className="flex gap-1.5">
-        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#0D1B2A] text-white text-xs font-bold">1</div>
+        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#0D1B2A] text-white text-xs font-semibold">1</div>
       </div>
-      <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer">
+      <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer">
         Next <ChevronRight size={14} />
       </button>
     </div>
@@ -148,7 +149,7 @@ function StatCard({ label, value, sub, subColor, icon }: {
       <div className="shrink-0">{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 leading-tight">{value}</p>
+        <p className="text-2xl font-semibold text-gray-900 leading-tight">{value}</p>
         <p className={`text-[11px] font-medium mt-1 ${subColor}`}>{sub}</p>
       </div>
       {label === 'Cert Compliance' && (
@@ -224,7 +225,7 @@ function FilterDropdown({ filters, onChange, onClose }: { filters: Filters; onCh
     <div ref={ref} className="absolute right-0 top-12 z-40 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 animate-in fade-in slide-in-from-top-2 duration-200">
       <div className="space-y-5">
         <div>
-          <label className="text-xs font-bold text-gray-500 block mb-2">Status</label>
+          <label className="text-xs font-semibold text-gray-500 block mb-2">Status</label>
           <div className="flex flex-wrap gap-2">
             {DB_STATUSES.map(s => (
               <button key={s} onClick={() => toggleStatus(s)}
@@ -235,7 +236,7 @@ function FilterDropdown({ filters, onChange, onClose }: { filters: Filters; onCh
           </div>
         </div>
         <div>
-          <label className="text-xs font-bold text-gray-500 block mb-2">Coverage Type</label>
+          <label className="text-xs font-semibold text-gray-500 block mb-2">Coverage Type</label>
           <div className="flex flex-wrap gap-2">
             {COVERAGE_OPTIONS.map(({ value, label }) => (
               <button key={value} onClick={() => toggleCoverage(value)}
@@ -246,7 +247,7 @@ function FilterDropdown({ filters, onChange, onClose }: { filters: Filters; onCh
           </div>
         </div>
         <div>
-          <label className="text-xs font-bold text-gray-500 block mb-2">Expires Within</label>
+          <label className="text-xs font-semibold text-gray-500 block mb-2">Expires Within</label>
           <div className="flex flex-wrap gap-2">
             {EXPIRES_OPTIONS.map(e => (
               <button key={e} onClick={() => toggleExpires(e)}
@@ -257,10 +258,10 @@ function FilterDropdown({ filters, onChange, onClose }: { filters: Filters; onCh
           </div>
         </div>
         <div className="pt-3 flex gap-2 border-t border-gray-100">
-          <button onClick={() => onChange({ status: [], coverageType: [], expiresWithin: [] })} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+          <button onClick={() => onChange({ status: [], coverageType: [], expiresWithin: [] })} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
             Clear All
           </button>
-          <button onClick={onClose} className="flex-1 px-4 py-2 bg-[#0D1B2A] text-white rounded-lg text-xs font-bold hover:bg-[#162437] transition-colors">
+          <button onClick={onClose} className="flex-1 px-4 py-2 bg-[#0D1B2A] text-white rounded-lg text-xs font-semibold hover:bg-[#162437] transition-colors">
             Apply
           </button>
         </div>
@@ -275,7 +276,7 @@ function PolicyCard({ policy, onView, onEdit, onDelete }: { policy: PolicyRow; o
     <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative">
       <div className="flex justify-between items-start mb-3">
         <div>
-          <h4 className="text-sm font-bold text-gray-900">{policy.policy_holder}</h4>
+          <h4 className="text-sm font-semibold text-gray-900">{policy.policy_holder}</h4>
           <p className="text-xs text-gray-500">{COVERAGE_LABEL[policy.coverage_type]}</p>
         </div>
         <ActionMenu onView={onView} onEdit={onEdit} onDelete={onDelete} />
@@ -285,7 +286,7 @@ function PolicyCard({ policy, onView, onEdit, onDelete }: { policy: PolicyRow; o
         <div className="flex flex-col items-center">
           <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative">
             <FileText className="text-red-500" size={24} />
-            <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[8px] font-bold px-1 rounded">PDF</span>
+            <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[8px] font-semibold px-1 rounded">PDF</span>
           </div>
         </div>
       </div>
@@ -338,11 +339,11 @@ function CertCard({ cert, onView, onEdit, onDelete }: { cert: CertRow; onView: (
     <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative">
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-300 flex items-center justify-center text-blue-900 font-bold text-xs shrink-0">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-300 flex items-center justify-center text-blue-900 font-semibold text-xs shrink-0">
             {cert.employee_name.split(' ').map(n => n[0]).join('')}
           </div>
           <div>
-            <h4 className="text-sm font-bold text-gray-900">{cert.employee_name}</h4>
+            <h4 className="text-sm font-semibold text-gray-900">{cert.employee_name}</h4>
             <p className="text-xs text-gray-500">{cert.employee_title}</p>
           </div>
         </div>
@@ -385,7 +386,7 @@ function PolicyListTable({ policies, onView, onEdit, onDelete }: { policies: Pol
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
-            <tr className="bg-gray-50/50 text-[10px] uppercase tracking-wider font-bold text-gray-400 border-b border-gray-100">
+            <tr className="bg-gray-50/50 text-[10px] uppercase tracking-wider font-semibold text-gray-400 border-b border-gray-100">
               <th className="pl-6 py-4 w-10"><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300" /></th>
               <th className="px-4 py-4">Policy Holder</th>
               <th className="px-4 py-4">Coverage</th>
@@ -432,7 +433,7 @@ function CertListTable({ certs, onView, onEdit, onDelete }: { certs: CertRow[]; 
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[1000px]">
           <thead>
-            <tr className="bg-gray-50/50 text-[10px] uppercase tracking-wider font-bold text-gray-400 border-b border-gray-100">
+            <tr className="bg-gray-50/50 text-[10px] uppercase tracking-wider font-semibold text-gray-400 border-b border-gray-100">
               <th className="pl-6 py-4 w-10"><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300" /></th>
               <th className="px-4 py-4">Employee</th>
               <th className="px-4 py-4">Certification</th>
@@ -450,7 +451,7 @@ function CertListTable({ certs, onView, onEdit, onDelete }: { certs: CertRow[]; 
                 <td className="pl-6 py-4"><input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300" /></td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                    <div className="w-7 h-7 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-semibold">
                       {c.employee_name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
@@ -509,7 +510,7 @@ function DeleteModal({ title, message, onConfirm, onCancel, loading }: {
               <Trash size={20} className="text-red-500" />
             </div>
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">{title}</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">{title}</h2>
           <div className="text-sm text-gray-500 leading-relaxed mb-7 max-w-[280px]" dangerouslySetInnerHTML={{ __html: message }} />
           <div className="flex gap-3 w-full">
             <button onClick={onCancel} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
@@ -529,9 +530,9 @@ function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onC
     <>
       <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[520px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-bold text-gray-900">Policy Detail</h2>
+            <h2 className="text-base font-semibold text-gray-900">Policy Detail</h2>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
@@ -541,7 +542,7 @@ function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onC
                 <ShieldCheck size={24} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900">{policy.insurer}</h3>
+                <h3 className="text-base font-semibold text-gray-900">{policy.insurer}</h3>
                 <p className="text-xs text-gray-500">Policy: {policy.policy_number}</p>
               </div>
             </div>
@@ -549,10 +550,10 @@ function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onC
             <div className="bg-[#F0FDF4] border border-green-100 rounded-xl p-5">
               <div className="flex items-start justify-between mb-1">
                 <div>
-                  <h4 className="font-bold text-gray-900 text-sm">{policy.policy_holder}</h4>
+                  <h4 className="font-semibold text-gray-900 text-sm">{policy.policy_holder}</h4>
                   <p className="text-[11px] text-gray-500 mt-0.5">{COVERAGE_LABEL[policy.coverage_type]}</p>
                 </div>
-                <span className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase ${STATUS_BADGE[policy.status]}`}>
+                <span className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md uppercase ${STATUS_BADGE[policy.status]}`}>
                   • {STATUS_LABEL[policy.status]}
                 </span>
               </div>
@@ -566,7 +567,7 @@ function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onC
             </div>
 
             <div>
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-4">Policy Information</h4>
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">Policy Information</h4>
               <div className="border border-gray-100 rounded-xl overflow-hidden bg-white">
                 {[
                   ['Policy Holder', policy.policy_holder],
@@ -584,7 +585,7 @@ function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onC
             </div>
 
             <div>
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-1.5"><History size={12} /> History Log</h4>
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-1.5"><History size={12} /> History Log</h4>
               <div className="relative pl-6 space-y-6">
                 <div className="absolute left-[9px] top-2 bottom-2 w-[1px] border-l border-dashed border-gray-200" />
                 <div className="relative">
@@ -592,7 +593,7 @@ function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onC
                     <Check size={10} className="text-green-600" strokeWidth={3} />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-800 leading-none">Policy uploaded & approved</p>
+                    <p className="text-xs font-semibold text-gray-800 leading-none">Policy uploaded & approved</p>
                     <p className="text-[10px] text-gray-400 mt-1.5">{formatDate(policy.effective_date)} · Admin</p>
                   </div>
                 </div>
@@ -600,11 +601,11 @@ function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onC
             </div>
 
             <div>
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Attached Document</h4>
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Attached Document</h4>
               <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center bg-white hover:bg-gray-50 cursor-pointer transition-colors group">
                 <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative mb-2 border border-gray-100">
                   <FileText className="text-red-500" size={22} />
-                  <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[7px] font-bold px-1 rounded">PDF</span>
+                  <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[7px] font-semibold px-1 rounded">PDF</span>
                 </div>
                 <p className="text-xs text-gray-500 font-medium">Preview full policy file</p>
               </div>
@@ -629,19 +630,19 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
     <>
       <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[520px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-bold text-gray-900">Certification Detail</h2>
+            <h2 className="text-base font-semibold text-gray-900">Certification Detail</h2>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-7 py-6 space-y-7 bg-[#FDFDFD]">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">
+              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-semibold text-sm shrink-0">
                 {cert.employee_name.split(' ').map(n => n[0]).join('')}
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900">{cert.employee_name}</h3>
+                <h3 className="text-base font-semibold text-gray-900">{cert.employee_name}</h3>
                 <p className="text-xs text-gray-500">{cert.employee_title} · {cert.department}</p>
               </div>
             </div>
@@ -649,10 +650,10 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
             <div className="bg-[#F0FDF4] border border-green-100 rounded-xl p-5">
               <div className="flex items-start justify-between mb-1">
                 <div>
-                  <h4 className="font-bold text-gray-900 text-sm">{cert.cert_name}</h4>
+                  <h4 className="font-semibold text-gray-900 text-sm">{cert.cert_name}</h4>
                   <p className="text-[11px] text-gray-500 mt-0.5">Issued by {cert.issuing_body} · ID: {cert.id.slice(0, 8).toUpperCase()}</p>
                 </div>
-                <span className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase ${STATUS_BADGE[cert.status]}`}>
+                <span className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md uppercase ${STATUS_BADGE[cert.status]}`}>
                   • {STATUS_LABEL[cert.status]}
                 </span>
               </div>
@@ -666,7 +667,7 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
             </div>
 
             <div>
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-4">Certification Details</h4>
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">Certification Details</h4>
               <div className="border border-gray-100 rounded-xl overflow-hidden bg-white">
                 {[
                   ['Certification', cert.cert_name],
@@ -684,7 +685,7 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
             </div>
 
             <div>
-              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-4">Compliance History</h4>
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">Compliance History</h4>
               <div className="relative pl-6 space-y-6">
                 <div className="absolute left-[9px] top-2 bottom-2 w-[1px] border-l border-dashed border-gray-200" />
                 <div className="relative">
@@ -692,7 +693,7 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
                     <Check size={10} className="text-green-600" strokeWidth={3} />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-800 leading-none">Certificate issued and logged</p>
+                    <p className="text-xs font-semibold text-gray-800 leading-none">Certificate issued and logged</p>
                     <p className="text-[10px] text-gray-400 mt-1.5">{formatDate(cert.issue_date)} · Admin</p>
                   </div>
                 </div>
@@ -702,7 +703,7 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
                       <X size={10} className="text-red-600" strokeWidth={3} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-gray-800 leading-none">Certificate has expired</p>
+                      <p className="text-xs font-semibold text-gray-800 leading-none">Certificate has expired</p>
                       <p className="text-[10px] text-gray-400 mt-1.5">{formatDate(cert.expiry_date)} · System</p>
                     </div>
                   </div>
@@ -724,25 +725,6 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
 }
 
 // ─── Success Modal ─────────────────────────────────────────────────────────────
-function SuccessModal({ title, subtitle, actionBtn = 'Okay', onClose }: { title: string; subtitle: string; actionBtn?: string; onClose: () => void }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-50 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center">
-          <button onClick={onClose} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
-          <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-emerald-100">
-            <Check size={32} className="text-white" strokeWidth={3} />
-          </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">{title}</h2>
-          <p className="text-sm text-gray-500 leading-relaxed mb-8">{subtitle}</p>
-          <button onClick={onClose} className="w-full py-3 bg-[#0D1B2A] text-white rounded-xl text-sm font-bold hover:bg-[#162437] transition-colors">{actionBtn}</button>
-        </div>
-      </div>
-    </>
-  )
-}
-
 // ─── Policy Form Modal ─────────────────────────────────────────────────────────
 function PolicyFormModal({ policy, onClose, onSave, loading }: {
   policy?: PolicyRow; onClose: () => void; onSave: (v: PolicyFormValues) => void; loading?: boolean
@@ -778,15 +760,15 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
     <>
       <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[480px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-bold text-gray-900">{policy ? 'Edit COI Policy' : 'Upload COI Policy'}</h2>
+            <h2 className="text-base font-semibold text-gray-900">{policy ? 'Edit COI Policy' : 'Upload COI Policy'}</h2>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-7 py-6 space-y-6">
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Policy Information</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Policy Information</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Policy Holder Name</label>
@@ -818,7 +800,7 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Policy Dates</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Policy Dates</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Effective Date</label>
@@ -844,7 +826,7 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Document Upload</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Document Upload</h3>
               <p className="text-xs text-gray-500 mb-2">Upload COI Document (PDF)</p>
               <input type="file" ref={fileInputRef} hidden accept=".pdf,image/*" onChange={handleFileChange} />
               <div 
@@ -853,7 +835,7 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
               >
                 <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative mb-2">
                   <FileText className="text-red-500" size={24} />
-                  <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[8px] font-bold px-1 rounded">PDF</span>
+                  <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[8px] font-semibold px-1 rounded">PDF</span>
                 </div>
                 <span className="text-xs font-medium text-gray-800">{v.file ? v.file.name : 'Click to upload document'}</span>
                 {v.file && <span className="text-[10px] text-gray-400 mt-1">Ready to upload</span>}
@@ -910,15 +892,15 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
     <>
       <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[480px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-bold text-gray-900">{cert ? 'Edit Certification' : 'Add Certification'}</h2>
+            <h2 className="text-base font-semibold text-gray-900">{cert ? 'Edit Certification' : 'Add Certification'}</h2>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-7 py-6 space-y-6">
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Employee & Certification</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Employee & Certification</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Employee</label>
@@ -952,7 +934,7 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Dates</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Dates</h3>
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Issue Date</label>
@@ -966,7 +948,7 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Document Upload</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Document Upload</h3>
               <p className="text-xs text-gray-500 mb-2">Upload Certificate (PDF / Image)</p>
               <input type="file" ref={fileInputRef} hidden accept=".pdf,image/*" onChange={handleFileChange} />
               <div 
@@ -975,7 +957,7 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
               >
                 <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative mb-2">
                   <FileText className="text-red-500" size={22} />
-                  <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[7px] font-bold px-1 rounded">PDF</span>
+                  <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[7px] font-semibold px-1 rounded">PDF</span>
                 </div>
                 <p className="text-xs font-medium text-gray-800">{v.file ? v.file.name : 'Click to upload document'}</p>
                 {v.file && <span className="text-[10px] text-gray-400 mt-1">Ready to upload</span>}
@@ -988,7 +970,7 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
             <button
               onClick={() => { if (canSave) onSave(v) }}
               disabled={!canSave || loading}
-              className="px-6 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-bold text-white hover:bg-[#162437] transition-colors disabled:opacity-60"
+              className="px-6 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-semibold text-white hover:bg-[#162437] transition-colors disabled:opacity-60"
             >
               {loading ? 'Saving…' : 'Save'}
             </button>
@@ -1238,24 +1220,6 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
       {/* Header */}
-      <div className="flex-none bg-white border-b border-gray-100 px-8 py-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Insurance & Certificates</h1>
-            <p className="text-gray-500 text-xs mt-0.5">Track COI policies, employee certifications, and upcoming expirations.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-900">Admin</p>
-              <p className="text-xs text-gray-400">Peak Roofing Co.</p>
-            </div>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shrink-0">
-              <span className="text-white text-xs font-semibold">PR</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Body */}
       <div className="flex-1 overflow-y-auto relative flex flex-col">
         {toast && (
@@ -1285,11 +1249,11 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
         <div className="px-8 pt-5 flex-none">
           <div className="flex items-center mb-4 gap-3">
             <button onClick={() => setTab('coi')}
-              className={`px-4 py-1.5 text-xs font-bold rounded-full transition-colors ${tab === 'coi' ? 'bg-[#0D1B2A] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${tab === 'coi' ? 'bg-[#0D1B2A] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               COI Policies ({policies.length})
             </button>
             <button onClick={() => setTab('certs')}
-              className={`px-4 py-1.5 text-xs font-bold rounded-full transition-colors ${tab === 'certs' ? 'bg-[#0D1B2A] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${tab === 'certs' ? 'bg-[#0D1B2A] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               Employee Certifications ({certs.length})
             </button>
           </div>
@@ -1320,12 +1284,12 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
             </div>
             {tab === 'coi' ? (
               <button onClick={() => setModal({ type: 'uploadPolicy' })}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] font-bold transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] font-semibold transition-colors">
                 <Plus size={13} /> Upload COI
               </button>
             ) : (
               <button onClick={() => setModal({ type: 'certForm' })}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] font-bold transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] font-semibold transition-colors">
                 <Plus size={13} /> Add Certification
               </button>
             )}
@@ -1344,8 +1308,8 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
                   <div key={status} className="w-80 shrink-0">
                     <div className="flex items-center gap-2 mb-3">
                       <div className={`w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />
-                      <span className="font-bold text-gray-800 text-xs">{STATUS_LABEL[status]}</span>
-                      <span className="bg-gray-200 text-gray-600 text-[10px] font-bold px-1.5 py-0.5 rounded-md">{colItems.length}</span>
+                      <span className="font-semibold text-gray-800 text-xs">{STATUS_LABEL[status]}</span>
+                      <span className="bg-gray-200 text-gray-600 text-[10px] font-semibold px-1.5 py-0.5 rounded-md">{colItems.length}</span>
                     </div>
                     <div className="space-y-4">
                       {tab === 'coi'
@@ -1434,7 +1398,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
         <SuccessModal
           title={modal.title}
           subtitle={modal.subtitle}
-          actionBtn={modal.actionBtn}
+          actionLabel={modal.actionBtn}
           onClose={() => setModal(null)}
         />
       )}

@@ -17,3 +17,20 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/*
+ * Date fields pair the native picker with a lucide calendar icon, which renders
+ * two icons side by side. Hide the native indicator but stretch its hit area
+ * over the visible icon so tapping it still opens the picker.
+ */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  inset-inline-end: 0;
+  top: 0;
+  width: 2.75rem;
+  height: 100%;
+  cursor: pointer;
+}

@@ -4,11 +4,10 @@ import { useState, useRef, useEffect, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  ChevronRight, Pencil, Mail, Bell, Search, Filter,
+  ChevronRight, Pencil, Mail, Search, Filter,
   MoreHorizontal, Eye, MessageSquare, X, FileText,
   ChevronDown, Send, Smile, ChevronLeft, Check
 } from 'lucide-react'
-import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
 import { updateEmployee, uploadAvatar, type EmployeeRow, type UpdateEmployeeInput } from '../../../employees/actions'
 import { EmployeeFormPanel, type FormValues } from '../../../employees/EmployeeFormPanel'
 
@@ -44,7 +43,7 @@ const submStatusCfg: Record<string, { text: string; bg: string }> = {
 function InfoGridSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{title}</h3>
+      <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{title}</h3>
       <div className="bg-white border border-gray-100 rounded-xl p-5 grid grid-cols-3 gap-6">
         {children}
       </div>
@@ -107,7 +106,7 @@ function ProjectCard({ p }: { p: typeof mockProjects[0] }) {
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
       <div className={`h-32 bg-gradient-to-br ${p.gradient} relative`} />
       <div className="px-5 py-4">
-        <h3 className="text-xs font-bold text-gray-800 truncate mb-1">{p.name}</h3>
+        <h3 className="text-xs font-semibold text-gray-800 truncate mb-1">{p.name}</h3>
         <p className="text-[10px] text-gray-400 mb-3">{p.type}</p>
         <div className="space-y-1.5 text-xs mb-3">
           <div className="flex justify-between"><span className="text-gray-400">Status</span><span className={`font-semibold ${p.status === 'In Progress' ? 'text-orange-500' : 'text-emerald-600'}`}>{p.status}</span></div>
@@ -127,7 +126,7 @@ function AssignedProjectsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold text-gray-800">Assigned Projects</h3>
+        <h3 className="text-xs font-semibold text-gray-800">Assigned Projects</h3>
         <div className="flex items-center gap-2">
           <div className="relative w-48">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -151,7 +150,7 @@ function ProjectTimelineTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold text-gray-800">Projects Timeline</h3>
+        <h3 className="text-xs font-semibold text-gray-800">Projects Timeline</h3>
       </div>
       <div className="border border-gray-100 rounded-xl overflow-hidden text-xs">
         <div className="flex border-b border-gray-100 bg-gray-50">
@@ -168,7 +167,7 @@ function ProjectTimelineTab() {
               {row.tasks.map((task, ti) => (
                 <div key={ti} className="absolute top-2 flex items-start" style={{ left: `${task.start}%`, width: `${task.width}%` }}>
                   <div className="w-full rounded-lg px-2 py-1 min-h-[32px]" style={{ backgroundColor: task.color }}>
-                    {task.label && <p className="text-[10px] font-bold text-white leading-tight">{task.label}</p>}
+                    {task.label && <p className="text-[10px] font-semibold text-white leading-tight">{task.label}</p>}
                     {task.sub && <p className="text-[9px] text-white/80 leading-tight truncate">{task.sub}</p>}
                   </div>
                 </div>
@@ -190,7 +189,7 @@ const rfis = [
 function RFIsFiledTab() {
   return (
     <div className="space-y-4">
-      <h3 className="text-xs font-bold text-gray-800">RFIs Filed</h3>
+      <h3 className="text-xs font-semibold text-gray-800">RFIs Filed</h3>
       <div className="border border-gray-100 rounded-xl overflow-hidden text-xs">
         <table className="w-full">
           <thead><tr className="bg-gray-50/60 border-b border-gray-100">{['RFI ID', 'Subject', 'Project', 'Status', 'Date'].map((h) => <th key={h} className="text-left px-4 py-3.5 text-gray-400 font-semibold text-[10px] uppercase tracking-wider">{h}</th>)}</tr></thead>
@@ -222,7 +221,7 @@ const submittals = [
 function SubmittalsDrawingsTab() {
   return (
     <div className="space-y-4">
-      <h3 className="text-xs font-bold text-gray-800">Submittals &amp; Drawings</h3>
+      <h3 className="text-xs font-semibold text-gray-800">Submittals &amp; Drawings</h3>
       <div className="border border-gray-100 rounded-xl overflow-hidden text-xs">
         <table className="w-full">
           <thead><tr className="bg-gray-50/60 border-b border-gray-100">{['File', 'Name', 'Project', 'Date Submitted', 'Status'].map((h) => <th key={h} className="text-left px-4 py-3.5 text-gray-400 font-semibold text-[10px] uppercase tracking-wider">{h}</th>)}</tr></thead>
@@ -231,7 +230,7 @@ function SubmittalsDrawingsTab() {
               const st = submStatusCfg[s.status] ?? submStatusCfg['Approved']
               return (
                 <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/10">
-                  <td className="px-4 py-3"><div className="w-6 h-7 bg-red-50 border border-red-100 rounded flex flex-col items-center justify-center"><FileText size={10} className="text-red-400" /><span className="text-[6px] text-red-400 font-bold">PDF</span></div></td>
+                  <td className="px-4 py-3"><div className="w-6 h-7 bg-red-50 border border-red-100 rounded flex flex-col items-center justify-center"><FileText size={10} className="text-red-400" /><span className="text-[6px] text-red-400 font-semibold">PDF</span></div></td>
                   <td className="px-4 py-3 text-gray-700 font-semibold">{s.name}</td>
                   <td className="px-4 py-3 text-gray-500">{s.project}</td>
                   <td className="px-4 py-3 text-gray-500">{s.dateSubmitted}</td>
@@ -254,7 +253,7 @@ const inspections = [
 function InspectionLogTab() {
   return (
     <div className="space-y-4">
-      <h3 className="text-xs font-bold text-gray-800">Inspection Log</h3>
+      <h3 className="text-xs font-semibold text-gray-800">Inspection Log</h3>
       <div className="border border-gray-100 rounded-xl overflow-hidden text-xs">
         <table className="w-full">
           <thead><tr className="bg-gray-50/60 border-b border-gray-100">{['Date Submitted', 'Name', 'Project', 'Status'].map((h) => <th key={h} className="text-left px-4 py-3.5 text-gray-400 font-semibold text-[10px] uppercase tracking-wider">{h}</th>)}</tr></thead>
@@ -309,7 +308,7 @@ export function SettingsEmployeeDetailClient({ employee: initialEmployee }: { em
       const input: UpdateEmployeeInput = {
         id: emp.id,
         firstName: values.firstName, lastName: values.lastName,
-        email: values.email, role: values.role,
+        email: values.email, employeeId: values.employeeId, role: values.role,
         employeeType: values.employeeType, status: values.status,
         department: values.department, gender: values.gender,
         rateOfPay, startDate: values.startDate || null,
@@ -320,6 +319,7 @@ export function SettingsEmployeeDetailClient({ employee: initialEmployee }: { em
       setEmp((prev) => ({
         ...prev,
         first_name: values.firstName, last_name: values.lastName,
+        employee_id: values.employeeId || null,
         role: values.role, status: values.status,
         department: values.department, phone: values.phone || null,
         employee_type: values.employeeType, gender: values.gender || null,
@@ -358,20 +358,6 @@ export function SettingsEmployeeDetailClient({ employee: initialEmployee }: { em
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Page Header */}
-        <header className="bg-white border-b border-gray-100 px-8 py-5 flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-base font-bold text-gray-900">Settings</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Manage your team members, roles, and access permissions</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="relative w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50">
-              <Bell size={14} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-            </button>
-            <UserHeaderBadge />
-          </div>
-        </header>
-
         {/* Content Wrapper */}
         <main className="flex-1 overflow-y-auto p-8 space-y-5">
           {/* Breadcrumbs */}
@@ -388,13 +374,13 @@ export function SettingsEmployeeDetailClient({ employee: initialEmployee }: { em
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={emp.avatar_url} alt={emp.first_name} className="w-12 h-12 rounded-full object-cover shadow-sm shrink-0" />
               ) : (
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0"
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm shrink-0"
                   style={{ backgroundColor: color }}>
                   {initials(emp.first_name, emp.last_name)}
                 </div>
               )}
               <div>
-                <h2 className="text-sm font-bold text-gray-900 leading-none">{emp.first_name} {emp.last_name}</h2>
+                <h2 className="text-sm font-semibold text-gray-900 leading-none">{emp.first_name} {emp.last_name}</h2>
                 <p className="text-xs text-gray-400 mt-1.5 font-medium">{roleLabel}</p>
               </div>
             </div>
@@ -402,13 +388,13 @@ export function SettingsEmployeeDetailClient({ employee: initialEmployee }: { em
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setEditError(null); setShowEdit(true) }}
-                className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <Pencil size={12} /> Edit Info
               </button>
               <button
                 onClick={() => showToastMsg(`Message sent to ${emp.first_name}`)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-[#0D1B2A] hover:bg-[#162437] text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#0D1B2A] hover:bg-[#162437] text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
               >
                 <Mail size={12} /> Message
               </button>
@@ -422,7 +408,7 @@ export function SettingsEmployeeDetailClient({ employee: initialEmployee }: { em
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-1 py-4 mr-8 text-xs font-bold border-b-2 transition-colors -mb-px shrink-0 ${
+                  className={`px-1 py-4 mr-8 text-xs font-semibold border-b-2 transition-colors -mb-px shrink-0 ${
                     activeTab === tab
                       ? 'border-[#0D1B2A] text-[#0D1B2A]'
                       : 'border-transparent text-gray-400 hover:text-gray-600'

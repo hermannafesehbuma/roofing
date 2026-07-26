@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useTransition } from 'react'
 import { KanbanSquare, List, Calendar, Search, Plus, Check } from 'lucide-react'
-import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
 import {
   createTask, updateTask, deleteTask,
   type TaskRow, type ProjectOption, type AssigneeOption,
@@ -13,6 +12,8 @@ import { TasksKanbanView } from '@/app/components/ui/tasks/TasksKanbanView'
 import { TasksListView } from '@/app/components/ui/tasks/TasksListView'
 import { TaskFilterPopover } from '@/app/components/ui/tasks/TaskFilterPopover'
 import { TaskDeleteModal } from '@/app/components/ui/tasks/TaskDeleteModal'
+import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
+import { MobileTaskList } from '@/app/components/ui/mobile/MobileTaskList'
 
 export function TasksClient({
   initialTasks,
@@ -171,19 +172,20 @@ export function TasksClient({
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
-      {/* Page Header */}
-      <div className="flex-none px-8 pt-6 pb-5 bg-white border-b border-gray-100">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Tasks</h1>
-            <p className="text-gray-500 text-xs mt-0.5">Track, assign, and manage all project tasks across your team.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <UserHeaderBadge />
-          </div>
+      {/* Phones get the field view: a filtered card list with inline actions. */}
+      <div className="md:hidden flex flex-col h-full overflow-hidden">
+        <MobileHeader title="Task" />
+        <div className="flex-1 overflow-y-auto p-4">
+          <MobileTaskList
+            tasks={filtered}
+            busyId={isPending ? undefined : null}
+            onAdvance={(task, next) => handleStatusChange(task.id, next)}
+          />
         </div>
+      </div>
 
-        {/* Stat cards */}
+      {/* Stat cards */}
+      <div className="hidden md:block flex-none px-8 py-5 bg-white border-b border-gray-100">
         <div className="grid grid-cols-4 gap-4">
           <StatCard
             label="Total Tasks"
@@ -221,7 +223,7 @@ export function TasksClient({
       </div>
 
       {/* Toolbar */}
-      <div className="flex-none px-8 py-4 bg-white border-b border-gray-100 flex items-center gap-3">
+      <div className="hidden md:flex flex-none px-8 py-4 bg-white border-b border-gray-100 items-center gap-3">
         <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
           {(['kanban', 'list', 'calendar'] as const).map(mode => (
             <button
@@ -265,7 +267,7 @@ export function TasksClient({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden p-8 relative">
+      <div className="hidden md:block flex-1 overflow-hidden p-8 relative">
         {toast && (
           <div className="absolute top-0 left-1/2 -translate-x-1/2 mt-0 flex items-center gap-2 bg-emerald-500 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg z-30">
             <Check size={13} strokeWidth={2.5} /> {toast}
@@ -291,7 +293,7 @@ export function TasksClient({
           <div className="flex items-center justify-center h-full text-gray-500 bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm">
             <div className="text-center">
               <Calendar size={40} className="text-gray-300 mx-auto mb-4" />
-              <h3 className="text-base font-bold text-gray-900 mb-1">Calendar View</h3>
+              <h3 className="text-base font-semibold text-gray-900 mb-1">Calendar View</h3>
               <p className="text-sm text-gray-400">Coming soon.</p>
             </div>
           </div>
@@ -335,7 +337,7 @@ function StatCard({ label, value, sub, subColor, bg, dot }: {
       </div>
       <div>
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 leading-tight">{value}</p>
+        <p className="text-2xl font-semibold text-gray-900 leading-tight">{value}</p>
         <p className={`text-[11px] font-medium ${subColor}`}>{sub}</p>
       </div>
     </div>

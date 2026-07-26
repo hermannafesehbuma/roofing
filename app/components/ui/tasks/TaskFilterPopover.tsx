@@ -78,7 +78,7 @@ export function TaskFilterPopover({ assignees, onFilterChange }: TaskFilterPopov
         <Filter size={13} />
         Filter
         {activeCount > 0 && (
-          <span className="w-4 h-4 flex items-center justify-center rounded-full bg-[#0D1B2A] text-white text-[9px] font-bold">
+          <span className="w-4 h-4 flex items-center justify-center rounded-full bg-[#0D1B2A] text-white text-[9px] font-semibold">
             {activeCount}
           </span>
         )}
@@ -147,7 +147,7 @@ export function TaskFilterPopover({ assignees, onFilterChange }: TaskFilterPopov
                         selectedAssignee === a.name ? 'bg-gray-50' : ''
                       }`}
                     >
-                      <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-[10px] font-bold shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-[10px] font-semibold shrink-0">
                         {a.name.charAt(0).toUpperCase()}
                       </div>
                       <span className="text-xs text-gray-700 flex-1">{a.name}</span>

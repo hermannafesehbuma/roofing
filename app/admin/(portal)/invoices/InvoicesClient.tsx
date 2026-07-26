@@ -6,6 +6,7 @@ import {
   Eye, Pencil, FileText, Download, Share2, Mail, ArrowUpRight,
   DollarSign, History, TrendingUp, CreditCard, ChevronDown,
 } from 'lucide-react'
+import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import {
   type InvoiceRow, type RecurringRow, type PaymentRow,
   type ClientOption, type ProjectOption,
@@ -109,9 +110,9 @@ function StatCard({ label, value, sub, subColor, icon, subText }: {
         {icon}
       </div>
       <div className="mt-auto pt-3">
-        <p className="text-2xl font-extrabold text-gray-900">{value}</p>
+        <p className="text-2xl font-semibold text-gray-900">{value}</p>
         <div className="flex items-center gap-1.5 mt-1">
-          {sub     && <span className={`text-[11px] font-bold ${subColor}`}>{sub}</span>}
+          {sub     && <span className={`text-[11px] font-semibold ${subColor}`}>{sub}</span>}
           {subText && <span className="text-[11px] text-gray-400 font-medium">{subText}</span>}
         </div>
       </div>
@@ -160,7 +161,7 @@ function DeleteModal({ invoice, onConfirm, onCancel, loading }: {
           <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mb-5">
             <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center"><Trash2 size={18} className="text-red-500"/></div>
           </div>
-          <h2 className="text-base font-bold text-gray-900 mb-2">Delete Invoice</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-2">Delete Invoice</h2>
           <p className="text-sm text-gray-500 mb-7">
             Permanently delete <span className="font-semibold text-gray-800">{invoice.code}</span>? This cannot be undone.
           </p>
@@ -189,7 +190,7 @@ function MarkPaidModal({ invoice, onConfirm, onCancel, loading }: {
       <div className="fixed inset-0 z-[111] flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 relative">
           <button onClick={onCancel} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16}/></button>
-          <h2 className="text-base font-bold text-gray-900 mb-1">Mark as Paid</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-1">Mark as Paid</h2>
           <p className="text-xs text-gray-400 mb-6">{invoice.code} · {fmtCurrency(total)}</p>
           <div className="space-y-4">
             <div>
@@ -263,16 +264,16 @@ function InvoiceFormSidebar({ invoice, clients, projects, onClose, onSave, loadi
     <>
       <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-[101] flex">
-        <div className="bg-white w-[600px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-lg font-bold text-gray-900">{invoice ? 'Edit Invoice' : 'New Invoice'}</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{invoice ? 'Edit Invoice' : 'New Invoice'}</h2>
             <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18}/></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-7 py-7 space-y-7 bg-[#FCFCFD]">
             {/* Invoice Details */}
             <div className="space-y-5 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-gray-800">Invoice Details</h3>
+              <h3 className="text-sm font-semibold text-gray-800">Invoice Details</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">Client</label>
@@ -314,8 +315,8 @@ function InvoiceFormSidebar({ invoice, clients, projects, onClose, onSave, loadi
             {/* Line Items */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-800">Line Items</h3>
-                <button onClick={addItem} className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700">
+                <h3 className="text-sm font-semibold text-gray-800">Line Items</h3>
+                <button onClick={addItem} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700">
                   <Plus size={13}/> Add Line
                 </button>
               </div>
@@ -323,15 +324,15 @@ function InvoiceFormSidebar({ invoice, clients, projects, onClose, onSave, loadi
                 {v.items.map((item, idx) => (
                   <div key={item._key} className="flex gap-3 items-start bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                     <div className="flex-1">
-                      {idx === 0 && <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</label>}
+                      {idx === 0 && <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Description</label>}
                       <input placeholder="Description of work" value={item.description} onChange={e => setItem(item._key, 'description', e.target.value)} className={inputCls}/>
                     </div>
                     <div className="w-20">
-                      {idx === 0 && <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Qty</label>}
+                      {idx === 0 && <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Qty</label>}
                       <input type="number" value={item.qty} onChange={e => setItem(item._key, 'qty', parseFloat(e.target.value) || 0)} className={inputCls}/>
                     </div>
                     <div className="w-32">
-                      {idx === 0 && <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Rate ($)</label>}
+                      {idx === 0 && <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Rate ($)</label>}
                       <input type="number" value={item.rate} onChange={e => setItem(item._key, 'rate', parseFloat(e.target.value) || 0)} className={inputCls}/>
                     </div>
                     <div className="self-end mb-2 flex h-[42px] items-center">
@@ -348,13 +349,13 @@ function InvoiceFormSidebar({ invoice, clients, projects, onClose, onSave, loadi
             <div className="bg-gray-50 rounded-2xl p-5 space-y-3 border border-gray-100">
               <div className="flex justify-between text-sm text-gray-600 font-medium">
                 <span>Subtotal</span>
-                <span className="font-bold text-gray-900">{fmtCurrency(subtotal)}</span>
+                <span className="font-semibold text-gray-900">{fmtCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between items-center text-sm text-gray-600 font-medium">
                 <span>Tax (%)</span>
                 <input type="number" className="w-16 text-right px-2 py-1 border border-gray-200 rounded-lg text-sm bg-white" value={v.tax} onChange={e => setV(p => ({ ...p, tax: parseFloat(e.target.value) || 0 }))}/>
               </div>
-              <div className="border-t border-gray-200 pt-2 flex justify-between text-base font-black text-gray-900">
+              <div className="border-t border-gray-200 pt-2 flex justify-between text-base font-semibold text-gray-900">
                 <span>Total</span>
                 <span>{fmtCurrency(total)}</span>
               </div>
@@ -364,11 +365,11 @@ function InvoiceFormSidebar({ invoice, clients, projects, onClose, onSave, loadi
           <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 shrink-0 bg-white">
             <button onClick={onClose} className="px-6 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 rounded-xl transition-colors">Close</button>
             <div className="flex gap-2 ml-auto">
-              <button onClick={() => onSave(v, true)} disabled={loading} className="px-6 py-2.5 text-sm font-bold text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-60">
+              <button onClick={() => onSave(v, true)} disabled={loading} className="px-6 py-2.5 text-sm font-semibold text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-60">
                 Save as Draft
               </button>
               <button onClick={() => onSave(v, false)} disabled={loading || !v.client_id || !v.due_date}
-                className="px-6 py-2.5 text-sm font-bold text-white bg-[#0D1B2A] hover:bg-[#162437] rounded-xl transition-colors disabled:opacity-60"
+                className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0D1B2A] hover:bg-[#162437] rounded-xl transition-colors disabled:opacity-60"
               >
                 {loading ? 'Saving…' : 'Save & Send'}
               </button>
@@ -399,17 +400,17 @@ function RecurringFormSidebar({ recurring, clients, onClose, onSave, loading }: 
     <>
       <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose}/>
       <div className="fixed inset-y-0 right-0 z-[101] flex">
-        <div className="bg-white w-[520px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-lg font-bold text-gray-900">{recurring ? 'Edit Recurring' : 'New Recurring'}</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{recurring ? 'Edit Recurring' : 'New Recurring'}</h2>
             <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18}/></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-7 py-7 bg-[#FCFCFD]">
             <div className="space-y-5 bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recurring Details</h3>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Recurring Details</h3>
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Client</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Client</label>
                 <div className="relative">
                   <select value={v.client_id} onChange={e => setV(p => ({ ...p, client_id: e.target.value }))} className={selectCls}>
                     <option value="">Select client</option>
@@ -420,14 +421,14 @@ function RecurringFormSidebar({ recurring, clients, onClose, onSave, loading }: 
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5">Amount ($)</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Amount ($)</label>
                   <div className="relative">
                     <DollarSign size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
                     <input type="number" className="w-full border border-gray-200 rounded-xl pl-8 pr-4 py-2.5 text-sm" placeholder="0.00" value={v.amount} onChange={e => setV(p => ({ ...p, amount: e.target.value }))}/>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5">Status</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Status</label>
                   <div className="relative">
                     <select value={v.status} onChange={e => setV(p => ({ ...p, status: e.target.value as any }))} className={selectCls}>
                       <option value="active">Active</option>
@@ -438,12 +439,12 @@ function RecurringFormSidebar({ recurring, clients, onClose, onSave, loading }: 
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1.5">Description</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Description</label>
                 <input className={inputCls} placeholder="e.g. Monthly roof maintenance" value={v.description} onChange={e => setV(p => ({ ...p, description: e.target.value }))}/>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5">Frequency</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Frequency</label>
                   <div className="relative">
                     <select value={v.frequency} onChange={e => setV(p => ({ ...p, frequency: e.target.value as DbFrequency }))} className={selectCls}>
                       <option value="monthly">Monthly</option>
@@ -454,7 +455,7 @@ function RecurringFormSidebar({ recurring, clients, onClose, onSave, loading }: 
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1.5">Next Date</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Next Date</label>
                   <input type="date" value={v.next_date} onChange={e => setV(p => ({ ...p, next_date: e.target.value }))} className={inputCls}/>
                 </div>
               </div>
@@ -462,9 +463,9 @@ function RecurringFormSidebar({ recurring, clients, onClose, onSave, loading }: 
           </div>
 
           <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 shrink-0 bg-white">
-            <button onClick={onClose} className="px-6 py-2 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-xl">Close</button>
+            <button onClick={onClose} className="px-6 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Close</button>
             <button onClick={() => onSave(v)} disabled={loading || !v.client_id || !v.amount}
-              className="px-6 py-2 text-sm font-bold text-white bg-[#0D1B2A] hover:bg-[#162437] rounded-xl disabled:opacity-60 transition-colors"
+              className="px-6 py-2 text-sm font-semibold text-white bg-[#0D1B2A] hover:bg-[#162437] rounded-xl disabled:opacity-60 transition-colors"
             >
               {loading ? 'Saving…' : 'Save'}
             </button>
@@ -488,9 +489,9 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
     <>
       <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose}/>
       <div className="fixed inset-y-0 right-0 z-[101] flex">
-        <div className="bg-white w-[620px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-lg font-bold text-gray-900">{invoice.code}</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{invoice.code}</h2>
             <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18}/></button>
           </div>
 
@@ -499,14 +500,14 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
               {/* Header */}
               <div className="flex justify-between items-start mb-8">
                 <div>
-                  <div className="h-10 px-3.5 bg-gray-900 text-white rounded-lg flex items-center justify-center font-black tracking-widest text-xs mb-2">PEAK</div>
-                  <h3 className="font-bold text-gray-900 text-base tracking-tight">PEAK</h3>
-                  <p className="text-xs text-gray-400 uppercase font-bold tracking-wider">ROOFING CO.</p>
+                  <div className="h-10 px-3.5 bg-gray-900 text-white rounded-lg flex items-center justify-center font-semibold tracking-widest text-xs mb-2">PEAK</div>
+                  <h3 className="font-semibold text-gray-900 text-base tracking-tight">PEAK</h3>
+                  <p className="text-xs text-gray-400 uppercase font-semibold tracking-wider">ROOFING CO.</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Invoice</span>
-                  <h4 className="text-lg font-extrabold text-gray-900">{invoice.code}</h4>
-                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 ${s.bg} ${s.text}`}>
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Invoice</span>
+                  <h4 className="text-lg font-semibold text-gray-900">{invoice.code}</h4>
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1 ${s.bg} ${s.text}`}>
                     <div className={`w-1 h-1 rounded-full ${s.dot}`}/> {STATUS_LABEL[invoice.status]}
                   </span>
                 </div>
@@ -515,15 +516,15 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
               {/* From / To */}
               <div className="grid grid-cols-2 gap-8 border-y border-gray-100 py-6 mb-8">
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">From</p>
-                  <h5 className="font-bold text-gray-800 text-sm">Peak Roofing Co.</h5>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">From</p>
+                  <h5 className="font-semibold text-gray-800 text-sm">Peak Roofing Co.</h5>
                   <p className="text-xs text-gray-500 leading-relaxed mt-1">
                     123 Roofing Ave, Las Vegas, NV 89101<br/>admin@peakroofing.com · (702) 555-0100
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Bill To</p>
-                  <h5 className="font-bold text-gray-800 text-sm">{invoice.client_company ?? invoice.client_name}</h5>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Bill To</p>
+                  <h5 className="font-semibold text-gray-800 text-sm">{invoice.client_company ?? invoice.client_name}</h5>
                   <p className="text-xs text-gray-500 leading-relaxed mt-1">
                     {invoice.client_name}<br/>{invoice.client_email}
                   </p>
@@ -533,16 +534,16 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
               {/* Meta */}
               <div className="grid grid-cols-3 gap-4 mb-10">
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Issue Date</p>
-                  <p className="text-sm font-bold text-gray-800">{fmtDate(invoice.issued_date)}</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Issue Date</p>
+                  <p className="text-sm font-semibold text-gray-800">{fmtDate(invoice.issued_date)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Due Date</p>
-                  <p className={`text-sm font-bold ${invoice.status === 'overdue' ? 'text-red-600' : 'text-gray-800'}`}>{fmtDate(invoice.due_date)}</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Due Date</p>
+                  <p className={`text-sm font-semibold ${invoice.status === 'overdue' ? 'text-red-600' : 'text-gray-800'}`}>{fmtDate(invoice.due_date)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Project</p>
-                  <p className="text-sm font-bold text-gray-800">{invoice.project_name ?? '—'}</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Project</p>
+                  <p className="text-sm font-semibold text-gray-800">{invoice.project_name ?? '—'}</p>
                 </div>
               </div>
 
@@ -550,7 +551,7 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
               <div className="mb-8">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-left">
+                    <tr className="border-b border-gray-100 text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-left">
                       <th className="pb-3">Description</th>
                       <th className="pb-3 text-center">Qty</th>
                       <th className="pb-3 text-right">Rate</th>
@@ -563,7 +564,7 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
                         <td className="py-4 font-medium text-gray-900">{item.description}</td>
                         <td className="py-4 text-center text-gray-600">{item.qty}</td>
                         <td className="py-4 text-right text-gray-600">{fmtCurrency(item.rate)}</td>
-                        <td className="py-4 text-right font-bold text-gray-900">{fmtCurrency(item.qty * item.rate)}</td>
+                        <td className="py-4 text-right font-semibold text-gray-900">{fmtCurrency(item.qty * item.rate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -578,39 +579,39 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
                 <div className="flex justify-between w-48 text-gray-500 font-medium">
                   <span>Tax ({invoice.tax}%)</span><span className="text-gray-900">{fmtCurrency(taxAmt)}</span>
                 </div>
-                <div className="flex justify-between w-48 font-bold text-base text-gray-900 pt-2">
+                <div className="flex justify-between w-48 font-semibold text-base text-gray-900 pt-2">
                   <span>Total</span><span>{fmtCurrency(total)}</span>
                 </div>
               </div>
 
               {/* Activity */}
               <div>
-                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Activity</h4>
+                <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Activity</h4>
                 <div className="space-y-4 relative pl-4 text-xs">
                   <div className="absolute left-[3.5px] top-2 bottom-2 w-px border-l border-dashed border-gray-200"/>
                   <div className="relative">
                     <div className="absolute left-[-17.5px] top-1 w-2.5 h-2.5 bg-gray-300 rounded-full border-2 border-white"/>
-                    <span className="font-bold text-gray-800 block">Invoice created</span>
+                    <span className="font-semibold text-gray-800 block">Invoice created</span>
                     <span className="text-gray-400 mt-0.5 block">{fmtDate(invoice.issued_date)} · Admin</span>
                   </div>
                   {invoice.status !== 'draft' && (
                     <div className="relative">
                       <div className="absolute left-[-17.5px] top-1 w-2.5 h-2.5 bg-blue-400 rounded-full border-2 border-white"/>
-                      <span className="font-bold text-gray-800 block">Invoice sent to {invoice.client_company ?? invoice.client_name}</span>
+                      <span className="font-semibold text-gray-800 block">Invoice sent to {invoice.client_company ?? invoice.client_name}</span>
                       <span className="text-gray-400 mt-0.5 block">{fmtDate(invoice.issued_date)} · System</span>
                     </div>
                   )}
                   {invoice.status === 'overdue' && (
                     <div className="relative">
                       <div className="absolute left-[-17.5px] top-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"/>
-                      <span className="font-bold text-red-600 block">Payment overdue — reminder sent</span>
+                      <span className="font-semibold text-red-600 block">Payment overdue — reminder sent</span>
                       <span className="text-gray-400 mt-0.5 block">{fmtDate(invoice.due_date)} · System</span>
                     </div>
                   )}
                   {invoice.status === 'paid' && (
                     <div className="relative">
                       <div className="absolute left-[-17.5px] top-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"/>
-                      <span className="font-bold text-emerald-700 block">Payment received</span>
+                      <span className="font-semibold text-emerald-700 block">Payment received</span>
                       <span className="text-gray-400 mt-0.5 block">System</span>
                     </div>
                   )}
@@ -620,16 +621,16 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
           </div>
 
           <div className="flex items-center gap-3 px-7 py-5 border-t border-gray-100 shrink-0 bg-white">
-            <button onClick={onClose} className="px-6 py-2.5 text-sm font-bold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Close</button>
+            <button onClick={onClose} className="px-6 py-2.5 text-sm font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Close</button>
             <div className="flex gap-2 ml-auto">
-              <button onClick={() => { onClose(); onEdit() }} className="px-5 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-xl flex items-center gap-2 hover:bg-gray-50">
+              <button onClick={() => { onClose(); onEdit() }} className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl flex items-center gap-2 hover:bg-gray-50">
                 <Pencil size={13}/> Edit
               </button>
-              <button className="px-5 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-xl flex items-center gap-2 hover:bg-gray-50">
+              <button className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl flex items-center gap-2 hover:bg-gray-50">
                 <Download size={13}/> Download PDF
               </button>
               {invoice.status !== 'paid' && (
-                <button onClick={onMarkPaid} className="px-6 py-2.5 text-sm font-bold text-white bg-[#0D1B2A] rounded-xl hover:bg-[#162437] transition-colors">
+                <button onClick={onMarkPaid} className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0D1B2A] rounded-xl hover:bg-[#162437] transition-colors">
                   Mark as Paid
                 </button>
               )}
@@ -642,25 +643,6 @@ function InvoiceDetailSidebar({ invoice, onClose, onEdit, onMarkPaid }: {
 }
 
 // ─── Success Modal ─────────────────────────────────────────────────────────────
-function SuccessModal({ title, onClose }: { title: string; onClose: () => void }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-[110] backdrop-blur-[1px]" onClick={onClose}/>
-      <div className="fixed inset-0 z-[111] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center relative">
-          <button onClick={onClose} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16}/></button>
-          <div className="w-14 h-14 bg-emerald-500 rounded-xl flex items-center justify-center mb-5 shadow-md shadow-emerald-200">
-            <Check size={28} className="text-white" strokeWidth={3}/>
-          </div>
-          <h2 className="text-lg font-black text-gray-900 mb-2">{title}</h2>
-          <p className="text-xs text-gray-500 font-medium mb-6 px-4">The action was completed successfully.</p>
-          <button onClick={onClose} className="w-full py-2.5 bg-[#0D1B2A] text-white rounded-xl text-sm font-bold hover:bg-[#162437]">Okay</button>
-        </div>
-      </div>
-    </>
-  )
-}
-
 function EmptyState({ label }: { label: string }) {
   return (
     <div className="py-20 text-center flex flex-col items-center text-gray-400">
@@ -672,13 +654,15 @@ function EmptyState({ label }: { label: string }) {
 
 // ─── Main Client Component ─────────────────────────────────────────────────────
 export function InvoicesClient({
-  initialInvoices, initialRecurring, initialPayments, clients, projects,
+  initialInvoices, initialRecurring, initialPayments, clients, projects, openInvoiceId = null,
 }: {
   initialInvoices:  InvoiceRow[]
   initialRecurring: RecurringRow[]
   initialPayments:  PaymentRow[]
   clients:          ClientOption[]
   projects:         ProjectOption[]
+  /** Invoice to open on arrival, set by `?invoice=` deep links. */
+  openInvoiceId?:   string | null
 }) {
   const [isPending, startTransition] = useTransition()
   const [invoices,  setInvoices]  = useState(initialInvoices)
@@ -686,7 +670,13 @@ export function InvoicesClient({
   const [payments,  setPayments]  = useState(initialPayments)
   const [tab, setTab]             = useState<'invoices' | 'recurring' | 'payments'>('invoices')
   const [search, setSearch]       = useState('')
-  const [modal, setModal]         = useState<ModalState>({ type: 'none' })
+  // A `?invoice=` deep link (from a project's Invoices tab) lands with that
+  // invoice's details already open. page.tsx keys this component on the id, so
+  // following a second link remounts and opens the new one.
+  const [modal, setModal]         = useState<ModalState>(() => {
+    const deepLinked = openInvoiceId ? initialInvoices.find(i => i.id === openInvoiceId) : undefined
+    return deepLinked ? { type: 'viewInvoice', invoice: deepLinked } : { type: 'none' }
+  })
   const [showFilters, setShowFilters]   = useState(false)
   const [statusFilter, setStatusFilter] = useState<DbInvoiceStatus[]>([])
   const [toast, setToast]         = useState<string | null>(null)
@@ -840,24 +830,6 @@ export function InvoicesClient({
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
       {/* Header */}
-      <div className="flex-none bg-white border-b border-gray-100 px-8 py-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Invoice & Billing</h1>
-            <p className="text-gray-400 text-xs mt-0.5 font-medium">Create, send, and track all invoices and payments in one place.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-bold text-gray-900">Admin</p>
-              <p className="text-[11px] text-gray-400">Peak Roofing Co.</p>
-            </div>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shadow-sm">
-              <span className="text-white text-xs font-bold">PR</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Toast */}
       {toast && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[200] bg-[#0D1B2A] text-white text-sm font-medium px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 animate-in slide-in-from-top-2">
@@ -887,7 +859,7 @@ export function InvoicesClient({
               { k: 'payments',  label: 'Payment Log',  count: payments.length  },
             ].map(t => (
               <button key={t.k} onClick={() => setTab(t.k as any)}
-                className={`pb-3 text-sm font-bold transition-colors border-b-2 -mb-px flex items-center gap-2 ${tab === t.k ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                className={`pb-3 text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-2 ${tab === t.k ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
                 {t.label} <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{t.count}</span>
               </button>
             ))}
@@ -904,12 +876,12 @@ export function InvoicesClient({
               {tab === 'invoices' && (
                 <div className="relative">
                   <button onClick={() => setShowFilters(!showFilters)}
-                    className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-colors ${statusFilter.length > 0 || showFilters ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-semibold transition-colors ${statusFilter.length > 0 || showFilters ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}>
                     <FilterIcon size={13}/> Filter
                   </button>
                   {showFilters && (
                     <div className="absolute left-0 top-11 z-20 bg-white border border-gray-100 shadow-xl rounded-xl w-56 p-3 animate-in fade-in slide-in-from-top-2 duration-150">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Filter by status</p>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase mb-2">Filter by status</p>
                       <div className="space-y-1">
                         {DB_STATUSES.map(s => (
                           <label key={s} className="flex items-center gap-2 p-1.5 hover:bg-gray-50 rounded-lg cursor-pointer text-xs font-medium text-gray-700">
@@ -926,18 +898,18 @@ export function InvoicesClient({
               )}
             </div>
             <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+              <button className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
                 <Share2 size={13}/> Export
               </button>
               {tab === 'invoices' && (
                 <button onClick={() => setModal({ type: 'newInvoice' })}
-                  className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-[#0D1B2A] rounded-xl shadow-sm hover:bg-[#162437] active:scale-95 transition-all">
+                  className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-[#0D1B2A] rounded-xl shadow-sm hover:bg-[#162437] active:scale-95 transition-all">
                   <Plus size={15}/> New Invoice
                 </button>
               )}
               {tab === 'recurring' && (
                 <button onClick={() => setModal({ type: 'newRecurring' })}
-                  className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-[#0D1B2A] rounded-xl shadow-sm hover:bg-[#162437] active:scale-95 transition-all">
+                  className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-[#0D1B2A] rounded-xl shadow-sm hover:bg-[#162437] active:scale-95 transition-all">
                   <Plus size={15}/> New Recurring
                 </button>
               )}
@@ -949,7 +921,7 @@ export function InvoicesClient({
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mb-10">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#F8F9FB] text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100">
+                  <tr className="bg-[#F8F9FB] text-[10px] font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100">
                     <th className="px-6 py-4 flex items-center gap-3"><input type="checkbox" className="rounded border-gray-300"/> Invoice</th>
                     <th className="px-6 py-4">Client</th>
                     <th className="px-6 py-4">Issued</th>
@@ -965,28 +937,28 @@ export function InvoicesClient({
                     const s     = STATUS_CONFIG[inv.status]
                     return (
                       <tr key={inv.id} onClick={() => setModal({ type: 'viewInvoice', invoice: inv })} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
-                        <td className="px-6 py-4 font-bold text-gray-900 flex items-center gap-3">
+                        <td className="px-6 py-4 font-semibold text-gray-900 flex items-center gap-3">
                           <input type="checkbox" onClick={e => e.stopPropagation()} className="rounded border-gray-300"/>
                           {inv.code}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-sm" style={{ backgroundColor: avatarColor(inv.client_id) }}>
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0 shadow-sm" style={{ backgroundColor: avatarColor(inv.client_id) }}>
                               {inv.client_name.split(' ').map(n => n[0]).join('')}
                             </div>
                             <div>
-                              <p className="font-bold text-gray-900 text-xs">{inv.client_name}</p>
+                              <p className="font-semibold text-gray-900 text-xs">{inv.client_name}</p>
                               <p className="text-[11px] text-gray-500">{inv.client_company}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-500 font-medium text-xs">{fmtDate(inv.issued_date)}</td>
                         <td className="px-6 py-4 text-xs">
-                          <span className={`font-bold ${inv.status === 'overdue' ? 'text-red-600' : 'text-gray-800'}`}>{fmtDate(inv.due_date)}</span>
+                          <span className={`font-semibold ${inv.status === 'overdue' ? 'text-red-600' : 'text-gray-800'}`}>{fmtDate(inv.due_date)}</span>
                         </td>
-                        <td className="px-6 py-4 text-gray-900 font-extrabold text-xs">{fmtCurrency(total)}</td>
+                        <td className="px-6 py-4 text-gray-900 font-semibold text-xs">{fmtCurrency(total)}</td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full ${s.bg} ${s.text}`}>
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full ${s.bg} ${s.text}`}>
                             <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`}/> {STATUS_LABEL[inv.status]}
                           </span>
                         </td>
@@ -1011,7 +983,7 @@ export function InvoicesClient({
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mb-10">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#F8F9FB] text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100">
+                  <tr className="bg-[#F8F9FB] text-[10px] font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100">
                     <th className="px-6 py-4">Client</th>
                     <th className="px-6 py-4">Description</th>
                     <th className="px-6 py-4">Amount</th>
@@ -1026,20 +998,20 @@ export function InvoicesClient({
                     <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ backgroundColor: avatarColor(r.client_id) }}>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ backgroundColor: avatarColor(r.client_id) }}>
                             {r.client_name.split(' ').map(n => n[0]).join('')}
                           </div>
-                          <div className="font-bold text-gray-900 text-xs">{r.client_name}</div>
+                          <div className="font-semibold text-gray-900 text-xs">{r.client_name}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-gray-500 text-xs font-medium">{r.description}</td>
-                      <td className="px-6 py-4 font-bold text-gray-900 text-xs">{fmtCurrency(r.amount)}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-900 text-xs">{fmtCurrency(r.amount)}</td>
                       <td className="px-6 py-4">
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${FREQ_BADGE[r.frequency]}`}>{FREQ_LABEL[r.frequency]}</span>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${FREQ_BADGE[r.frequency]}`}>{FREQ_LABEL[r.frequency]}</span>
                       </td>
-                      <td className="px-6 py-4 font-bold text-gray-800 text-xs">{fmtDate(r.next_date)}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-800 text-xs">{fmtDate(r.next_date)}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase ${r.status === 'active' ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase ${r.status === 'active' ? 'text-emerald-600' : 'text-gray-400'}`}>
                           <div className={`w-1.5 h-1.5 rounded-full ${r.status === 'active' ? 'bg-emerald-500' : 'bg-gray-300'}`}/> {r.status}
                         </span>
                       </td>
@@ -1061,7 +1033,7 @@ export function InvoicesClient({
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mb-10">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#F8F9FB] text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100">
+                  <tr className="bg-[#F8F9FB] text-[10px] font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100">
                     <th className="px-6 py-4">Date</th>
                     <th className="px-6 py-4">Invoice</th>
                     <th className="px-6 py-4">Client</th>
@@ -1075,20 +1047,20 @@ export function InvoicesClient({
                   {payments.map(p => (
                     <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 text-gray-500 font-medium text-xs">{fmtDate(p.date)}</td>
-                      <td className="px-6 py-4 font-bold text-gray-900 text-xs">{p.invoice_code}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-900 text-xs">{p.invoice_code}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold" style={{ backgroundColor: avatarColor(p.invoice_id) }}>
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-semibold" style={{ backgroundColor: avatarColor(p.invoice_id) }}>
                             {p.client_name[0]}
                           </div>
-                          <span className="font-bold text-gray-900 text-xs">{p.client_name}</span>
+                          <span className="font-semibold text-gray-900 text-xs">{p.client_name}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-gray-500 text-xs">{PAY_LABEL[p.method]}</td>
-                      <td className="px-6 py-4 font-black text-gray-900 text-xs">{fmtCurrency(p.amount)}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-900 text-xs">{fmtCurrency(p.amount)}</td>
                       <td className="px-6 py-4 font-mono text-gray-400 text-[10px] uppercase tracking-wider">{p.reference}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${p.status === 'cleared' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${p.status === 'cleared' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
                           {p.status === 'cleared' ? 'Cleared' : 'Pending'}
                         </span>
                       </td>
@@ -1138,7 +1110,7 @@ export function InvoicesClient({
         />
       )}
       {modal.type === 'success' && (
-        <SuccessModal title={modal.title} onClose={() => setModal({ type: 'none' })}/>
+        <SuccessModal title={modal.title} subtitle="The action was completed successfully." onClose={() => setModal({ type: 'none' })} />
       )}
     </div>
   )

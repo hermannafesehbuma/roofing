@@ -1,252 +1,345 @@
-import { Bell, Search } from 'lucide-react'
+import { ArrowUp, Calendar, CalendarDays, CalendarRange, ChevronDown, FolderOpen, IdCard, Receipt, Wallet } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { getEmployees } from '../employees/actions'
-import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
+import { getTimeEntries } from '../time-tracking/actions'
+import { getProjects } from '../projects/actions'
+import { getTasks } from '../tasks/actions'
+import { MobileHome } from '@/app/components/ui/mobile/MobileHome'
+import RevenueBars from './RevenueBars'
+import CrewUtilizationBars from './CrewUtilizationBars'
+import { ProgressRing, SplitRing, MultiRing } from './StatRings'
 
-function DonutChart({ pct, color }: { pct: number; color: string }) {
-  const r = 44
-  const circ = 2 * Math.PI * r
-  const offset = circ - (pct / 100) * circ
-  return (
-    <svg width="110" height="110" viewBox="0 0 110 110">
-      <circle cx="55" cy="55" r={r} fill="none" stroke="#F3F4F6" strokeWidth="10" />
-      <circle cx="55" cy="55" r={r} fill="none" stroke={color} strokeWidth="10"
-        strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" transform="rotate(-90 55 55)" />
-      <text x="55" y="52" textAnchor="middle" fontSize="15" fontWeight="700" fill="#111827">{pct}%</text>
-      <text x="55" y="67" textAnchor="middle" fontSize="9" fill="#9CA3AF">utilized</text>
-    </svg>
-  )
-}
-
-function StatCard({ label, value, sub, subColor }: { label: string; value: string; sub: string; subColor: 'green' | 'red' | 'gray' }) {
-  const subClass = subColor === 'green' ? 'text-emerald-600 bg-emerald-50' : subColor === 'red' ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100'
+function RingCard({ title, tag, tagChevron, chart, legend }: {
+  title: string
+  tag: string
+  tagChevron?: boolean
+  chart: React.ReactNode
+  legend: { label: string; value: string; color: string }[]
+}) {
   return (
     <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-      <p className="text-xs text-gray-500 mb-2">{label}</p>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <span className={`inline-block mt-2 text-[11px] font-medium px-2 py-0.5 rounded-full ${subClass}`}>{sub}</span>
-    </div>
-  )
-}
-
-function GanttBar({ label, start, width, color, pct }: { label: string; start: number; width: number; color: string; pct?: number }) {
-  return (
-    <div className="flex items-center gap-3 text-xs mb-2">
-      <div className="w-36 shrink-0 text-gray-500 truncate text-right">{label}</div>
-      <div className="flex-1 relative h-6">
-        <div className="absolute top-0 h-full rounded-md flex items-center px-2 text-white text-[11px] font-medium"
-          style={{ left: `${start}%`, width: `${width}%`, backgroundColor: color }}>
-          {pct != null ? `${pct}%` : ''}
-        </div>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[13px] font-semibold text-gray-900">{title}</p>
+        <span className="flex items-center gap-1 bg-gray-100 text-gray-500 text-[10px] font-medium px-2 py-1 rounded-md whitespace-nowrap">
+          {tag}
+          {tagChevron && <ChevronDown size={10} />}
+        </span>
+      </div>
+      <div className="flex justify-center py-3">{chart}</div>
+      <div className="space-y-2">
+        {legend.map(({ label, value, color }) => (
+          <div key={label} className="flex items-center gap-2 text-[11px]">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+            <span className="text-gray-500">{label}</span>
+            <span className="ml-auto font-semibold text-gray-900">{value}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
-const monthlyRevenue = [
-  { month: 'Jan', val: 42 }, { month: 'Feb', val: 58 }, { month: 'Mar', val: 75 },
-  { month: 'Apr', val: 94 }, { month: 'May', val: 61 }, { month: 'Jun', val: 48 }, { month: 'Jul', val: 55 },
+/* ── Stat card ───────────────────────────────────────────────────── */
+
+function StatCard({ label, value, sub, subTone, subArrow, icon: Icon, iconColor }: {
+  label: string
+  value: string
+  sub: string
+  subTone: 'green' | 'red' | 'gray'
+  subArrow?: boolean
+  icon: LucideIcon
+  iconColor: string
+}) {
+  const subClass = subTone === 'green' ? 'text-emerald-500' : subTone === 'red' ? 'text-red-500' : 'text-gray-400'
+  return (
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] text-gray-500">{label}</p>
+        <span className="w-6 h-6 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: iconColor }}>
+          <Icon size={13} className="text-white" strokeWidth={2.2} />
+        </span>
+      </div>
+      <div className="flex items-end justify-between gap-2 mt-3">
+        <p className="text-[26px] leading-none font-semibold text-gray-900">{value}</p>
+        <span className={`flex items-center gap-0.5 text-[10px] font-medium whitespace-nowrap ${subClass}`}>
+          {subArrow && <ArrowUp size={10} strokeWidth={2.5} />}
+          {sub}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/* ── Timeline ────────────────────────────────────────────────────── */
+
+const TIMELINE_MONTHS = ['March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+type TimelineBar = { label: string; start: number; width: number; color: string; pct: number }
+
+const timelineRows: TimelineBar[][] = [
+  [{ label: 'Hartfield Rd Reroof', start: 1, width: 27, color: '#F4762B', pct: 40 }],
+  [{ label: 'Hartfield Rd Reroof', start: 40, width: 27, color: '#2FBF9B', pct: 40 }],
+  [{ label: 'Oakfield Industrial', start: 70, width: 26, color: '#6C63E8', pct: 40 }],
+  [{ label: 'Devonshire Flat Roof', start: 18, width: 28, color: '#A94BE8', pct: 40 }],
+  [{ label: 'Thornton Ave Single', start: 70, width: 28, color: '#4BA3F0', pct: 40 }],
+  [{ label: 'Manor Park Reline', start: 38, width: 34, color: '#F5B440', pct: 40 }],
+  [
+    { label: 'Hartfield Rd Reroof', start: 14, width: 34, color: '#8A5A44', pct: 40 },
+    { label: 'Hartfield Rd Reroof', start: 64, width: 34, color: '#EE6FA0', pct: 40 },
+  ],
 ]
 
-const workers = [
-  { name: 'Metro Corp', project: 'Metro Commercial Fee', site: 'Job Site A – Oakdale', clockIn: '7:02 AM', hrs: 72 },
-  { name: 'Johnson Family', project: 'Oakdale Residential', site: 'Job Site A – Oakdale', clockIn: '6:59 AM', hrs: 68 },
-  { name: 'DW Properties', project: 'Green Valley Office', site: 'Job Site B – Riverside', clockIn: '7:05 AM', hrs: 65 },
-  { name: 'Summers Dev', project: 'Summers Flat', site: 'Office / Site A', clockIn: '8:02 AM', hrs: 50 },
-  { name: 'Highland HOA', project: 'Highland Tearoff', site: 'Downtown, NV', clockIn: '7:30 AM', hrs: 58 },
-  { name: 'Rivera LLC', project: 'Riverside Storage', site: 'Downtown, NV', clockIn: '7:45 AM', hrs: 44 },
+function GanttBar({ label, start, width, color, pct }: TimelineBar) {
+  return (
+    <div
+      className="absolute top-1.5 bottom-1.5 rounded-md px-2 py-1.5 flex flex-col justify-between overflow-hidden"
+      style={{ left: `${start}%`, width: `${width}%`, backgroundColor: color }}
+    >
+      <span className="text-white text-[10px] font-medium leading-none truncate">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <div className="flex-1 h-[3px] rounded-full bg-white/35 overflow-hidden">
+          <div className="h-full rounded-full bg-white" style={{ width: `${pct}%` }} />
+        </div>
+        <span className="text-white text-[9px] font-medium leading-none">{pct}%</span>
+      </div>
+    </div>
+  )
+}
+
+function MonthGridlines() {
+  return (
+    <>
+      {TIMELINE_MONTHS.slice(1).map((m, i) => (
+        <span key={m} className="absolute top-0 bottom-0 w-px bg-gray-100" style={{ left: `${((i + 1) / TIMELINE_MONTHS.length) * 100}%` }} />
+      ))}
+    </>
+  )
+}
+
+const monthlyRevenue = [
+  { period: 'Jan–Feb', val: 46 }, { period: 'Mar–Apr', val: 100 }, { period: 'May–Jun', val: 57 },
+  { period: 'Jul–Aug', val: 77 }, { period: 'Sep–Oct', val: 47 }, { period: 'Nov–Dec', val: 66 },
+]
+
+const crewUtilization = [
+  { label: 'Field Ops', pct: 85, color: '#3B82F6' },
+  { label: 'Engineering', pct: 72, color: '#A855F7' },
+  { label: 'Operations', pct: 68, color: '#22C55E' },
+  { label: 'Admin', pct: 55, color: '#F59E0B' },
 ]
 
 const avatarColors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4']
 function initials(name: string) { return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() }
 
+function fmtClockIn(t: string): string {
+  const [h, m] = t.split(':').map(Number)
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
+}
+
+const TARGET_SHIFT_HOURS = 8
+
+/** Hours worked so far — clock_out when present, otherwise elapsed until now. */
+function hoursWorked(clockIn: string, clockOut: string | null, now: Date): number {
+  const [hi, mi] = clockIn.split(':').map(Number)
+  const endMins = clockOut
+    ? (() => { const [ho, mo] = clockOut.split(':').map(Number); return ho * 60 + mo })()
+    : now.getHours() * 60 + now.getMinutes()
+  return Math.max(0, (endMins - (hi * 60 + mi)) / 60)
+}
+
 export default async function DashboardPage() {
-  const employees = await getEmployees()
+  const [employees, timeEntries, projects, tasks] = await Promise.all([
+    getEmployees(), getTimeEntries(), getProjects(), getTasks(),
+  ])
   const activeCount = employees.filter((e) => e.status === 'active').length
   const totalCount = employees.length
 
+  const now = new Date()
+  const todayKey = now.toLocaleDateString('en-CA') // YYYY-MM-DD, local
+  const todaysEntries = timeEntries.filter((e) => e.date === todayKey)
+  const clockedIn = [...todaysEntries].sort((a, b) => a.clock_in.localeCompare(b.clock_in)).slice(0, 8)
+  const onSiteCount = todaysEntries.filter((e) => !e.clock_out).length
+  const avatarByUser = new Map(employees.map((e) => [e.id, e.avatar_url]))
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <header className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between shrink-0">
-        <div>
-          <h1 className="text-base font-semibold text-gray-900">Dashboard</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Overview of everything happening</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50"><Search size={14} /></button>
-          <button className="relative w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50">
-            <Bell size={14} />
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-          </button>
-          <UserHeaderBadge />
-        </div>
-      </header>
+      {/* Field crews get the phone home screen; the analytics board is desktop-only. */}
+      <MobileHome
+        projects={projects}
+        tasks={tasks}
+        timeEntries={timeEntries}
+        greetingHour={now.getHours()}
+        todayKey={todayKey}
+      />
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-5">
+      <main className="hidden md:block flex-1 overflow-y-auto p-6 space-y-5">
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatCard label="Active Projects" value="8" sub="+3 vs last month" subColor="green" />
-          <StatCard label="Revenue This Month" value="$94.2k" sub="$342,000 total pipeline" subColor="gray" />
-          <StatCard label="Outstanding Invoices" value="11 / 18" sub="5 overdue" subColor="red" />
-          <StatCard label="Active Employees" value={`${activeCount} / ${totalCount}`} sub="Team members" subColor="green" />
+          <StatCard label="Active Projects" value="8" sub="+2 vs last month" subTone="gray" icon={FolderOpen} iconColor="#2F6BED" />
+          <StatCard label="Revenue This Month" value="$94.2k" sub="$142,000" subTone="green" subArrow icon={Wallet} iconColor="#22C55E" />
+          <StatCard label="Outstanding Invoices" value="$38.5k" sub="5 overdue" subTone="red" icon={Receipt} iconColor="#EF4444" />
+          <StatCard label="Active Employees" value={`${activeCount} /${totalCount}`} sub="Live" subTone="green" icon={IdCard} iconColor="#22C55E" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">Budget Used</p>
-            <p className="text-[10px] text-gray-400 mb-3">Projects &gt; Inventory | This Month</p>
-            <div className="flex items-center gap-5">
-              <DonutChart pct={67} color="#3B82F6" />
-              <div className="space-y-2 text-xs">
-                <div><p className="text-gray-500">Labour + Materials</p><p className="font-semibold text-gray-800">$1.24M</p></div>
-                <div><p className="text-gray-500">Remaining Budget</p><p className="font-semibold text-gray-800">$610k</p></div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">Invoiced / Paid</p>
-            <p className="text-[10px] text-gray-400 mb-3">Projects + Inventory | This Month</p>
-            <div className="flex items-center gap-5">
-              <DonutChart pct={71} color="#10B981" />
-              <div className="space-y-2 text-xs">
-                <div><p className="text-gray-500">Paid</p><p className="font-semibold text-gray-800">$1.24M</p></div>
-                <div><p className="text-gray-500">Overdue / Sent</p><p className="font-semibold text-gray-800">$510k</p></div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">Compliance Metrics</p>
-            <p className="text-[10px] text-gray-400 mb-3">Projects &gt; Inventory | This Month</p>
-            <div className="flex items-center gap-5">
-              <DonutChart pct={75} color="#F59E0B" />
-              <div className="space-y-2 text-xs">
-                {[{ label: 'Valid Certs', color: 'bg-emerald-400', val: 17 }, { label: 'Expiring (<30d)', color: 'bg-amber-400', val: 5 }, { label: 'Expired', color: 'bg-red-400', val: 2 }].map(({ label, color, val }) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-sm inline-block ${color}`} />
-                    <span className="text-gray-600">{label}</span>
-                    <span className="ml-auto font-semibold text-gray-800">{val}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <RingCard
+            title="Budget Used"
+            tag="Projects + Inventory"
+            chart={<ProgressRing pct={67} color="#0D1B2A" value="67%" caption="Budget Used" />}
+            legend={[
+              { label: 'Labour + Materials', value: '$1.24M', color: '#0D1B2A' },
+              { label: 'Remaining Budget', value: '$610k', color: '#D1D5DB' },
+            ]}
+          />
+          <RingCard
+            title="Invoiced / Paid"
+            tag="This Month"
+            tagChevron
+            chart={<SplitRing segments={[{ value: 71, color: '#22C55E' }, { value: 29, color: '#EF4444' }]} value="71%" caption="collection rate" />}
+            legend={[
+              { label: 'Paid', value: '$1.24M', color: '#22C55E' },
+              { label: 'Overdue / Sent', value: '$610k', color: '#EF4444' },
+            ]}
+          />
+          <RingCard
+            title="Compliance Metrics"
+            tag="Projects + Inventory"
+            chart={
+              <MultiRing
+                value="71%"
+                caption="collection rate"
+                rings={[
+                  { pct: 92, color: '#7FE0BE', track: '#EAF7F2' },
+                  { pct: 74, color: '#F97316', track: '#FDEDE1' },
+                  { pct: 52, color: '#EA580C', track: '#FBE7DC' },
+                ]}
+              />
+            }
+            legend={[
+              { label: 'Valid certs', value: '17', color: '#22C55E' },
+              { label: 'Expiring <60 days', value: '5', color: '#F97316' },
+              { label: 'Expired', value: '2', color: '#EF4444' },
+            ]}
+          />
         </div>
 
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-semibold text-gray-800">Active Projects Timeline</p>
-            <div className="flex gap-1 text-xs">
-              {['Day', 'Week', 'Month'].map((v, i) => (
-                <button key={v} className={`px-3 py-1 rounded-md ${i === 2 ? 'bg-[#0D1B2A] text-white' : 'text-gray-500 hover:bg-gray-100'}`}>{v}</button>
+            <p className="text-sm font-semibold text-gray-900">Active Projects Timeline</p>
+            <div className="flex items-center gap-1 text-[11px]">
+              {[{ label: 'Day', icon: Calendar }, { label: 'Week', icon: CalendarRange }, { label: 'Month', icon: CalendarDays }].map(({ label, icon: Icon }) => (
+                <button
+                  key={label}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border transition-colors ${
+                    label === 'Month'
+                      ? 'border-gray-200 bg-white text-gray-900 font-medium shadow-sm'
+                      : 'border-transparent text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon size={12} />
+                  {label}
+                </button>
               ))}
             </div>
           </div>
-          <div className="flex text-[10px] text-gray-400 mb-3 pl-[156px]">
-            {['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => (
-              <div key={m} className="flex-1 text-center">{m}</div>
+
+          <div className="border border-gray-100 rounded-lg overflow-hidden">
+            <div className="flex border-b border-gray-100">
+              {TIMELINE_MONTHS.map((m, i) => (
+                <div key={m} className={`flex-1 text-center text-[10px] text-gray-500 py-2 ${i > 0 ? 'border-l border-gray-100' : ''}`}>{m}</div>
+              ))}
+            </div>
+            {timelineRows.map((bars, i) => (
+              <div key={i} className={`relative h-14 ${i > 0 ? 'border-t border-gray-100' : ''}`}>
+                <MonthGridlines />
+                {bars.map((bar) => (
+                  <GanttBar key={`${bar.label}-${bar.start}`} {...bar} />
+                ))}
+              </div>
             ))}
           </div>
-          <GanttBar label="Hartfield Re-Reroof" start={0} width={28} color="#F97316" pct={42} />
-          <GanttBar label="Greenview Re-Reroof" start={22} width={32} color="#A855F7" pct={67} />
-          <GanttBar label="Dartmoor Flat Roof" start={8} width={40} color="#8B5CF6" />
-          <GanttBar label="Canfield Industrial" start={48} width={30} color="#6366F1" />
-          <GanttBar label="Harrison Ave Single" start={42} width={25} color="#EF4444" />
-          <GanttBar label="Senior Park Revive" start={55} width={22} color="#F59E0B" />
-          <GanttBar label="Hartfield Re-Reroof 2" start={30} width={35} color="#10B981" pct={40} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-xs text-gray-500">Monthly Revenue</p>
-                <p className="text-xl font-bold text-gray-900">$94,200</p>
-                <span className="text-[11px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full font-medium">Invoice/Billing · Paid</span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1">March – April 2026 · -13%</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[13px] font-semibold text-gray-900">Monthly Revenue</p>
+              <span className="bg-gray-100 text-gray-500 text-[10px] font-medium px-2 py-1 rounded-md whitespace-nowrap">Invoice &amp; Billing · Paid</span>
             </div>
-            <div className="flex items-end justify-between gap-3 h-24 mt-4">
-              {monthlyRevenue.map(({ month, val }) => (
-                <div key={month} className="flex flex-col items-center gap-1.5 flex-1">
-                  <div className="w-full max-w-[48px] bg-gray-100 rounded-t-md relative overflow-hidden" style={{ height: 80 }}>
-                    <div className="absolute bottom-0 w-full rounded-t-md transition-all duration-500" style={{ height: `${val}%`, background: month === 'Apr' ? '#0D1B2A' : '#E5E7EB' }} />
-                  </div>
-                  <span className="text-[10px] text-gray-400">{month}</span>
-                </div>
-              ))}
+            <div className="flex items-baseline gap-2 mt-3">
+              <p className="text-[26px] leading-none font-semibold text-gray-900">$94,200</p>
+              <span className="text-[11px] text-gray-400">March – April 2026</span>
+              <span className="text-[11px] text-gray-300">·</span>
+              <span className="text-[11px] font-medium text-emerald-500">+12%</span>
             </div>
+            <RevenueBars data={monthlyRevenue} highlight="Mar–Apr" />
           </div>
+
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-xs text-gray-500">Crew Utilization</p>
-                <p className="text-xl font-bold text-gray-900">78%</p>
-                <span className="text-[11px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full font-medium">Actual / Target Hours · +11% vs last week</span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1">Time Tracking · This Week</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[13px] font-semibold text-gray-900">Crew Utilization</p>
+              <span className="bg-gray-100 text-gray-500 text-[10px] font-medium px-2 py-1 rounded-md whitespace-nowrap">Time Tracking · This Week</span>
             </div>
-            <div className="space-y-3 mt-2">
-              {[{ label: 'Field Ops', pct: 85, color: '#3B82F6' }, { label: 'Engineering', pct: 72, color: '#8B5CF6' }, { label: 'Operations', pct: 68, color: '#10B981' }, { label: 'Admin', pct: 55, color: '#F59E0B' }].map(({ label, pct, color }) => (
-                <div key={label}>
-                  <div className="flex justify-between text-[11px] mb-1"><span className="text-gray-600">{label}</span><span className="text-gray-800 font-medium">{pct}%</span></div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} /></div>
-                </div>
-              ))}
+            <div className="flex items-baseline gap-2 mt-3">
+              <p className="text-[26px] leading-none font-semibold text-gray-900">78%</p>
+              <span className="text-[11px] text-gray-400">Actual / Target hours</span>
+              <span className="text-[11px] text-gray-300">·</span>
+              <span className="text-[11px] font-medium text-emerald-500">+5% vs last week</span>
             </div>
+            <CrewUtilizationBars data={crewUtilization} />
           </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <p className="text-sm font-semibold text-gray-800">Team Members</p>
-            <a href="/admin/employees" className="text-xs text-[#0D1B2A] font-medium hover:underline">View all</a>
+          <div className="px-5 py-4 flex items-center gap-2.5">
+            <p className="text-[13px] font-semibold text-gray-900">Clocked-In Workers</p>
+            <span className="bg-emerald-50 text-emerald-600 text-[10px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap">
+              {onSiteCount} / {activeCount} on site
+            </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/60">
-                  {['Employee', 'Role', 'Department', 'Phone', 'Email', 'Status'].map((h) => (
-                    <th key={h} className="text-left px-5 py-3 text-gray-500 font-medium">{h}</th>
+                <tr className="bg-gray-50 border-y border-gray-100">
+                  {['Employee', 'Project', 'Site / Location', 'Clock In', 'Hours'].map((h) => (
+                    <th key={h} className="text-left px-5 py-2.5 text-gray-400 font-normal text-[11px]">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {employees.slice(0, 8).map((emp, i) => {
-                  const statusColors: Record<string, string> = {
-                    active: 'bg-emerald-50 text-emerald-600',
-                    on_leave: 'bg-amber-50 text-amber-600',
-                    inactive: 'bg-gray-100 text-gray-500',
-                  }
-                  const statusLabels: Record<string, string> = {
-                    active: 'Active', on_leave: 'On Leave', inactive: 'Inactive',
-                  }
+                {clockedIn.map((entry, i) => {
+                  const hrs = hoursWorked(entry.clock_in, entry.clock_out, now)
+                  const avatar = avatarByUser.get(entry.user_id)
                   return (
-                    <tr key={emp.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <tr key={entry.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2.5">
-                          {emp.avatar_url ? (
+                          {avatar ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={emp.avatar_url} alt={emp.first_name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            <img src={avatar} alt={entry.employee_name} className="w-7 h-7 rounded-full object-cover shrink-0" />
                           ) : (
                             <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: avatarColors[i % avatarColors.length] }}>
-                              <span className="text-white text-[10px] font-semibold">{initials(`${emp.first_name} ${emp.last_name}`)}</span>
+                              <span className="text-white text-[10px] font-semibold">{initials(entry.employee_name)}</span>
                             </div>
                           )}
-                          <span className="font-medium text-gray-800">{emp.first_name} {emp.last_name}</span>
+                          <span className="font-medium text-gray-800">{entry.employee_name}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-gray-600 capitalize">{emp.role}</td>
-                      <td className="px-5 py-3 text-gray-500">{emp.department ?? '—'}</td>
-                      <td className="px-5 py-3 text-gray-500">{emp.phone ?? '—'}</td>
-                      <td className="px-5 py-3 text-gray-500">{emp.email}</td>
+                      <td className="px-5 py-3 text-gray-500">{entry.project_name ?? '—'}</td>
+                      <td className="px-5 py-3 text-gray-500">{entry.location ?? '—'}</td>
+                      <td className="px-5 py-3 text-gray-500">{fmtClockIn(entry.clock_in)}</td>
                       <td className="px-5 py-3">
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusColors[emp.status] ?? ''}`}>
-                          {statusLabels[emp.status] ?? emp.status}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-28 h-[3px] bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full bg-[#0D1B2A]" style={{ width: `${Math.min(hrs / TARGET_SHIFT_HOURS, 1) * 100}%` }} />
+                          </div>
+                          <span className="text-[11px] text-gray-500 tabular-nums">{hrs.toFixed(1)}</span>
+                        </div>
                       </td>
                     </tr>
                   )
                 })}
-                {employees.length === 0 && (
-                  <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400">No employees yet.</td></tr>
+                {clockedIn.length === 0 && (
+                  <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">Nobody clocked in today.</td></tr>
                 )}
               </tbody>
             </table>

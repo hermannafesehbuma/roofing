@@ -5,9 +5,9 @@ import {
    Search, MoreVertical, Paperclip, Smile, Send, 
    Image as ImageIcon, Camera, MapPin, FileText, 
    X, Phone, Mail, Calendar, DollarSign, Briefcase,
-   CheckCheck, Check
+   CheckCheck, Check, ArrowLeft
 } from 'lucide-react'
-import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
+import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface User {
@@ -133,9 +133,9 @@ function InfoDrawer({ user, onClose }: { user: User; onClose: () => void }) {
       <>
          <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose} />
          <div className="fixed inset-y-0 right-0 z-[101] flex">
-            <div className="bg-white w-[550px] max-w-full h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
                <div className="px-8 py-6 flex items-center justify-between border-b border-gray-100">
-                  <h3 className="text-base font-black text-gray-900">{isStaff ? 'Staff Info' : 'Client Info'}</h3>
+                  <h3 className="text-base font-semibold text-gray-900">{isStaff ? 'Staff Info' : 'Client Info'}</h3>
                   <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 transition-colors"><X size={18}/></button>
                </div>
                <div className="flex-1 overflow-y-auto p-8 bg-[#FCFCFD]">
@@ -144,39 +144,39 @@ function InfoDrawer({ user, onClose }: { user: User; onClose: () => void }) {
                      <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow-lg mb-4">
                         <img src={user.avatar} className="w-full h-full object-cover" alt={user.name} />
                      </div>
-                     <h2 className="text-xl font-black text-gray-900">{user.name}</h2>
-                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">{isStaff ? user.details.department : 'Customer'}</p>
+                     <h2 className="text-xl font-semibold text-gray-900">{user.name}</h2>
+                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">{isStaff ? user.details.department : 'Customer'}</p>
                   </div>
 
                   {/* Details Grid */}
                   <div className="mb-10">
-                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Details</h4>
+                     <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Details</h4>
                      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
                         <div className="grid grid-cols-[120px_1fr] divide-y divide-x divide-gray-50">
-                           <div className="px-5 py-3.5 text-xs font-bold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Briefcase size={12}/> Name</div>
-                           <div className="px-5 py-3.5 text-xs font-black text-gray-900 flex items-center">{user.name}</div>
+                           <div className="px-5 py-3.5 text-xs font-semibold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Briefcase size={12}/> Name</div>
+                           <div className="px-5 py-3.5 text-xs font-semibold text-gray-900 flex items-center">{user.name}</div>
                            
-                           <div className="px-5 py-3.5 text-xs font-bold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Mail size={12}/> Email</div>
-                           <div className="px-5 py-3.5 text-xs font-bold text-blue-600 flex items-center truncate">{user.details.email}</div>
+                           <div className="px-5 py-3.5 text-xs font-semibold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Mail size={12}/> Email</div>
+                           <div className="px-5 py-3.5 text-xs font-semibold text-blue-600 flex items-center truncate">{user.details.email}</div>
 
-                           <div className="px-5 py-3.5 text-xs font-bold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Phone size={12}/> Phone No</div>
-                           <div className="px-5 py-3.5 text-xs font-black text-gray-900 flex items-center">{user.details.phone}</div>
+                           <div className="px-5 py-3.5 text-xs font-semibold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Phone size={12}/> Phone No</div>
+                           <div className="px-5 py-3.5 text-xs font-semibold text-gray-900 flex items-center">{user.details.phone}</div>
 
                            {isStaff ? (
                               <>
-                                 <div className="px-5 py-3.5 text-xs font-bold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Briefcase size={12}/> Department</div>
-                                 <div className="px-5 py-3.5 text-xs font-black text-gray-900 flex items-center">{user.details.department}</div>
-                                 <div className="px-5 py-3.5 text-xs font-bold text-gray-500 flex items-center gap-2 bg-gray-50/50"><DollarSign size={12}/> Earned</div>
-                                 <div className="px-5 py-3.5 text-xs font-black text-gray-900 flex items-center">{user.details.earned}</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Briefcase size={12}/> Department</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-900 flex items-center">{user.details.department}</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-500 flex items-center gap-2 bg-gray-50/50"><DollarSign size={12}/> Earned</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-900 flex items-center">{user.details.earned}</div>
                               </>
                            ) : (
                               <>
-                                 <div className="px-5 py-3.5 text-xs font-bold text-gray-500 flex items-center gap-2 bg-gray-50/50"><MapPin size={12}/> Location</div>
-                                 <div className="px-5 py-3.5 text-xs font-black text-gray-900 flex items-center">{user.details.location}</div>
-                                 <div className="px-5 py-3.5 text-xs font-bold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Calendar size={12}/> Joined</div>
-                                 <div className="px-5 py-3.5 text-xs font-black text-gray-900 flex items-center">{user.details.joined}</div>
-                                 <div className="px-5 py-3.5 text-xs font-bold text-gray-500 flex items-center gap-2 bg-gray-50/50"><DollarSign size={12}/> Spent</div>
-                                 <div className="px-5 py-3.5 text-xs font-black text-gray-900 flex items-center">{user.details.spent}</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-500 flex items-center gap-2 bg-gray-50/50"><MapPin size={12}/> Location</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-900 flex items-center">{user.details.location}</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-500 flex items-center gap-2 bg-gray-50/50"><Calendar size={12}/> Joined</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-900 flex items-center">{user.details.joined}</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-500 flex items-center gap-2 bg-gray-50/50"><DollarSign size={12}/> Spent</div>
+                                 <div className="px-5 py-3.5 text-xs font-semibold text-gray-900 flex items-center">{user.details.spent}</div>
                               </>
                            )}
                         </div>
@@ -185,11 +185,11 @@ function InfoDrawer({ user, onClose }: { user: User; onClose: () => void }) {
 
                   {/* Associated Projects */}
                   <div>
-                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">All Projects</h4>
+                     <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">All Projects</h4>
                      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
                         <table className="w-full text-left border-collapse">
                            <thead className="bg-gray-50/50">
-                              <tr className="text-[10px] font-black text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                              <tr className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
                                  <th className="px-5 py-3">Project</th>
                                  <th className="px-5 py-3">{isStaff ? 'Manager' : 'Amount Spent'}</th>
                                  <th className="px-5 py-3">Status</th>
@@ -197,14 +197,14 @@ function InfoDrawer({ user, onClose }: { user: User; onClose: () => void }) {
                            </thead>
                            <tbody className="divide-y divide-gray-50 text-xs font-medium text-gray-600">
                               <tr>
-                                 <td className="px-5 py-3 font-bold text-gray-800">Full tear-off & overlay</td>
+                                 <td className="px-5 py-3 font-semibold text-gray-800">Full tear-off & overlay</td>
                                  <td className="px-5 py-3 text-gray-500">{isStaff ? 'Ahmed Khan' : '$18,000'}</td>
-                                 <td className="px-5 py-3"><span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded text-[9px] font-black uppercase border border-amber-100">In Progress</span></td>
+                                 <td className="px-5 py-3"><span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase border border-amber-100">In Progress</span></td>
                               </tr>
                               <tr>
-                                 <td className="px-5 py-3 font-bold text-gray-800">Cleanup & disposal</td>
+                                 <td className="px-5 py-3 font-semibold text-gray-800">Cleanup & disposal</td>
                                  <td className="px-5 py-3 text-gray-500">{isStaff ? 'Linda Chen' : '$4,500'}</td>
-                                 <td className="px-5 py-3"><span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[9px] font-black uppercase border border-emerald-100">Completed</span></td>
+                                 <td className="px-5 py-3"><span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase border border-emerald-100">Completed</span></td>
                               </tr>
                            </tbody>
                         </table>
@@ -212,7 +212,7 @@ function InfoDrawer({ user, onClose }: { user: User; onClose: () => void }) {
                   </div>
                </div>
                <div className="p-6 border-t border-gray-100 bg-white flex justify-end">
-                  <button onClick={onClose} className="px-6 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-xl">Close</button>
+                  <button onClick={onClose} className="px-6 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-xl">Close</button>
                </div>
             </div>
          </div>
@@ -227,6 +227,9 @@ export default function InboxPage() {
    const [showDrawer, setShowDrawer] = useState(false)
    const [msgInput, setMsgInput] = useState('')
    const [attachMenuOpen, setAttachMenuOpen] = useState(false)
+   // Phones cannot show both panes, so the thread replaces the list once a
+   // conversation is opened. Desktop keeps the split view regardless.
+   const [showThreadOnMobile, setShowThreadOnMobile] = useState(false)
 
    const filteredUsers = mockUsers.filter(u => {
       if (tab === 'clients') return u.role === 'client'
@@ -237,30 +240,20 @@ export default function InboxPage() {
 
    return (
       <div className="flex flex-col h-full bg-[#F3F5F8] overflow-hidden">
-         {/* Fixed Global Header */}
-         <div className="flex-none bg-white border-b border-gray-100 px-8 py-5">
-            <div className="flex items-center justify-between">
-               <div>
-                  <h1 className="text-xl font-black text-gray-900 tracking-tight">Inbox</h1>
-                  <p className="text-gray-400 text-xs mt-0.5 font-medium">Team messages, project threads, and client communications.</p>
-               </div>
-               <div className="flex items-center gap-3">
-                  <UserHeaderBadge />
-               </div>
-            </div>
-         </div>
+         {!showThreadOnMobile && <MobileHeader title="Inbox" />}
 
+         {/* Fixed Global Header */}
          {/* Workspace Split View */}
-         <div className="flex-1 flex overflow-hidden p-6 gap-6">
-            
+         <div className="flex-1 flex overflow-hidden p-0 md:p-6 md:gap-6">
+
             {/* Left Pane: Contact Lists */}
-            <div className="w-80 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+            <div className={`w-full md:w-80 bg-white md:rounded-2xl md:border border-gray-100 md:shadow-sm flex-col overflow-hidden ${showThreadOnMobile ? 'hidden md:flex' : 'flex'}`}>
                
                {/* Selector Tabs */}
                <div className="flex-none p-4 border-b border-gray-50">
                   <div className="flex p-1 bg-gray-100 rounded-xl">
-                     <button onClick={() => setTab('clients')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${tab === 'clients' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Clients</button>
-                     <button onClick={() => setTab('staffs')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${tab === 'staffs' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Staffs</button>
+                     <button onClick={() => setTab('clients')} className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${tab === 'clients' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Clients</button>
+                     <button onClick={() => setTab('staffs')} className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${tab === 'staffs' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Staffs</button>
                   </div>
                </div>
 
@@ -277,7 +270,7 @@ export default function InboxPage() {
                   {filteredUsers.map(u => (
                      <div 
                         key={u.id} 
-                        onClick={() => setSelectedUser(u)}
+                        onClick={() => { setSelectedUser(u); setShowThreadOnMobile(true) }}
                         className={`flex items-start gap-3 px-4 py-4 cursor-pointer hover:bg-blue-50/30 transition-colors border-l-2 ${selectedUser.id === u.id ? 'bg-blue-50/30 border-blue-600' : 'border-transparent'}`}
                      >
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-none border border-gray-100 bg-gray-50">
@@ -285,14 +278,14 @@ export default function InboxPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                            <div className="flex justify-between items-baseline">
-                              <h4 className={`text-xs font-black truncate ${u.unreadCount > 0 ? 'text-gray-900' : 'text-gray-800'}`}>{u.name}</h4>
+                              <h4 className={`text-xs font-semibold truncate ${u.unreadCount > 0 ? 'text-gray-900' : 'text-gray-800'}`}>{u.name}</h4>
                               <span className="text-[9px] font-medium text-gray-400 ml-2 whitespace-nowrap">{u.time}</span>
                            </div>
-                           <p className={`text-[11px] mt-0.5 truncate ${u.unreadCount > 0 ? 'text-gray-800 font-bold' : 'text-gray-500'}`}>{u.lastMessage}</p>
+                           <p className={`text-[11px] mt-0.5 truncate ${u.unreadCount > 0 ? 'text-gray-800 font-semibold' : 'text-gray-500'}`}>{u.lastMessage}</p>
                         </div>
                         <div className="flex-none flex items-center justify-center h-10">
                            {u.unreadCount > 0 ? (
-                              <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center text-[8px] font-black text-white">{u.unreadCount}</div>
+                              <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center text-[8px] font-semibold text-white">{u.unreadCount}</div>
                            ) : u.isRead ? (
                               <CheckCheck size={14} className="text-emerald-500" />
                            ) : null}
@@ -303,34 +296,41 @@ export default function InboxPage() {
             </div>
 
             {/* Right Pane: Active Chat Space */}
-            <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden relative">
-               
+            <div className={`flex-1 bg-white md:rounded-2xl md:border border-gray-100 md:shadow-sm flex-col overflow-hidden relative ${showThreadOnMobile ? 'flex' : 'hidden md:flex'}`}>
+
                {/* Chat Header */}
-               <div className="flex-none px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white/80 backdrop-blur-md z-10">
-                  <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setShowDrawer(true)}>
+               <div className="flex-none px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 flex items-center justify-between bg-white/80 backdrop-blur-md z-10">
+                  <button
+                     onClick={() => setShowThreadOnMobile(false)}
+                     aria-label="Back to conversations"
+                     className="md:hidden w-8 h-8 -ml-1 mr-1 flex items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 shrink-0"
+                  >
+                     <ArrowLeft size={18} />
+                  </button>
+                  <div className="flex items-center gap-3 cursor-pointer group flex-1 min-w-0" onClick={() => setShowDrawer(true)}>
                      <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-100 shadow-sm transition-transform group-hover:scale-105">
                         <img src={selectedUser.avatar} alt={selectedUser.name} className="w-full h-full object-cover" />
                      </div>
                      <div>
-                        <h3 className="text-sm font-black text-gray-900 group-hover:text-blue-600 transition-colors">{selectedUser.name}</h3>
-                        <p className="text-[10px] font-bold text-gray-400">{selectedUser.role === 'client' ? selectedUser.details.location : selectedUser.details.department}</p>
+                        <h3 className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{selectedUser.name}</h3>
+                        <p className="text-[10px] font-semibold text-gray-400">{selectedUser.role === 'client' ? selectedUser.details.location : selectedUser.details.department}</p>
                      </div>
                   </div>
                   <button onClick={() => setShowDrawer(true)} className="w-8 h-8 rounded-full hover:bg-gray-50 flex items-center justify-center text-gray-400"><MoreVertical size={16}/></button>
                </div>
 
                {/* Message Body */}
-               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FCFCFD]">
+               <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 md:space-y-6 bg-[#FCFCFD]">
                   
                   <div className="flex justify-center">
-                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">Today, at 10:40 PM</span>
+                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">Today, at 10:40 PM</span>
                   </div>
 
                   {activeConversation.map((msg, idx) => {
                      const isSender = msg.isSender
                      return (
                         <div key={msg.id} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
-                           <div className={`flex gap-3 max-w-[75%] ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
+                           <div className={`flex gap-2 md:gap-3 max-w-[85%] md:max-w-[75%] ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
                               {!isSender && (
                                  <div className="w-8 h-8 rounded-full overflow-hidden flex-none self-end mb-1">
                                     <img src={selectedUser.avatar} alt="avatar" className="w-full h-full object-cover" />
@@ -344,7 +344,7 @@ export default function InboxPage() {
                                  }`}>
                                     {msg.text}
                                  </div>
-                                 <div className={`text-[9px] font-bold text-gray-400 mt-1.5 flex items-center gap-1 ${isSender ? 'justify-end' : 'justify-start'}`}>
+                                 <div className={`text-[9px] font-semibold text-gray-400 mt-1.5 flex items-center gap-1 ${isSender ? 'justify-end' : 'justify-start'}`}>
                                     {msg.time}
                                     {isSender && <Check size={10} className="text-blue-400"/>}
                                  </div>
@@ -356,28 +356,28 @@ export default function InboxPage() {
                   
                   {/* Secondary Date Break Marker visual for Figma alignment */}
                   <div className="flex justify-center py-2">
-                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">Today, at 12:30 PM</span>
+                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest bg-gray-100 px-3 py-1 rounded-full">Today, at 12:30 PM</span>
                   </div>
                </div>
 
                {/* Interaction Input Bar */}
-               <div className="flex-none p-4 border-t border-gray-100 bg-white relative">
+               <div className="flex-none p-3 md:p-4 border-t border-gray-100 bg-white relative">
                   {/* Attachment Tooltip Drawer */}
                   {attachMenuOpen && (
                      <div className="absolute bottom-20 left-4 w-44 bg-white rounded-xl shadow-2xl border border-gray-100 p-1.5 animate-in slide-in-from-bottom-4 fade-in duration-200 overflow-hidden z-20">
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-xs font-bold text-gray-700 transition-colors">
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors">
                            <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center"><ImageIcon size={14}/></div>
                            Photos
                         </button>
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-xs font-bold text-gray-700 transition-colors">
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors">
                            <div className="w-7 h-7 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center"><Camera size={14}/></div>
                            Camera
                         </button>
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-xs font-bold text-gray-700 transition-colors">
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors">
                            <div className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><MapPin size={14}/></div>
                            Location
                         </button>
-                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-xs font-bold text-gray-700 transition-colors">
+                        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors">
                            <div className="w-7 h-7 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><FileText size={14}/></div>
                            Document
                         </button>

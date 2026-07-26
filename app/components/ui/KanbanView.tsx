@@ -58,15 +58,15 @@ function KanbanColumn({
           {icon}
           <h3 className="font-semibold text-gray-800">{title}</h3>
         </div>
-        <span className="text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-500">
+        <span className="text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-500">
           {count}
         </span>
       </div>
 
       <div className="flex flex-col gap-4">
         {projects.map(project => (
-          <div key={project.id} className="bg-white border text-left border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
-            <div className="h-32 w-full relative bg-gray-200">
+          <div key={project.id} className="relative bg-white border text-left border-gray-200 rounded-xl hover:shadow-md transition-shadow">
+            <div className="h-32 w-full relative bg-gray-200 rounded-t-xl overflow-hidden">
               <Image 
                 src={project.image_url || 'https://images.unsplash.com/photo-1632759145355-6b5d27ffc264?w=500&h=300&fit=crop'} 
                 alt={project.name}

@@ -4,9 +4,8 @@ import { useState, useRef, useEffect, useTransition } from 'react'
 import {
   Search, Filter, Plus, X, Check, MoreHorizontal, Trash2,
   Eye, Pencil, KanbanSquare, List, ChevronDown, ArrowUpRight,
-  ArrowUpCircle, TrendingUp, CheckCircle2, AlertCircle, Bell,
-} from 'lucide-react'
-import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
+  ArrowUpCircle, TrendingUp, CheckCircle2, AlertCircle, } from 'lucide-react'
+import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import {
   createLead, updateLead, deleteLead, convertLeadToClient,
   type LeadRow, type ClientRow, type RepOption,
@@ -89,7 +88,7 @@ function StatCard({ label, value, sub, subColor, icon }: {
       <div className="shrink-0">{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 leading-tight">{value}</p>
+        <p className="text-2xl font-semibold text-gray-900 leading-tight">{value}</p>
         <p className={`text-[11px] font-medium ${subColor}`}>{sub}</p>
       </div>
     </div>
@@ -131,7 +130,7 @@ function LeadCard({ lead, onView, onEdit, onDelete }: { lead: LeadRow; onView: (
     <div className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ backgroundColor: color }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-semibold shrink-0" style={{ backgroundColor: color }}>
             {initials(lead.first_name, lead.last_name)}
           </div>
           <div>
@@ -176,7 +175,7 @@ function ClientCard({ client, onView }: { client: ClientRow; onView: () => void 
     <div className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ backgroundColor: color }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-semibold shrink-0" style={{ backgroundColor: color }}>
             {(client.name[0] ?? '').toUpperCase()}
           </div>
           <div>
@@ -214,7 +213,7 @@ function DeleteLeadModal({ lead, onConfirm, onCancel, loading }: { lead: LeadRow
               <Trash2 size={20} className="text-red-500" />
             </div>
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Delete Lead</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete Lead</h2>
           <p className="text-sm text-gray-500 leading-relaxed mb-7">
             Are you sure you want to delete <span className="font-medium text-gray-800">{lead.first_name} {lead.last_name}</span>?
             This action cannot be undone.
@@ -258,9 +257,9 @@ function LeadFormPanel({ lead, reps, onClose, onSave, loading, errorMsg }: {
     <>
       <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[480px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-bold text-gray-900">{lead ? 'Edit Lead' : 'Add New Lead'}</h2>
+            <h2 className="text-base font-semibold text-gray-900">{lead ? 'Edit Lead' : 'Add New Lead'}</h2>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
@@ -269,7 +268,7 @@ function LeadFormPanel({ lead, reps, onClose, onSave, loading, errorMsg }: {
 
             {/* Lead Details */}
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Lead Details</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Lead Details</h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -304,7 +303,7 @@ function LeadFormPanel({ lead, reps, onClose, onSave, loading, errorMsg }: {
 
             {/* Pipeline Info */}
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-4">Pipeline Info</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Pipeline Info</h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -368,26 +367,6 @@ function LeadFormPanel({ lead, reps, onClose, onSave, loading, errorMsg }: {
   )
 }
 
-// ─── Lead Added Modal ──────────────────────────────────────────────────────────
-function LeadAddedModal({ onClose }: { onClose: () => void }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center">
-          <button onClick={onClose} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
-          <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-5 shadow-md">
-            <Check size={30} className="text-white" strokeWidth={2.5} />
-          </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Lead added successfully</h2>
-          <p className="text-sm text-gray-500 leading-relaxed mb-7">The lead has been saved and is ready for follow-up and tracking.</p>
-          <button onClick={onClose} className="w-full py-3 bg-[#0D1B2A] text-white rounded-xl text-sm font-semibold hover:bg-[#162437] transition-colors">Okay</button>
-        </div>
-      </div>
-    </>
-  )
-}
-
 // ─── Lead Details Modal ────────────────────────────────────────────────────────
 function LeadDetailsModal({ lead, reps, onClose, onStageChange, onMarkWon }: {
   lead: LeadRow; reps: RepOption[]; onClose: () => void
@@ -411,18 +390,18 @@ function LeadDetailsModal({ lead, reps, onClose, onStageChange, onMarkWon }: {
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-bold text-gray-900">Lead Details</h2>
+            <h2 className="text-base font-semibold text-gray-900">Lead Details</h2>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
             {/* Identity */}
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ backgroundColor: color }}>
+              <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0" style={{ backgroundColor: color }}>
                 {initials(lead.first_name, lead.last_name)}
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">{lead.first_name} {lead.last_name}</h3>
+                <h3 className="font-semibold text-gray-900 text-sm">{lead.first_name} {lead.last_name}</h3>
                 <p className="text-xs text-gray-500">{lead.email ?? ''}</p>
               </div>
               <span className={`ml-auto inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${STAGE_COLUMNS.find(s => s.key === lead.stage)?.color.replace('bg-', 'text-').replace('-400', '-700').replace('-500', '-700')} bg-opacity-10`}>
@@ -432,7 +411,7 @@ function LeadDetailsModal({ lead, reps, onClose, onStageChange, onMarkWon }: {
 
             {/* Contact */}
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Contact Information</p>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Contact Information</p>
               <div className="space-y-2 text-sm">
                 {[['Email', lead.email ?? '—'], ['Phone', lead.phone ?? '—'], ['Address', lead.address ?? '—'], ['Company', lead.company ?? '—']].map(([k, v]) => (
                   <div key={k} className="flex justify-between py-1.5 border-b border-gray-50">
@@ -445,7 +424,7 @@ function LeadDetailsModal({ lead, reps, onClose, onStageChange, onMarkWon }: {
 
             {/* Deal Info */}
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Deal Info</p>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Deal Info</p>
               <div className="space-y-2 text-sm">
                 {[
                   ['Expected Value', fmtValue(lead.expected_value)],
@@ -470,14 +449,14 @@ function LeadDetailsModal({ lead, reps, onClose, onStageChange, onMarkWon }: {
 
             {lead.notes && (
               <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Notes</p>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</p>
                 <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 leading-relaxed">{lead.notes}</p>
               </div>
             )}
 
             {/* Move Stage */}
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Move Stage</p>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Move Stage</p>
               <div className="flex gap-2 flex-wrap">
                 {moveStages.map(s => {
                   const col = STAGE_COLUMNS.find(c => c.key === s)!
@@ -514,17 +493,17 @@ function ClientDetailsModal({ client, onClose }: { client: ClientRow; onClose: (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-bold text-gray-900">Client Details</h2>
+            <h2 className="text-base font-semibold text-gray-900">Client Details</h2>
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ backgroundColor: color }}>
+              <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0" style={{ backgroundColor: color }}>
                 {(client.name[0] ?? '').toUpperCase()}
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">{client.name}</h3>
+                <h3 className="font-semibold text-gray-900 text-sm">{client.name}</h3>
                 <p className="text-xs text-gray-500">{client.email}</p>
               </div>
               <span className={`ml-auto inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${PORTAL_BADGE[client.portal_status]}`}>
@@ -534,7 +513,7 @@ function ClientDetailsModal({ client, onClose }: { client: ClientRow; onClose: (
             </div>
 
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Contact Information</p>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Contact Information</p>
               <div className="space-y-2 text-sm">
                 {[['Email', client.email], ['Phone', client.phone ?? '—'], ['Company', client.company ?? '—'], ['Address', client.address ?? '—'], ['Manager', client.manager_name ?? '—']].map(([k, v]) => (
                   <div key={k} className="flex justify-between py-1.5 border-b border-gray-50">
@@ -546,7 +525,7 @@ function ClientDetailsModal({ client, onClose }: { client: ClientRow; onClose: (
             </div>
 
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Portal Status</p>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Portal Status</p>
               <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-800">Client Portal</p>
@@ -751,7 +730,13 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
       {modal?.type === 'leadForm' && (
         <LeadFormPanel lead={modal.lead} reps={reps} onClose={() => setModal(null)} onSave={handleSaveLead} loading={isPending} errorMsg={formError} />
       )}
-      {modal?.type === 'leadAdded' && <LeadAddedModal onClose={() => setModal(null)} />}
+      {modal?.type === 'leadAdded' && (
+        <SuccessModal
+          title="Lead added successfully"
+          subtitle="The lead has been saved and is ready for follow-up and tracking."
+          onClose={() => setModal(null)}
+        />
+      )}
       {modal?.type === 'viewLead' && (
         <LeadDetailsModal
           lead={modal.lead} reps={reps}
@@ -766,20 +751,6 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-gray-100 px-7 py-4 flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-base font-semibold text-gray-900">CRM / Leads</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Track leads and manage client relationships.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="relative w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50">
-              <Bell size={14} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-            </button>
-            <UserHeaderBadge />
-          </div>
-        </header>
-
         <main className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Stat Cards */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">

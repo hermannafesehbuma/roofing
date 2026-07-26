@@ -5,6 +5,8 @@ export type WorkOrderStatus = 'Open' | 'Closed';
 
 export interface WorkOrder {
   id: string;
+  /** Human-readable reference shown in the table; falls back to `id`. */
+  code?: string;
   name: string;
   priority: PriorityLevel;
   status: WorkOrderStatus;
@@ -15,7 +17,34 @@ export interface TeamMember {
   id: string;
   name: string;
   role: string;
-  avatar: string;
+  avatar?: string;
+}
+
+export interface ProjectDocument {
+  id: string;
+  name: string;
+  /** Short label for the File Type column — "PDF", "PNG", … */
+  fileType: string;
+  /** Public storage URL, used by both View and Download. */
+  url: string;
+  dateSubmitted: string;
+  uploadedBy: string;
+}
+
+/**
+ * Invoice statuses the DB stores, plus `due_soon` — derived at read time from a
+ * sent invoice's due date, since the design distinguishes it but the column
+ * does not.
+ */
+export type ProjectInvoiceStatus = 'draft' | 'sent' | 'due_soon' | 'paid' | 'overdue' | 'partial';
+
+export interface ProjectInvoice {
+  id: string;
+  code: string;
+  clientName: string;
+  amount: number;
+  status: ProjectInvoiceStatus;
+  dueDate: string;
 }
 
 export interface ProjectDetails {
@@ -27,6 +56,8 @@ export interface ProjectDetails {
   crewSize: number;
   workOrders: WorkOrder[];
   team: TeamMember[];
+  documents: ProjectDocument[];
+  invoices: ProjectInvoice[];
 }
 
 export interface Project {

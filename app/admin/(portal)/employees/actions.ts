@@ -2,12 +2,14 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { uploadToStorage, StorageFolder } from '@/lib/storage'
 
 export type EmployeeRow = {
   id: string
   first_name: string
   last_name: string
   email: string
+  employee_id: string | null
   role: 'admin' | 'manager' | 'technician' | 'client'
   status: 'active' | 'on_leave' | 'inactive'
   phone: string | null
@@ -23,7 +25,7 @@ export async function getEmployee(id: string): Promise<EmployeeRow | null> {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('users')
-    .select('id, first_name, last_name, email, role, status, phone, department, employee_type, gender, rate_of_pay, start_date, avatar_url')
+    .select('id, first_name, last_name, email, employee_id, role, status, phone, department, employee_type, gender, rate_of_pay, start_date, avatar_url')
     .eq('id', id)
     .single()
 
@@ -35,7 +37,7 @@ export async function getEmployees(): Promise<EmployeeRow[]> {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('users')
-    .select('id, first_name, last_name, email, role, status, phone, department, employee_type, gender, rate_of_pay, start_date, avatar_url')
+    .select('id, first_name, last_name, email, employee_id, role, status, phone, department, employee_type, gender, rate_of_pay, start_date, avatar_url')
     .neq('role', 'client')
     .order('first_name')
 
@@ -50,6 +52,7 @@ export type CreateEmployeeInput = {
   firstName: string
   lastName: string
   email: string
+  employeeId: string
   role: 'admin' | 'manager' | 'technician'
   employeeType: 'full_time' | 'part_time' | 'contractor' | 'subcontractor'
   status: 'active' | 'on_leave' | 'inactive'
@@ -83,6 +86,7 @@ export async function createEmployee(input: CreateEmployeeInput) {
       email: input.email,
       first_name: input.firstName,
       last_name: input.lastName,
+      employee_id: input.employeeId || null,
       role: input.role,
       status: input.status,
       phone: input.phone || null,
@@ -111,6 +115,7 @@ export type UpdateEmployeeInput = {
   firstName: string
   lastName: string
   email: string
+  employeeId: string
   role: 'admin' | 'manager' | 'technician'
   employeeType: 'full_time' | 'part_time' | 'contractor' | 'subcontractor'
   status: 'active' | 'on_leave' | 'inactive'
@@ -130,6 +135,7 @@ export async function updateEmployee(input: UpdateEmployeeInput) {
     .update({
       first_name: input.firstName,
       last_name: input.lastName,
+      employee_id: input.employeeId || null,
       role: input.role,
       status: input.status,
       phone: input.phone || null,
@@ -150,21 +156,25 @@ export async function updateEmployee(input: UpdateEmployeeInput) {
 
 export async function uploadAvatar(formData: FormData): Promise<{ url: string } | { error: string }> {
   const file = formData.get('file') as File | null
-  if (!file || file.size === 0) return { error: 'No file provided' }
+  if (!file) return { error: 'No file provided' }
 
-  const admin = createAdminClient()
-  const ext = file.name.split('.').pop() ?? 'jpg'
-  const path = `${crypto.randomUUID()}.${ext}`
+  const result = await uploadToStorage(StorageFolder.avatars, file)
+  if ('error' in result) return { error: result.error }
 
-  const bytes = await file.arrayBuffer()
-  const { error } = await admin.storage
-    .from('avatars')
-    .upload(path, bytes, { contentType: file.type, upsert: false })
+  return { url: result.url }
+}
 
-  if (error) return { error: error.message }
+export type ImportResult = { email: string; id?: string; error?: string }
 
-  const { data } = admin.storage.from('avatars').getPublicUrl(path)
-  return { url: data.publicUrl }
+/** Bulk-create employees from a CSV import. Rows are independent — one failure doesn't stop the rest. */
+export async function importEmployees(rows: CreateEmployeeInput[]): Promise<ImportResult[]> {
+  const results: ImportResult[] = []
+  for (const row of rows) {
+    const result = await createEmployee(row)
+    results.push('error' in result ? { email: row.email, error: result.error } : { email: row.email, id: result.id })
+  }
+  revalidatePath('/admin/employees')
+  return results
 }
 
 export async function deleteEmployee(id: string) {

@@ -23,7 +23,6 @@ import {
   FolderOpen,
   Plus
 } from 'lucide-react'
-import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
 import {
   SupportTicket,
   TicketStatus,
@@ -287,52 +286,36 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
         </div>
       )}
 
-      {/* Main Header */}
-      <div className="flex items-center justify-between border-b border-gray-100 bg-white px-8 py-5 shrink-0">
-        <div>
-          {selectedTicket ? (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSelectedTicket(null)}
-                className="p-1.5 rounded-lg hover:bg-gray-50 text-gray-500 hover:text-gray-800 transition-colors border border-gray-100"
-              >
-                <ArrowLeft size={16} />
-              </button>
-              <div>
-                <h1 className="text-lg font-bold text-gray-900 leading-tight">
-                  {selectedTicket.code}
-                </h1>
-                <p className="text-[10px] text-gray-400 font-semibold mt-0.5">
-                  Assignee: {selectedTicket.agentName}
-                </p>
-              </div>
-            </div>
-          ) : (
+      {/* Page toolbar — the title bar itself lives in the portal AppHeader */}
+      <div className="flex items-center justify-between border-b border-gray-100 bg-white px-8 py-3 shrink-0">
+        {selectedTicket ? (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedTicket(null)}
+              className="p-1.5 rounded-lg hover:bg-gray-50 text-gray-500 hover:text-gray-800 transition-colors border border-gray-100"
+            >
+              <ArrowLeft size={16} />
+            </button>
             <div>
-              <div className="flex items-center gap-4">
-                <h1 className="text-xl font-bold text-gray-900">Support Tickets</h1>
-                <button 
-                  onClick={() => setShowNewTicketModal(true)}
-                  className="bg-[#0D1B2A] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#162437] transition-colors flex items-center gap-1.5"
-                >
-                  <Plus size={14} /> New Ticket
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mt-0.5">Manage and respond to user support requests.</p>
+              <h2 className="text-sm font-semibold text-gray-900 leading-tight">
+                {selectedTicket.code}
+              </h2>
+              <p className="text-[10px] text-gray-400 font-semibold mt-0.5">
+                Assignee: {selectedTicket.agentName}
+              </p>
             </div>
-          )}
-        </div>
-
-        {/* Global user section */}
-        <div className="flex items-center gap-4">
-          <button className="relative w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors border border-gray-100">
-            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          </button>
-            <UserHeaderBadge />
-        </div>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-sm font-semibold text-gray-900">Support Tickets</h2>
+            <button
+              onClick={() => setShowNewTicketModal(true)}
+              className="bg-[#0D1B2A] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#162437] transition-colors flex items-center gap-1.5"
+            >
+              <Plus size={14} /> New Ticket
+            </button>
+          </>
+        )}
       </div>
 
       {selectedTicket === null ? (
@@ -348,8 +331,8 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
             ].map((stat, idx) => (
               <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-100/80 shadow-sm flex items-center justify-between">
                 <div className="space-y-1.5">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
-                  <p className="text-3xl font-extrabold text-gray-900 tracking-tight">{stat.value}</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                  <p className="text-3xl font-semibold text-gray-900 tracking-tight">{stat.value}</p>
                 </div>
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${stat.color}`}>
                   <stat.icon size={20} />
@@ -362,7 +345,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
           <div className="bg-white rounded-2xl border border-gray-100/80 shadow-sm overflow-hidden flex flex-col">
             {/* Table Header Filter Row */}
             <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <h2 className="text-sm font-bold text-gray-800">Support Tickets</h2>
+              <h2 className="text-sm font-semibold text-gray-800">Support Tickets</h2>
 
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 {/* Search */}
@@ -383,7 +366,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                 <div className="relative">
                   <button
                     onClick={() => setShowFilterPopover(!showFilterPopover)}
-                    className={`flex items-center gap-2 px-4 py-2 text-xs font-bold border rounded-lg transition-colors bg-white ${
+                    className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold border rounded-lg transition-colors bg-white ${
                       filterStatus || filterPriority
                         ? 'border-[#0D1B2A] text-[#0D1B2A]'
                         : 'border-gray-200 text-gray-600 hover:bg-gray-50'
@@ -398,13 +381,13 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                     <div className="absolute right-0 mt-2.5 w-64 bg-white border border-gray-100 rounded-xl shadow-2xl p-5 z-40 space-y-4">
                       {/* Status filter */}
                       <div>
-                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Status</h4>
+                        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</h4>
                         <div className="flex flex-wrap gap-2">
                           {(['opened', 'pending', 'resolved'] as const).map((st) => (
                             <button
                               key={st}
                               onClick={() => setFilterStatus(filterStatus === st ? null : st)}
-                              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all uppercase tracking-wide ${
+                              className={`px-3 py-1.5 text-[10px] font-semibold rounded-lg border transition-all uppercase tracking-wide ${
                                 filterStatus === st
                                   ? 'bg-[#0D1B2A] border-[#0D1B2A] text-white'
                                   : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'
@@ -418,13 +401,13 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
 
                       {/* Priority filter */}
                       <div>
-                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Priority</h4>
+                        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Priority</h4>
                         <div className="flex flex-wrap gap-2">
                           {(['low', 'medium', 'high'] as const).map((pr) => (
                             <button
                               key={pr}
                               onClick={() => setFilterPriority(filterPriority === pr ? null : pr)}
-                              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all uppercase tracking-wide ${
+                              className={`px-3 py-1.5 text-[10px] font-semibold rounded-lg border transition-all uppercase tracking-wide ${
                                 filterPriority === pr
                                   ? 'bg-[#0D1B2A] border-[#0D1B2A] text-white'
                                   : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'
@@ -443,13 +426,13 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                             setFilterPriority(null)
                             setShowFilterPopover(false)
                           }}
-                          className="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-wider"
+                          className="text-[10px] font-semibold text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-wider"
                         >
                           Clear All
                         </button>
                         <button
                           onClick={() => setShowFilterPopover(false)}
-                          className="px-4 py-1.5 bg-[#0D1B2A] hover:bg-[#162437] text-white text-[10px] font-bold rounded-lg transition-colors uppercase tracking-wider"
+                          className="px-4 py-1.5 bg-[#0D1B2A] hover:bg-[#162437] text-white text-[10px] font-semibold rounded-lg transition-colors uppercase tracking-wider"
                         >
                           Apply
                         </button>
@@ -464,7 +447,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
             <div className="overflow-x-auto min-h-[400px]">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
                     <th className="text-left px-6 py-4 whitespace-nowrap">Ticket ID</th>
                     <th className="text-left px-6 py-4 whitespace-nowrap">Client</th>
                     <th className="text-left px-6 py-4 w-1/3 whitespace-nowrap">Complaint</th>
@@ -486,7 +469,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                     paginatedTickets.map((t) => (
                       <tr key={t.id} className="hover:bg-gray-50/30 transition-colors">
                         {/* ID */}
-                        <td className="px-6 py-4 font-bold text-gray-900">{t.code}</td>
+                        <td className="px-6 py-4 font-semibold text-gray-900">{t.code}</td>
 
                         {/* Client */}
                         <td className="px-6 py-4">
@@ -512,7 +495,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                         {/* Status */}
                         <td className="px-4 py-4 text-center">
                           <span
-                            className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
+                            className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-semibold border uppercase tracking-wider ${
                               t.status === 'opened'
                                 ? 'bg-blue-50 border-blue-100 text-blue-600'
                                 : t.status === 'pending'
@@ -587,13 +570,13 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                                   handleSelectTicket(t)
                                   setActiveActionMenuId(null)
                                 }}
-                                className="w-full px-4 py-2 hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center gap-2"
+                                className="w-full px-4 py-2 hover:bg-gray-50 text-xs font-semibold text-gray-700 flex items-center gap-2"
                               >
                                 View Ticket
                               </button>
                               <button
                                 onClick={() => setActiveStatusPopoverId(t.id)}
-                                className="w-full px-4 py-2 hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center gap-2 border-t border-gray-50"
+                                className="w-full px-4 py-2 hover:bg-gray-50 text-xs font-semibold text-gray-700 flex items-center gap-2 border-t border-gray-50"
                               >
                                 Change Status
                               </button>
@@ -602,7 +585,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
 
                           {activeStatusPopoverId === t.id && (
                             <div className="absolute right-6 top-20 w-44 bg-white border border-gray-100 rounded-xl shadow-2xl p-3.5 z-50 text-left animate-in fade-in slide-in-from-top-2 duration-150">
-                              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Change Status</p>
+                              <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Change Status</p>
                               <div className="space-y-1.5">
                                 {(['resolved', 'pending', 'opened'] as const).map((st) => (
                                   <label
@@ -635,7 +618,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
                 disabled={currentPage === 1}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg font-semibold text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer"
               >
                 <ChevronLeft size={14} />
                 Previous
@@ -646,7 +629,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                   <button
                     key={idx}
                     onClick={() => setCurrentPage(idx + 1)}
-                    className={`w-8 h-8 rounded-lg font-bold flex items-center justify-center transition-colors cursor-pointer ${
+                    className={`w-8 h-8 rounded-lg font-semibold flex items-center justify-center transition-colors cursor-pointer ${
                       currentPage === idx + 1
                         ? 'bg-[#0D1B2A] text-white'
                         : 'border border-gray-100 text-gray-500 hover:bg-gray-50'
@@ -660,7 +643,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
               <button
                 onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg font-bold text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg font-semibold text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer"
               >
                 Next
                 <ChevronRight size={14} />
@@ -675,8 +658,8 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
           <div className="w-80 border-r border-gray-100 flex flex-col shrink-0">
             {/* Sidebar Stats & Title */}
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/30">
-              <span className="text-xs font-bold text-gray-800">Total Tickets {tickets.length}</span>
-              <span className="text-[10px] font-bold bg-[#0D1B2A]/5 text-[#0D1B2A] px-2 py-0.5 rounded-full uppercase tracking-wider">
+              <span className="text-xs font-semibold text-gray-800">Total Tickets {tickets.length}</span>
+              <span className="text-[10px] font-semibold bg-[#0D1B2A]/5 text-[#0D1B2A] px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Newest
               </span>
             </div>
@@ -710,7 +693,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-800">{t.id}</span>
+                      <span className="text-xs font-semibold text-gray-800">{t.id}</span>
                       <span className="text-[10px] text-gray-400 font-semibold">{t.dateSubmitted.split(',')[0]}</span>
                     </div>
                     <p className="text-xs font-medium text-gray-500 line-clamp-1 leading-normal">
@@ -718,7 +701,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                     </p>
                     <div className="flex items-center justify-between mt-1">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-wider ${
+                        className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-semibold border uppercase tracking-wider ${
                           t.status === 'opened'
                             ? 'bg-blue-50 border-blue-100 text-blue-600'
                             : t.status === 'pending'
@@ -738,7 +721,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                               : 'bg-blue-500'
                           }`}
                         />
-                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{t.priority}</span>
+                        <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">{t.priority}</span>
                       </div>
                     </div>
                   </button>
@@ -762,7 +745,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                   )}
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-gray-800">{selectedTicket.agentName}</h3>
+                  <h3 className="text-xs font-semibold text-gray-800">{selectedTicket.agentName}</h3>
                   <p className="text-[10px] text-gray-400 font-semibold mt-0.5">{selectedTicket.id}</p>
                 </div>
               </div>
@@ -770,7 +753,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
               {/* Action details toggle */}
               <button
                 onClick={() => setShowDetailsDrawer(true)}
-                className="px-4 py-2 bg-gray-50 border border-gray-100 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                className="px-4 py-2 bg-gray-50 border border-gray-100 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
               >
                 Ticket Details
               </button>
@@ -785,7 +768,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
                   </div>
-                  <h4 className="text-xs font-bold text-gray-700">No Messages Yet</h4>
+                  <h4 className="text-xs font-semibold text-gray-700">No Messages Yet</h4>
                   <p className="text-[10px] text-gray-400 max-w-xs mt-1 leading-normal">
                     This support ticket does not have any chat history yet. Type a message below to start chatting.
                   </p>
@@ -800,7 +783,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                         isAgent ? 'self-end items-end' : 'self-start items-start'
                       }`}
                     >
-                      <span className="text-[10px] text-gray-400 font-bold tracking-wide">
+                      <span className="text-[10px] text-gray-400 font-semibold tracking-wide">
                         {m.timestamp}
                       </span>
                       <div className="flex items-end gap-2.5">
@@ -831,7 +814,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                                 <path d="M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3" />
                               </svg>
                             ) : (
-                              <span className="text-[9px] font-bold">KB</span>
+                              <span className="text-[9px] font-semibold">KB</span>
                             )}
                           </div>
                         )}
@@ -874,7 +857,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
               <div className="w-[450px] bg-white h-full flex flex-col shadow-2xl border-l border-gray-100 animate-in slide-in-from-right duration-300">
                 {/* Drawer header */}
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
-                  <h3 className="text-sm font-bold text-gray-900">Ticket Details</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">Ticket Details</h3>
                   <button
                     onClick={() => {
                       setShowDetailsDrawer(false)
@@ -890,7 +873,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-gray-700">
                   {/* Assignee Search & Select */}
                   <div className="space-y-1.5 relative">
-                    <label className="block font-bold text-gray-500 uppercase tracking-wider text-[10px]">Assign To</label>
+                    <label className="block font-semibold text-gray-500 uppercase tracking-wider text-[10px]">Assign To</label>
                     <div className="relative">
                       <button
                         type="button"
@@ -939,7 +922,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
 
                   {/* Ticket Type */}
                   <div className="space-y-1.5">
-                    <label className="block font-bold text-gray-500 uppercase tracking-wider text-[10px]">Ticket Type</label>
+                    <label className="block font-semibold text-gray-500 uppercase tracking-wider text-[10px]">Ticket Type</label>
                     <div className="relative">
                       <select
                         value={drawerType}
@@ -958,7 +941,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
 
                   {/* Status Pills */}
                   <div className="space-y-2">
-                    <label className="block font-bold text-gray-500 uppercase tracking-wider text-[10px]">Set Status</label>
+                    <label className="block font-semibold text-gray-500 uppercase tracking-wider text-[10px]">Set Status</label>
                     <div className="grid grid-cols-3 gap-3">
                       {[
                         { value: 'resolved', label: 'Resolved', dot: 'bg-emerald-500' },
@@ -971,7 +954,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                             key={st.value}
                             type="button"
                             onClick={() => setDrawerStatus(st.value as TicketStatus)}
-                            className={`flex items-center justify-center gap-2 py-2.5 border rounded-xl font-bold transition-all text-[10px] uppercase tracking-wide cursor-pointer ${
+                            className={`flex items-center justify-center gap-2 py-2.5 border rounded-xl font-semibold transition-all text-[10px] uppercase tracking-wide cursor-pointer ${
                               isChecked
                                 ? 'border-[#0D1B2A] bg-[#0D1B2A]/5 text-[#0D1B2A]'
                                 : 'border-gray-200 hover:bg-gray-50 text-gray-600'
@@ -987,7 +970,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
 
                   {/* Priority Pills */}
                   <div className="space-y-2">
-                    <label className="block font-bold text-gray-500 uppercase tracking-wider text-[10px]">Set Priority</label>
+                    <label className="block font-semibold text-gray-500 uppercase tracking-wider text-[10px]">Set Priority</label>
                     <div className="grid grid-cols-3 gap-3">
                       {[
                         { value: 'low', label: 'Low', dot: 'bg-blue-500' },
@@ -1000,7 +983,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                             key={pr.value}
                             type="button"
                             onClick={() => setDrawerPriority(pr.value as TicketPriority)}
-                            className={`flex items-center justify-center gap-2 py-2.5 border rounded-xl font-bold transition-all text-[10px] uppercase tracking-wide cursor-pointer ${
+                            className={`flex items-center justify-center gap-2 py-2.5 border rounded-xl font-semibold transition-all text-[10px] uppercase tracking-wide cursor-pointer ${
                               isChecked
                                 ? 'border-[#0D1B2A] bg-[#0D1B2A]/5 text-[#0D1B2A]'
                                 : 'border-gray-200 hover:bg-gray-50 text-gray-600'
@@ -1016,7 +999,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
 
                   {/* Notes text area */}
                   <div className="space-y-1.5">
-                    <label className="block font-bold text-gray-500 uppercase tracking-wider text-[10px]">Note</label>
+                    <label className="block font-semibold text-gray-500 uppercase tracking-wider text-[10px]">Note</label>
                     <textarea
                       placeholder="Enter text..."
                       value={drawerNotes}
@@ -1028,15 +1011,15 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
 
                   {/* Labels Section */}
                   <div className="pt-6 border-t border-gray-100 space-y-4">
-                    <h4 className="font-bold text-gray-500 uppercase tracking-wider text-[10px]">Label</h4>
+                    <h4 className="font-semibold text-gray-500 uppercase tracking-wider text-[10px]">Label</h4>
 
                     <div className="grid grid-cols-3 gap-y-3 gap-x-2 text-xs">
                       {/* ID */}
-                      <span className="text-gray-400 font-bold">ID</span>
-                      <span className="col-span-2 font-bold text-gray-800">{selectedTicket.id}</span>
+                      <span className="text-gray-400 font-semibold">ID</span>
+                      <span className="col-span-2 font-semibold text-gray-800">{selectedTicket.id}</span>
 
                       {/* Customer */}
-                      <span className="text-gray-400 font-bold">Customer</span>
+                      <span className="text-gray-400 font-semibold">Customer</span>
                       <div className="col-span-2 flex items-center gap-2">
                         <div className="w-5 h-5 rounded-full overflow-hidden shrink-0">
                           {selectedTicket.clientAvatar ? (
@@ -1051,11 +1034,11 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                       </div>
 
                       {/* Location */}
-                      <span className="text-gray-400 font-bold">Location</span>
+                      <span className="text-gray-400 font-semibold">Location</span>
                       <span className="col-span-2 font-semibold text-gray-800">{selectedTicket.location}</span>
 
                       {/* Date submitted */}
-                      <span className="text-gray-400 font-bold">Date submitted</span>
+                      <span className="text-gray-400 font-semibold">Date submitted</span>
                       <span className="col-span-2 font-medium text-gray-800">{selectedTicket.dateSubmitted}</span>
                     </div>
                   </div>
@@ -1068,13 +1051,13 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
                       setShowDetailsDrawer(false)
                       setShowAgentSearch(false)
                     }}
-                    className="px-5 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                    className="px-5 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                   >
                     Close
                   </button>
                   <button
                     onClick={handleSaveDrawerDetails}
-                    className="px-5 py-2 bg-[#0D1B2A] hover:bg-[#162437] text-white rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                    className="px-5 py-2 bg-[#0D1B2A] hover:bg-[#162437] text-white rounded-lg text-xs font-semibold transition-colors shadow-sm cursor-pointer"
                   >
                     Save Information
                   </button>
@@ -1093,7 +1076,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#F8FAFC]">
                 <div>
-                  <h2 className="text-base font-bold text-gray-900">Create Support Ticket</h2>
+                  <h2 className="text-base font-semibold text-gray-900">Create Support Ticket</h2>
                   <p className="text-[11px] text-gray-500 mt-0.5">Submit a new request or issue to the support team</p>
                 </div>
                 <button onClick={() => setShowNewTicketModal(false)} className="p-1.5 rounded-full hover:bg-gray-200 text-gray-400">

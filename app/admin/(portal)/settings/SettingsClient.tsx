@@ -6,9 +6,8 @@ import {
   Search, Filter, Plus, Eye, Pencil, Trash2,
   MoreHorizontal, X, Check, ShieldAlert, FileText,
   UserCheck, AlertTriangle, Key, Shield, User,
-  Bell, ChevronDown
+  ChevronDown
 } from 'lucide-react'
-import UserHeaderBadge from '@/app/components/ui/UserHeaderBadge'
 import {
   type SettingsStats, type Permission, type AuditLogEntry,
   getSettingsStats, savePermissions
@@ -58,6 +57,7 @@ function InviteDrawer({ onClose, onSave, loading, errorMsg }: {
       firstName,
       lastName,
       email,
+      employeeId: '',
       role,
       employeeType: 'full_time',
       status: 'active',
@@ -72,9 +72,9 @@ function InviteDrawer({ onClose, onSave, loading, errorMsg }: {
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 bg-white w-[480px] max-w-full h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+      <div className="fixed inset-y-0 right-0 z-50 bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
         <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">Invite Staff</h2>
+          <h2 className="text-base font-semibold text-gray-900">Invite Staff</h2>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
             <X size={16} />
           </button>
@@ -88,7 +88,7 @@ function InviteDrawer({ onClose, onSave, loading, errorMsg }: {
           )}
 
           <div>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Staff Details</h3>
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Staff Details</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">First Name</label>
@@ -225,7 +225,7 @@ function DeleteModal({ employee, onConfirm, onCancel, loading }: {
           <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-5">
             <Trash2 size={24} className="text-red-500" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Delete Employee</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete Employee</h2>
           <p className="text-sm text-gray-500 leading-relaxed mb-7">
             Are you sure want to delete this Employees from Employees management?
           </p>
@@ -300,7 +300,7 @@ function FilterPopover({ activeFilters, onApply, onClose }: {
   return (
     <div ref={popoverRef} className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 z-50">
       <div className="mb-5">
-        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Status</h4>
+        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Status</h4>
         <div className="flex flex-wrap gap-2">
           {['Active', 'Inactive'].map((s) => {
             const val = s.toLowerCase()
@@ -323,7 +323,7 @@ function FilterPopover({ activeFilters, onApply, onClose }: {
       </div>
 
       <div className="mb-6">
-        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Role</h4>
+        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Role</h4>
         <div className="flex flex-wrap gap-2">
           {['Admin', 'Manager', 'Staff'].map((r) => {
             const val = r === 'Staff' ? 'technician' : r.toLowerCase()
@@ -497,6 +497,7 @@ export function SettingsClient({
         firstName: values.firstName,
         lastName: values.lastName,
         email: values.email,
+        employeeId: values.employeeId,
         role: values.role,
         employeeType: 'full_time',
         status: 'active',
@@ -517,6 +518,7 @@ export function SettingsClient({
         first_name: values.firstName,
         last_name: values.lastName,
         email: values.email,
+        employee_id: values.employeeId || null,
         role: values.role,
         status: 'active',
         phone: null,
@@ -570,6 +572,7 @@ export function SettingsClient({
         firstName: values.firstName,
         lastName: values.lastName,
         email: values.email,
+        employeeId: values.employeeId,
         role: values.role as any,
         employeeType: values.employeeType,
         status: values.status,
@@ -689,20 +692,6 @@ export function SettingsClient({
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Page Header */}
-        <header className="bg-white border-b border-gray-100 px-8 py-5 flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-base font-bold text-gray-900">Settings</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Manage your team members, roles, and access permissions</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="relative w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50">
-              <Bell size={14} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-            </button>
-            <UserHeaderBadge />
-          </div>
-        </header>
-
         {/* Dashboard Panels */}
         <div className="flex-1 overflow-y-auto p-8 space-y-6">
           {/* Stats Cards */}
@@ -716,7 +705,7 @@ export function SettingsClient({
               ].map((card) => (
                 <div key={card.title} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
                   <p className="text-xs text-gray-400 font-medium">{card.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1.5">{card.count}</p>
+                  <p className="text-2xl font-semibold text-gray-900 mt-1.5">{card.count}</p>
                 </div>
               ))}
             </div>
@@ -729,7 +718,7 @@ export function SettingsClient({
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-1 py-4 mr-8 text-xs font-bold border-b-2 transition-colors -mb-px ${
+                  className={`px-1 py-4 mr-8 text-xs font-semibold border-b-2 transition-colors -mb-px ${
                     activeTab === tab
                       ? 'border-[#0D1B2A] text-[#0D1B2A]'
                       : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -748,7 +737,7 @@ export function SettingsClient({
                   {/* Toolbar */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-800">Staff Directory</h3>
+                      <h3 className="text-sm font-semibold text-gray-800">Staff Directory</h3>
                       <p className="text-xs text-gray-400 mt-0.5">{filtered.length} members across all roles</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -820,7 +809,7 @@ export function SettingsClient({
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={emp.avatar_url} alt={emp.first_name} className="w-8 h-8 rounded-full object-cover shrink-0" />
                                   ) : (
-                                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-bold" style={{ backgroundColor: color }}>
+                                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-semibold" style={{ backgroundColor: color }}>
                                       {initials(emp.first_name, emp.last_name)}
                                     </div>
                                   )}
@@ -878,14 +867,14 @@ export function SettingsClient({
               {activeTab === 'Permissions' && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-bold text-gray-800">Permissions Matrix</h3>
+                    <h3 className="text-sm font-semibold text-gray-800">Permissions Matrix</h3>
                     <p className="text-xs text-gray-400 mt-0.5">Control which user roles have access to specific modules</p>
                   </div>
 
                   <div className="border border-gray-100 rounded-xl overflow-hidden">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                        <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
                           <th className="text-left px-6 py-4">Features</th>
                           <th className="text-center px-4 py-4 w-28">Admin</th>
                           <th className="text-center px-4 py-4 w-28">Manager</th>
@@ -900,7 +889,7 @@ export function SettingsClient({
                             <Fragment key={category}>
                               {/* Category Header Row */}
                               <tr className="bg-gray-50/30 border-b border-gray-100">
-                                <td colSpan={5} className="px-6 py-2.5 font-bold text-[10px] text-gray-400 uppercase tracking-wider bg-gray-50/40">
+                                <td colSpan={5} className="px-6 py-2.5 font-semibold text-[10px] text-gray-400 uppercase tracking-wider bg-gray-50/40">
                                   {category}
                                 </td>
                               </tr>
@@ -966,14 +955,14 @@ export function SettingsClient({
               {activeTab === 'Audit log' && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-bold text-gray-800">Security Audit Log</h3>
+                    <h3 className="text-sm font-semibold text-gray-800">Security Audit Log</h3>
                     <p className="text-xs text-gray-400 mt-0.5">Chronological record of recent administrative security operations</p>
                   </div>
 
                   <div className="border border-gray-100 rounded-xl overflow-hidden">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                        <tr className="border-b border-gray-100 bg-gray-50/60 text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
                           <th className="text-left px-5 py-3.5">User</th>
                           <th className="text-left px-5 py-3.5">Action</th>
                           <th className="text-left px-5 py-3.5">Module</th>
@@ -988,7 +977,7 @@ export function SettingsClient({
                             <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/20 transition-colors">
                               <td className="px-5 py-3.5">
                                 <div className="flex items-center gap-2.5">
-                                  <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-600 text-[10px] font-bold">
+                                  <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-600 text-[10px] font-semibold">
                                     {initialsText}
                                   </div>
                                   <div>
@@ -1020,7 +1009,7 @@ export function SettingsClient({
                   {/* Account Settings */}
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-800">Account Details</h3>
+                      <h3 className="text-sm font-semibold text-gray-800">Account Details</h3>
                       <p className="text-xs text-gray-400 mt-0.5">Manage your personal account coordinates and communications</p>
                     </div>
 
@@ -1047,7 +1036,7 @@ export function SettingsClient({
 
                     <button
                       onClick={() => showToast('Account details updated successfully')}
-                      className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Update Details
                     </button>
@@ -1058,7 +1047,7 @@ export function SettingsClient({
                   {/* Password reset */}
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-sm font-bold text-gray-800">Change Password</h3>
+                      <h3 className="text-sm font-semibold text-gray-800">Change Password</h3>
                       <p className="text-xs text-gray-400 mt-0.5">Ensure your account is using a long, random password to stay secure</p>
                     </div>
 
@@ -1090,7 +1079,7 @@ export function SettingsClient({
 
                     <button
                       onClick={() => showToast('Password updated successfully')}
-                      className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Update Password
                     </button>
@@ -1102,7 +1091,7 @@ export function SettingsClient({
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-sm font-bold text-gray-800">Two-Factor Authentication (2FA)</h3>
+                        <h3 className="text-sm font-semibold text-gray-800">Two-Factor Authentication (2FA)</h3>
                         <p className="text-xs text-gray-400 mt-0.5">Add an extra layer of security using an authenticator application</p>
                       </div>
                       <button

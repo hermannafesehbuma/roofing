@@ -96,7 +96,7 @@ export function TasksListView({ tasks, onDeleteClick, onEditClick }: TasksListVi
                         {t.assignee_avatar ? (
                           <Image src={t.assignee_avatar} alt={t.assignee_name ?? ''} fill sizes="24px" className="object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-indigo-200 text-indigo-700 text-[9px] font-bold">
+                          <div className="w-full h-full flex items-center justify-center bg-indigo-200 text-indigo-700 text-[9px] font-semibold">
                             {t.assignee_name ? t.assignee_name.charAt(0).toUpperCase() : '?'}
                           </div>
                         )}
@@ -105,7 +105,7 @@ export function TasksListView({ tasks, onDeleteClick, onEditClick }: TasksListVi
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${PRIORITY_COLOR[t.priority]}`}>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${PRIORITY_COLOR[t.priority]}`}>
                       {t.priority.charAt(0).toUpperCase() + t.priority.slice(1)}
                     </span>
                   </td>
@@ -113,7 +113,7 @@ export function TasksListView({ tasks, onDeleteClick, onEditClick }: TasksListVi
                     {dueDateLabel(t.due_date)}
                   </td>
                   <td className="p-4">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold border ${STATUS_COLOR[t.status]}`}>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold border ${STATUS_COLOR[t.status]}`}>
                       {STATUS_LABEL[t.status]}
                     </span>
                   </td>

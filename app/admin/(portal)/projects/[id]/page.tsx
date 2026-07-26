@@ -1,9 +1,11 @@
+import { notFound } from 'next/navigation';
 import { ProjectDetailClient } from './ProjectDetailClient';
-import { mockProjects, Project } from '../data';
+import { getProject } from '../actions';
 
-export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
-  // In a real app, you would fetch data here based on params.id
-  const project = mockProjects.find(p => p.id === params.id) || mockProjects[0];
+export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const project = await getProject(id);
+  if (!project) notFound();
 
-  return <ProjectDetailClient project={project as unknown as Project} />;
+  return <ProjectDetailClient project={project} />;
 }

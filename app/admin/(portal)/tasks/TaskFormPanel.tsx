@@ -84,10 +84,10 @@ export function TaskFormPanel({
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 flex">
-      <div className="bg-white w-[480px] max-w-full h-full flex flex-col shadow-2xl">
+      <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-          <h2 className="text-base font-bold text-gray-900">
+          <h2 className="text-base font-semibold text-gray-900">
             {task ? 'Edit Task' : 'Add New Task'}
           </h2>
           <button onClick={onCancel} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">

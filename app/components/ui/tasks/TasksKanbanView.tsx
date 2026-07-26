@@ -53,7 +53,7 @@ export function TasksKanbanView({ tasks, onDeleteClick, onEditClick, onStatusCha
                 <div className={`w-2 h-2 rounded-full ${col.dot}`} />
                 <h3 className="font-semibold text-sm text-gray-900">{col.label}</h3>
               </div>
-              <span className="text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-500">
+              <span className="text-[10px] font-semibold w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-500">
                 {colTasks.length}
               </span>
             </div>
@@ -114,7 +114,7 @@ function TaskCard({ task, onDelete, onEdit, onStatusChange }: {
 
       <div className="flex items-center justify-between ml-7 mt-2">
         <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
             task.priority === 'high'   ? 'text-red-600 bg-red-50 border-red-200' :
             task.priority === 'medium' ? 'text-amber-600 bg-amber-50 border-amber-200' :
                                          'text-blue-600 bg-blue-50 border-blue-200'
@@ -136,7 +136,7 @@ function TaskCard({ task, onDelete, onEdit, onStatusChange }: {
             {task.assignee_avatar ? (
               <Image src={task.assignee_avatar} alt={task.assignee_name ?? ''} fill sizes="24px" className="object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-indigo-200 text-indigo-700 text-[9px] font-bold">
+              <div className="w-full h-full flex items-center justify-center bg-indigo-200 text-indigo-700 text-[9px] font-semibold">
                 {task.assignee_name ? task.assignee_name.charAt(0).toUpperCase() : '?'}
               </div>
             )}
