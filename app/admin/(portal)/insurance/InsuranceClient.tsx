@@ -2,19 +2,23 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react'
 import {
-  Search, Filter as FilterIcon, Plus, X, Check, MoreHorizontal, Trash2,
-  Eye, Pencil, KanbanSquare, List as ListIcon, ChevronDown, FileText,
-  AlertTriangle, ShieldCheck, FileWarning, Trash,
-  Calendar, History, ChevronLeft, ChevronRight, ArrowUpRight,
+  Search, Filter as FilterIcon, Plus, X, Check,
+  KanbanSquare, List as ListIcon, ChevronDown, FileText,
+  AlertCircle, ShieldCheck, UserCheck, Clock,
+  History, ChevronLeft, ChevronRight, ArrowUpRight, CalendarDays, Trash2,
 } from 'lucide-react'
+import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
+import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import {
   type PolicyRow, type CertRow, type EmployeeOption,
   type DbPolicyStatus, type DbCoverageType, type DbCertStatus,
   createPolicy, updatePolicy, deletePolicy,
   createCertification, updateCertification, deleteCertification,
+  uploadInsuranceDocument, getInsuranceDocumentUrl,
 } from './actions'
-import { createClient } from '@/lib/supabase/client'
+import { Toast } from '@/app/components/ui/Toast'
+import { useSlideOver } from '@/app/components/ui/useSlideOver'
 
 // ─── Display maps ──────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<DbPolicyStatus, string> = {
@@ -27,9 +31,25 @@ const STATUS_BADGE: Record<DbPolicyStatus, string> = {
   expiring_soon: 'text-orange-700 bg-orange-50',
   expired: 'text-red-700 bg-red-50',
 }
+/** Fill colour of the "policy period used" bar in the detail panel. */
+const PERIOD_BAR: Record<DbPolicyStatus, string> = {
+  valid: 'bg-emerald-500',
+  expiring_soon: 'bg-orange-500',
+  expired: 'bg-red-500',
+}
 const STATUS_DOT: Record<DbPolicyStatus, string> = {
   valid: 'bg-emerald-500',
   expiring_soon: 'bg-orange-500',
+  expired: 'bg-red-500',
+}
+const STATUS_TEXT: Record<DbPolicyStatus, string> = {
+  valid: 'text-emerald-600',
+  expiring_soon: 'text-orange-500',
+  expired: 'text-red-500',
+}
+const STATUS_BAR: Record<DbPolicyStatus, string> = {
+  valid: 'bg-emerald-500',
+  expiring_soon: 'bg-orange-400',
   expired: 'bg-red-500',
 }
 const COVERAGE_LABEL: Record<DbCoverageType, string> = {
@@ -70,6 +90,21 @@ function computeStatus(days: number, reminder: number): DbPolicyStatus {
   return 'valid'
 }
 
+/**
+ * How much of the policy period has elapsed, as a percentage. Derived from the
+ * server-computed `days_remaining` so the bar renders identically on both sides
+ * of hydration.
+ */
+function periodUsedPct(effective: string, expiry: string, daysRemaining: number): number {
+  if (daysRemaining <= 0) return 100
+  if (!effective || !expiry) return 0
+  const total = Math.round(
+    (new Date(expiry + 'T00:00:00').getTime() - new Date(effective + 'T00:00:00').getTime()) / 86400000
+  )
+  if (total <= 0) return 100
+  return Math.max(0, Math.min(100, Math.round(((total - daysRemaining) / total) * 100)))
+}
+
 function computeCertStatus(days: number): DbCertStatus {
   if (days < 0) return 'expired'
   if (days <= 60) return 'expiring_soon'
@@ -101,6 +136,8 @@ interface CertFormValues {
   issue_date: string
   expiry_date: string
   file?: File | null
+  /** Set when the user clears an already-stored document. */
+  removeFile?: boolean
 }
 
 interface Filters {
@@ -119,6 +156,15 @@ type Modal =
   | { type: 'deleteCert'; cert: CertRow }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
+/** Pill-shaped selectable chip used across the filter panel. */
+function filterChipCls(active: boolean) {
+  return `px-3.5 py-2 rounded-full text-[11px] font-medium border whitespace-nowrap transition-colors ${
+    active
+      ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]'
+      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+  }`
+}
+
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A] transition-colors'
 const selectCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A] transition-colors'
 
@@ -140,60 +186,22 @@ function PaginationBar() {
 }
 
 // ─── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, subColor, icon }: {
-  label: string; value: number | string; sub: string; subColor: string
+function StatCard({ label, value, sub, subColor, icon, iconBg }: {
+  label: string; value: number | string; sub?: string; subColor?: string
   icon: React.ReactNode
+  /** Tint behind the icon — carries the card's status colour. */
+  iconBg: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-4 relative overflow-hidden">
-      <div className="shrink-0">{icon}</div>
-      <div className="flex-1 min-w-0">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-3 min-h-[104px]">
+      <div className="flex items-start justify-between gap-3">
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-2xl font-semibold text-gray-900 leading-tight">{value}</p>
-        <p className={`text-[11px] font-medium mt-1 ${subColor}`}>{sub}</p>
+        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
       </div>
-      {label === 'Cert Compliance' && (
-        <div className="absolute right-4 top-1/2 -translate-y-1/2">
-          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-            <ShieldCheck size={20} />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Action Menu ───────────────────────────────────────────────────────────────
-function ActionMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit?: () => void; onDelete: () => void }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [])
-
-  return (
-    <div ref={ref} className="relative">
-      <button onClick={() => setOpen(!open)} className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
-        <MoreHorizontal size={14} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-7 z-30 w-40 bg-white rounded-xl shadow-lg border border-gray-100 py-1 overflow-hidden">
-          <button onClick={() => { setOpen(false); onView() }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left">
-            <Eye size={13} /> View Detail
-          </button>
-          {onEdit && (
-            <button onClick={() => { setOpen(false); onEdit() }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left">
-              <Pencil size={13} /> Edit
-            </button>
-          )}
-          <button onClick={() => { setOpen(false); onDelete() }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 text-left">
-            <Trash2 size={13} /> Delete
-          </button>
-        </div>
-      )}
+      <div className="flex items-end justify-between gap-3">
+        <p className="text-[26px] font-semibold text-gray-900 leading-none">{value}</p>
+        {sub && <p className={`text-[11px] font-medium leading-none ${subColor}`}>{sub}</p>}
+      </div>
     </div>
   )
 }
@@ -222,46 +230,44 @@ function FilterDropdown({ filters, onChange, onClose }: { filters: Filters; onCh
   }
 
   return (
-    <div ref={ref} className="absolute right-0 top-12 z-40 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+    <div ref={ref} className="absolute right-0 top-12 z-40 w-[400px] bg-white rounded-2xl shadow-[0_8px_30px_rgba(16,24,40,0.14)] p-5">
+      <p className="text-[11px] text-gray-400 mb-4">Filter</p>
       <div className="space-y-5">
         <div>
-          <label className="text-xs font-semibold text-gray-500 block mb-2">Status</label>
-          <div className="flex flex-wrap gap-2">
+          <label className="text-xs font-semibold text-gray-700 block mb-2.5">Status</label>
+          <div className="flex flex-wrap gap-2.5">
             {DB_STATUSES.map(s => (
-              <button key={s} onClick={() => toggleStatus(s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${filters.status.includes(s) ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+              <button key={s} onClick={() => toggleStatus(s)} className={filterChipCls(filters.status.includes(s))}>
                 {STATUS_LABEL[s]}
               </button>
             ))}
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-gray-500 block mb-2">Coverage Type</label>
-          <div className="flex flex-wrap gap-2">
+          <label className="text-xs font-semibold text-gray-700 block mb-2.5">Coverage Type</label>
+          <div className="flex flex-wrap gap-2.5">
             {COVERAGE_OPTIONS.map(({ value, label }) => (
-              <button key={value} onClick={() => toggleCoverage(value)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${filters.coverageType.includes(value) ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+              <button key={value} onClick={() => toggleCoverage(value)} className={filterChipCls(filters.coverageType.includes(value))}>
                 {label}
               </button>
             ))}
           </div>
         </div>
         <div>
-          <label className="text-xs font-semibold text-gray-500 block mb-2">Expires Within</label>
-          <div className="flex flex-wrap gap-2">
+          <label className="text-xs font-semibold text-gray-700 block mb-2.5">Expires Within</label>
+          <div className="flex flex-wrap gap-2.5">
             {EXPIRES_OPTIONS.map(e => (
-              <button key={e} onClick={() => toggleExpires(e)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${filters.expiresWithin.includes(e) ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+              <button key={e} onClick={() => toggleExpires(e)} className={filterChipCls(filters.expiresWithin.includes(e))}>
                 {e}
               </button>
             ))}
           </div>
         </div>
-        <div className="pt-3 flex gap-2 border-t border-gray-100">
-          <button onClick={() => onChange({ status: [], coverageType: [], expiresWithin: [] })} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+        <div className="flex gap-3 pt-1">
+          <button onClick={() => onChange({ status: [], coverageType: [], expiresWithin: [] })} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
             Clear All
           </button>
-          <button onClick={onClose} className="flex-1 px-4 py-2 bg-[#0D1B2A] text-white rounded-lg text-xs font-semibold hover:bg-[#162437] transition-colors">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-[#0D1B2A] text-white rounded-lg text-xs font-semibold hover:bg-[#162437] transition-colors">
             Apply
           </button>
         </div>
@@ -272,59 +278,70 @@ function FilterDropdown({ filters, onChange, onClose }: { filters: Filters; onCh
 
 // ─── Policy Card ───────────────────────────────────────────────────────────────
 function PolicyCard({ policy, onView, onEdit, onDelete }: { policy: PolicyRow; onView: () => void; onEdit: () => void; onDelete: () => void }) {
+  const used = periodUsedPct(policy.effective_date, policy.expiry_date, policy.days_remaining)
   return (
     <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900">{policy.policy_holder}</h4>
+      <div className="flex items-center justify-center bg-gray-50 rounded-lg py-6 mb-3">
+        <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative">
+          <FileText className="text-red-500" size={24} />
+          <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[8px] font-semibold px-1 rounded">PDF</span>
+        </div>
+      </div>
+
+      {/* Name and actions sit below the document preview, as on the board design. */}
+      <div className="flex justify-between items-start gap-2 mb-4">
+        <div className="min-w-0">
+          <h4 className="text-sm font-semibold text-gray-900 truncate">{policy.policy_holder}</h4>
           <p className="text-xs text-gray-500">{COVERAGE_LABEL[policy.coverage_type]}</p>
         </div>
-        <ActionMenu onView={onView} onEdit={onEdit} onDelete={onDelete} />
+        <ActionsDropdown onView={onView} onEdit={onEdit} onDelete={onDelete} />
       </div>
 
-      <div className="flex items-center justify-center bg-gray-50 rounded-lg py-6 mb-4">
-        <div className="flex flex-col items-center">
-          <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative">
-            <FileText className="text-red-500" size={24} />
-            <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[8px] font-semibold px-1 rounded">PDF</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-2 text-xs mb-3">
-        <div className="flex justify-between">
-          <span className="text-gray-400">Status:</span>
-          <span className={`font-medium flex items-center gap-1 ${STATUS_BADGE[policy.status]} px-1.5 rounded text-[10px]`}>
-            <div className={`w-1 h-1 rounded-full ${STATUS_DOT[policy.status]}`} />
+      <div className="space-y-2.5 text-xs mb-4">
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Status</span>
+          <span className={`font-medium flex items-center gap-1.5 ${STATUS_TEXT[policy.status]}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[policy.status]}`} />
             {STATUS_LABEL[policy.status]}
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Policy #:</span>
-          <span className="text-gray-700">{policy.policy_number}</span>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Policy #</span>
+          <span className="text-gray-700 truncate">{policy.policy_number || '—'}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Insurer:</span>
-          <span className="text-gray-700 truncate max-w-[140px]">{policy.insurer}</span>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Insurer</span>
+          <span className="text-gray-700 truncate max-w-[150px]">{policy.insurer}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Coverage Amount:</span>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Policy Holder</span>
+          <span className="text-gray-700 truncate max-w-[150px]">{policy.policy_holder}</span>
+        </div>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Coverage Type</span>
+          <span className="text-gray-700">{COVERAGE_LABEL[policy.coverage_type]}</span>
+        </div>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Coverage Amount</span>
           <span className="text-gray-700 font-medium">{formatCurrency(policy.coverage_amount)}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Effective Date:</span>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Effective Date</span>
           <span className="text-gray-700">{formatDate(policy.effective_date)}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Expiry Date:</span>
-          <span className="text-gray-700">{formatDate(policy.expiry_date)}</span>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Expiry Date</span>
+          <span className={`font-medium ${STATUS_TEXT[policy.status]}`}>{formatDate(policy.expiry_date)}</span>
         </div>
       </div>
 
-      <div className="border-t border-gray-50 pt-3 flex items-center justify-between text-[11px]">
+      <div className="h-1 w-full rounded-full bg-gray-100 overflow-hidden">
+        <div className={`h-full rounded-full ${STATUS_BAR[policy.status]}`} style={{ width: `${used}%` }} />
+      </div>
+      <div className="pt-2.5 flex items-center justify-between text-[11px]">
         <span className="text-gray-400">Policy period used</span>
-        <span className={`font-medium ${policy.status === 'expired' ? 'text-red-500' : 'text-emerald-600'}`}>
-          {policy.status === 'expired'
+        <span className={`font-medium ${STATUS_TEXT[policy.status]}`}>
+          {policy.days_remaining < 0
             ? `${Math.abs(policy.days_remaining)} days over due`
             : `${policy.days_remaining} days left`}
         </span>
@@ -347,7 +364,7 @@ function CertCard({ cert, onView, onEdit, onDelete }: { cert: CertRow; onView: (
             <p className="text-xs text-gray-500">{cert.employee_title}</p>
           </div>
         </div>
-        <ActionMenu onView={onView} onEdit={onEdit} onDelete={onDelete} />
+        <ActionsDropdown onView={onView} onEdit={onEdit} onDelete={onDelete} />
       </div>
 
       <div className="space-y-2.5 text-[11px]">
@@ -413,7 +430,9 @@ function PolicyListTable({ policies, onView, onEdit, onDelete }: { policies: Pol
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <ActionMenu onView={() => onView(p)} onEdit={() => onEdit(p)} onDelete={() => onDelete(p)} />
+                  <div className="flex justify-end">
+                    <ActionsDropdown onView={() => onView(p)} onEdit={() => onEdit(p)} onDelete={() => onDelete(p)} />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -480,7 +499,9 @@ function CertListTable({ certs, onView, onEdit, onDelete }: { certs: CertRow[]; 
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <ActionMenu onView={() => onView(c)} onEdit={() => onEdit(c)} onDelete={() => onDelete(c)} />
+                  <div className="flex justify-end">
+                    <ActionsDropdown onView={() => onView(c)} onEdit={() => onEdit(c)} onDelete={() => onDelete(c)} />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -498,86 +519,90 @@ function DeleteModal({ title, message, onConfirm, onCancel, loading }: {
   title: string; message: string; onConfirm: () => void; onCancel: () => void; loading?: boolean
 }) {
   return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-50 backdrop-blur-[1px]" onClick={onCancel} />
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 flex flex-col items-center text-center">
-          <button onClick={onCancel} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
-            <X size={16} />
-          </button>
-          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-5">
-            <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
-              <Trash size={20} className="text-red-500" />
-            </div>
-          </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">{title}</h2>
-          <div className="text-sm text-gray-500 leading-relaxed mb-7 max-w-[280px]" dangerouslySetInnerHTML={{ __html: message }} />
-          <div className="flex gap-3 w-full">
-            <button onClick={onCancel} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={onConfirm} disabled={loading} className="flex-1 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors disabled:opacity-60">
-              {loading ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
+    <ConfirmDeleteModal
+      title={title}
+      message={message}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      loading={loading}
+    />
   )
 }
 
 // ─── Policy Detail Modal ───────────────────────────────────────────────────────
 function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onClose: () => void; onEdit: () => void }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
+  const [opening, setOpening] = useState(false)
+  const [docError, setDocError] = useState<string | null>(null)
+
+  // How much of the cover has elapsed — the bar used to be pinned at 80%.
+  const periodUsedPercent = periodUsedPct(policy.effective_date, policy.expiry_date, policy.days_remaining)
+
+  // The bucket is private, so the stored value is an object path — it has to be
+  // exchanged for a signed URL before the browser can open it.
+  async function openDocument() {
+    if (!policy.file_url) return
+    setOpening(true)
+    setDocError(null)
+    const res = await getInsuranceDocumentUrl(policy.file_url)
+    setOpening(false)
+    if ('error' in res) {
+      setDocError(res.error)
+      return
+    }
+    window.open(res.url, '_blank', 'noopener,noreferrer')
+  }
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
-          <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-semibold text-gray-900">Policy Detail</h2>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
+          <div className="flex items-center justify-between px-7 pt-6 pb-5 shrink-0">
+            <h2 className="text-lg font-semibold text-gray-900">COI Policy Detail</h2>
+            <button onClick={close} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
           </div>
 
-          <div className="overflow-y-auto flex-1 px-7 py-6 space-y-7 bg-[#FDFDFD]">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                <ShieldCheck size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">{policy.insurer}</h3>
-                <p className="text-xs text-gray-500">Policy: {policy.policy_number}</p>
-              </div>
-            </div>
-
-            <div className="bg-[#F0FDF4] border border-green-100 rounded-xl p-5">
-              <div className="flex items-start justify-between mb-1">
+          <div className="overflow-y-auto flex-1 px-7 pb-6 space-y-6 bg-white">
+            {/* Identity — plain on white, with the period bar carrying the status colour. */}
+            <div>
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h4 className="font-semibold text-gray-900 text-sm">{policy.policy_holder}</h4>
-                  <p className="text-[11px] text-gray-500 mt-0.5">{COVERAGE_LABEL[policy.coverage_type]}</p>
+                  <h3 className="text-base font-semibold text-gray-900">{policy.policy_holder}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{COVERAGE_LABEL[policy.coverage_type]}</p>
                 </div>
-                <span className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md uppercase ${STATUS_BADGE[policy.status]}`}>
+                <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full ${STATUS_BADGE[policy.status]}`}>
                   • {STATUS_LABEL[policy.status]}
                 </span>
               </div>
-              <div className="w-full bg-green-200 h-1.5 rounded-full mt-4 relative">
-                <div className={`h-full rounded-full ${policy.status === 'expired' ? 'bg-red-500 w-full' : 'bg-[#10B981] w-[80%]'}`} />
+
+              <div className="w-full bg-gray-100 h-1.5 rounded-full mt-4 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${PERIOD_BAR[policy.status]}`}
+                  style={{ width: `${periodUsedPercent}%` }}
+                />
               </div>
-              <div className="flex justify-between mt-2 text-[10px] text-gray-500 font-medium">
-                <span>Coverage period</span>
-                <span>{policy.days_remaining > 0 ? `${policy.days_remaining} days left` : 'Expired'}</span>
+              <div className="flex justify-between mt-2 text-[11px] text-gray-500">
+                <span>Policy period used</span>
+                <span>{policy.days_remaining > 0 ? `${policy.days_remaining} days left` : `${Math.abs(policy.days_remaining)} days over due`}</span>
               </div>
             </div>
 
             <div>
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">Policy Information</h4>
-              <div className="border border-gray-100 rounded-xl overflow-hidden bg-white">
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Policy Information</h4>
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
                 {[
+                  ['Policy Number', policy.policy_number],
+                  ['Insurer', policy.insurer],
                   ['Policy Holder', policy.policy_holder],
-                  ['Coverage Limit', formatCurrency(policy.coverage_amount)],
                   ['Coverage Type', COVERAGE_LABEL[policy.coverage_type]],
+                  ['Coverage Amount', formatCurrency(policy.coverage_amount)],
                   ['Effective Date', formatDate(policy.effective_date)],
-                  ['Expiration Date', formatDate(policy.expiry_date)],
+                  ['Expiry Date', formatDate(policy.expiry_date)],
                 ].map(([k, v], idx, arr) => (
-                  <div key={k} className={`flex items-center justify-between px-4 py-3 text-sm ${idx !== arr.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                    <span className="text-gray-400">{k}</span>
+                  <div key={k} className={`flex items-center justify-between px-4 py-3 text-sm ${idx !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                    <span className="text-gray-500">{k}</span>
                     <span className="font-medium text-gray-900">{v}</span>
                   </div>
                 ))}
@@ -585,37 +610,60 @@ function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onC
             </div>
 
             <div>
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-1.5"><History size={12} /> History Log</h4>
-              <div className="relative pl-6 space-y-6">
-                <div className="absolute left-[9px] top-2 bottom-2 w-[1px] border-l border-dashed border-gray-200" />
-                <div className="relative">
-                  <div className="absolute left-[-22px] top-0.5 w-4 h-4 bg-green-100 rounded-full flex items-center justify-center ring-4 ring-white">
-                    <Check size={10} className="text-green-600" strokeWidth={3} />
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Renewal History</h4>
+              <div className="space-y-0">
+                <div className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <span className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                      <Check size={12} className="text-emerald-600" strokeWidth={3} />
+                    </span>
+                    <span className="w-px flex-1 bg-gray-200 my-1" />
                   </div>
+                  <div className="pb-6">
+                    <p className="text-sm text-gray-900">Policy uploaded and activated</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{formatDate(policy.effective_date)} · Admin</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <span className="w-7 h-7 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0 text-gray-500">
+                    <History size={12} />
+                  </span>
                   <div>
-                    <p className="text-xs font-semibold text-gray-800 leading-none">Policy uploaded & approved</p>
-                    <p className="text-[10px] text-gray-400 mt-1.5">{formatDate(policy.effective_date)} · Admin</p>
+                    <p className="text-sm text-gray-900">Renewal reminder sent to insurer</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{policy.renewal_reminder} days before expiry · System</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div>
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Attached Document</h4>
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center bg-white hover:bg-gray-50 cursor-pointer transition-colors group">
-                <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative mb-2 border border-gray-100">
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">File</h4>
+              <button
+                type="button"
+                onClick={openDocument}
+                disabled={!policy.file_url || opening}
+                className="w-full bg-[#FDF6F5] border border-[#F6E3E0] rounded-xl py-10 flex flex-col items-center justify-center transition-colors hover:bg-[#FBEFED] disabled:cursor-not-allowed disabled:hover:bg-[#FDF6F5]"
+              >
+                <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative mb-3 border border-gray-100">
                   <FileText className="text-red-500" size={22} />
                   <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[7px] font-semibold px-1 rounded">PDF</span>
                 </div>
-                <p className="text-xs text-gray-500 font-medium">Preview full policy file</p>
-              </div>
+                <p className="text-xs text-gray-500 font-medium">
+                  {!policy.file_url
+                    ? 'No document attached'
+                    : opening
+                      ? 'Opening…'
+                      : 'Click to view PDF'}
+                </p>
+                {docError && <p className="text-xs text-red-600 mt-1">{docError}</p>}
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 shrink-0 bg-white">
-            <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Close</button>
-            <button onClick={() => { onClose(); onEdit() }} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
-              Renew & Update <ArrowUpRight size={14} />
+          <div className="flex items-center justify-end gap-3 px-7 py-5 shrink-0 bg-white">
+            <button onClick={close} className="px-6 py-2.5 rounded-lg bg-[#F5F6F8] text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">Close</button>
+            <button onClick={() => { onClose(); onEdit() }} className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
+              Renewal Policy <ArrowUpRight size={14} />
             </button>
           </div>
         </div>
@@ -626,49 +674,62 @@ function PolicyDetailModal({ policy, onClose, onEdit }: { policy: PolicyRow; onC
 
 // ─── Cert Detail Modal ─────────────────────────────────────────────────────────
 function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: () => void; onEdit: () => void }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
+  const validityUsedPercent = periodUsedPct(cert.issue_date, cert.expiry_date, cert.days_left)
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
-          <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-semibold text-gray-900">Certification Detail</h2>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
+          <div className="flex items-center justify-between px-7 pt-6 pb-5 shrink-0">
+            <h2 className="text-lg font-semibold text-gray-900">Certification Detail</h2>
+            <button onClick={close} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
           </div>
 
-          <div className="overflow-y-auto flex-1 px-7 py-6 space-y-7 bg-[#FDFDFD]">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-semibold text-sm shrink-0">
+          <div className="overflow-y-auto flex-1 px-7 pb-6 space-y-6 bg-white">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-semibold text-sm shrink-0">
                 {cert.employee_name.split(' ').map(n => n[0]).join('')}
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">{cert.employee_name}</h3>
-                <p className="text-xs text-gray-500">{cert.employee_title} · {cert.department}</p>
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-gray-900 truncate">{cert.employee_name}</h3>
+                <p className="text-xs text-gray-500 truncate">
+                  {[cert.employee_title, cert.department].filter(Boolean).join(' · ')}
+                </p>
               </div>
             </div>
 
-            <div className="bg-[#F0FDF4] border border-green-100 rounded-xl p-5">
-              <div className="flex items-start justify-between mb-1">
-                <div>
-                  <h4 className="font-semibold text-gray-900 text-sm">{cert.cert_name}</h4>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Issued by {cert.issuing_body} · ID: {cert.id.slice(0, 8).toUpperCase()}</p>
+            {/* Certificate summary — white card, with the validity strip beneath. */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 pt-4 pb-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-gray-900 text-sm truncate">{cert.cert_name}</h4>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      Issued by {cert.issuing_body} · ID: {cert.id.slice(0, 8).toUpperCase()}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full ${STATUS_BADGE[cert.status]}`}>
+                    • {STATUS_LABEL[cert.status]}
+                  </span>
                 </div>
-                <span className={`flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md uppercase ${STATUS_BADGE[cert.status]}`}>
-                  • {STATUS_LABEL[cert.status]}
-                </span>
+                <div className="w-full bg-gray-100 h-1.5 rounded-full mt-4 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${PERIOD_BAR[cert.status]}`}
+                    style={{ width: `${validityUsedPercent}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-green-200 h-1.5 rounded-full mt-4">
-                <div className={`h-full rounded-full ${cert.status === 'expired' ? 'bg-red-500 w-full' : 'bg-[#10B981] w-[75%]'}`} />
-              </div>
-              <div className="flex justify-between mt-2 text-[10px] text-gray-500 font-medium">
-                <span>Validity period</span>
-                <span>{cert.days_left > 0 ? `${cert.days_left} days remaining` : 'Expired'}</span>
+              <div className="flex justify-between items-center px-4 py-2.5 bg-[#F9FAFB] border-t border-gray-100 text-[11px] text-gray-500">
+                <span>Validity period used</span>
+                <span>{cert.days_left > 0 ? `${cert.days_left} days remaining` : `${Math.abs(cert.days_left)} days over due`}</span>
               </div>
             </div>
 
             <div>
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">Certification Details</h4>
-              <div className="border border-gray-100 rounded-xl overflow-hidden bg-white">
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Certification Details</h4>
+              <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
                 {[
                   ['Certification', cert.cert_name],
                   ['Issuing Body', cert.issuing_body],
@@ -676,8 +737,8 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
                   ['Issue Date', formatDate(cert.issue_date)],
                   ['Expiry Date', formatDate(cert.expiry_date)],
                 ].map(([k, v], idx, arr) => (
-                  <div key={k} className={`flex items-center justify-between px-4 py-3 text-sm ${idx !== arr.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                    <span className="text-gray-400">{k}</span>
+                  <div key={k} className={`flex items-center justify-between px-4 py-3 text-sm ${idx !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                    <span className="text-gray-500">{k}</span>
                     <span className="font-medium text-gray-900">{v}</span>
                   </div>
                 ))}
@@ -685,26 +746,28 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
             </div>
 
             <div>
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">Compliance History</h4>
-              <div className="relative pl-6 space-y-6">
-                <div className="absolute left-[9px] top-2 bottom-2 w-[1px] border-l border-dashed border-gray-200" />
-                <div className="relative">
-                  <div className="absolute left-[-22px] top-0.5 w-4 h-4 bg-green-100 rounded-full flex items-center justify-center ring-4 ring-white">
-                    <Check size={10} className="text-green-600" strokeWidth={3} />
+              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Compliance History</h4>
+              <div className="space-y-0">
+                <div className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <span className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                      <Check size={12} className="text-emerald-600" strokeWidth={3} />
+                    </span>
+                    {cert.status === 'expired' && <span className="w-px flex-1 bg-gray-200 my-1" />}
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold text-gray-800 leading-none">Certificate issued and logged</p>
-                    <p className="text-[10px] text-gray-400 mt-1.5">{formatDate(cert.issue_date)} · Admin</p>
+                  <div className={cert.status === 'expired' ? 'pb-6' : ''}>
+                    <p className="text-sm text-gray-900">Certificate issued and logged</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{formatDate(cert.issue_date)} · HR Admin</p>
                   </div>
                 </div>
                 {cert.status === 'expired' && (
-                  <div className="relative">
-                    <div className="absolute left-[-22px] top-0.5 w-4 h-4 bg-red-100 rounded-full flex items-center justify-center ring-4 ring-white">
-                      <X size={10} className="text-red-600" strokeWidth={3} />
-                    </div>
+                  <div className="flex gap-3">
+                    <span className="w-7 h-7 rounded-full bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+                      <X size={12} className="text-red-600" strokeWidth={3} />
+                    </span>
                     <div>
-                      <p className="text-xs font-semibold text-gray-800 leading-none">Certificate has expired</p>
-                      <p className="text-[10px] text-gray-400 mt-1.5">{formatDate(cert.expiry_date)} · System</p>
+                      <p className="text-sm text-gray-900">Certificate has expired</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{formatDate(cert.expiry_date)} · System</p>
                     </div>
                   </div>
                 )}
@@ -712,9 +775,9 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 shrink-0 bg-white">
-            <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Close</button>
-            <button onClick={() => { onClose(); onEdit() }} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
+          <div className="flex items-center justify-end gap-3 px-7 py-5 shrink-0 bg-white">
+            <button onClick={close} className="px-6 py-2.5 rounded-lg bg-[#F5F6F8] text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">Close</button>
+            <button onClick={() => { onClose(); onEdit() }} className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
               Update Certification <ArrowUpRight size={14} />
             </button>
           </div>
@@ -729,6 +792,8 @@ function CertDetailModal({ cert, onClose, onEdit }: { cert: CertRow; onClose: ()
 function PolicyFormModal({ policy, onClose, onSave, loading }: {
   policy?: PolicyRow; onClose: () => void; onSave: (v: PolicyFormValues) => void; loading?: boolean
 }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
   const [v, setV] = useState<PolicyFormValues>({
     id: policy?.id,
     policy_holder: policy?.policy_holder ?? 'Peak Roofing Inc.',
@@ -758,12 +823,12 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-base font-semibold text-gray-900">{policy ? 'Edit COI Policy' : 'Upload COI Policy'}</h2>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+            <button onClick={close} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-7 py-6 space-y-6">
@@ -804,11 +869,17 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Effective Date</label>
-                  <input type="date" value={v.effective_date} onChange={e => set('effective_date', e.target.value)} className={inputCls} />
+                  <div className="relative">
+                    <input type="date" value={v.effective_date} onChange={e => set('effective_date', e.target.value)} className={`${inputCls} pr-10`} />
+                    <CalendarDays size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Expiry Date</label>
-                  <input type="date" value={v.expiry_date} onChange={e => set('expiry_date', e.target.value)} className={inputCls} />
+                  <div className="relative">
+                    <input type="date" value={v.expiry_date} onChange={e => set('expiry_date', e.target.value)} className={`${inputCls} pr-10`} />
+                    <CalendarDays size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Renewal Reminder (days before expiry)</label>
@@ -844,7 +915,7 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
           </div>
 
           <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 shrink-0">
-            <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+            <button onClick={close} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
             <button
               onClick={() => { if (canSave) onSave(v) }}
               disabled={!canSave || loading}
@@ -863,6 +934,8 @@ function PolicyFormModal({ policy, onClose, onSave, loading }: {
 function CertFormModal({ cert, employees, onClose, onSave, loading }: {
   cert?: CertRow; employees: EmployeeOption[]; onClose: () => void; onSave: (v: CertFormValues) => void; loading?: boolean
 }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
   const [v, setV] = useState<CertFormValues>({
     certId: cert?.id,
     user_id: cert?.user_id ?? '',
@@ -875,6 +948,7 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
   })
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [docError, setDocError] = useState<string | null>(null)
 
   function set<K extends keyof CertFormValues>(k: K, val: CertFormValues[K]) {
     setV(prev => ({ ...prev, [k]: val }))
@@ -882,26 +956,53 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files && e.target.files[0]) {
-      set('file', e.target.files[0])
+      setV(prev => ({ ...prev, file: e.target.files![0], removeFile: false }))
+      setDocError(null)
     }
+  }
+
+  // A stored document counts, and so does one picked in this session but not
+  // saved yet — unless it has since been cleared.
+  const storedDocument = v.removeFile ? null : cert?.file_url ?? null
+  const hasDocument = Boolean(v.file || storedDocument)
+
+  /** Opens the saved file; a freshly picked one has no URL yet, so re-pick. */
+  async function viewOrReplace() {
+    if (v.file || !storedDocument) {
+      fileInputRef.current?.click()
+      return
+    }
+    setDocError(null)
+    const res = await getInsuranceDocumentUrl(storedDocument)
+    if ('error' in res) {
+      setDocError(res.error)
+      return
+    }
+    window.open(res.url, '_blank', 'noopener,noreferrer')
+  }
+
+  function clearDocument() {
+    setV(prev => ({ ...prev, file: null, removeFile: Boolean(cert?.file_url) }))
+    setDocError(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const canSave = v.user_id && v.cert_name.trim() && v.expiry_date
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-base font-semibold text-gray-900">{cert ? 'Edit Certification' : 'Add Certification'}</h2>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+            <button onClick={close} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
-          <div className="overflow-y-auto flex-1 px-7 py-6 space-y-6">
+          <div className="overflow-y-auto flex-1 px-7 py-6 space-y-7">
             <div>
               <h3 className="text-sm font-semibold text-gray-900 mb-4">Employee & Certification</h3>
-              <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Employee</label>
                   <div className="relative">
@@ -911,14 +1012,18 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
                     </select>
                     <ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   </div>
+                  {/* Without this the field just looks broken when the lookup returns nothing. */}
+                  {employees.length === 0 && (
+                    <p className="text-[11px] text-amber-600 mt-1.5">No employees found — add a team member first.</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Certification Name</label>
-                  <input placeholder="e.g. OSHA 30-Hour Card" value={v.cert_name} onChange={e => set('cert_name', e.target.value)} className={inputCls} />
+                  <input placeholder="Enter name" value={v.cert_name} onChange={e => set('cert_name', e.target.value)} className={inputCls} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Issuing Body</label>
-                  <input placeholder="e.g. OSHA" value={v.issuing_body} onChange={e => set('issuing_body', e.target.value)} className={inputCls} />
+                  <input placeholder="eg OSHA" value={v.issuing_body} onChange={e => set('issuing_body', e.target.value)} className={inputCls} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Department</label>
@@ -935,14 +1040,20 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
 
             <div>
               <h3 className="text-sm font-semibold text-gray-900 mb-4">Dates</h3>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Issue Date</label>
-                  <input type="date" value={v.issue_date} onChange={e => set('issue_date', e.target.value)} className={inputCls} />
+                  <div className="relative">
+                    <input type="date" value={v.issue_date} onChange={e => set('issue_date', e.target.value)} className={`${inputCls} pr-10`} />
+                    <CalendarDays size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Expiry Date</label>
-                  <input type="date" value={v.expiry_date} onChange={e => set('expiry_date', e.target.value)} className={inputCls} />
+                  <div className="relative">
+                    <input type="date" value={v.expiry_date} onChange={e => set('expiry_date', e.target.value)} className={`${inputCls} pr-10`} />
+                    <CalendarDays size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -951,26 +1062,43 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
               <h3 className="text-sm font-semibold text-gray-900 mb-4">Document Upload</h3>
               <p className="text-xs text-gray-500 mb-2">Upload Certificate (PDF / Image)</p>
               <input type="file" ref={fileInputRef} hidden accept=".pdf,image/*" onChange={handleFileChange} />
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="border border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors min-h-[140px]"
-              >
-                <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative mb-2">
-                  <FileText className="text-red-500" size={22} />
-                  <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[7px] font-semibold px-1 rounded">PDF</span>
-                </div>
-                <p className="text-xs font-medium text-gray-800">{v.file ? v.file.name : 'Click to upload document'}</p>
-                {v.file && <span className="text-[10px] text-gray-400 mt-1">Ready to upload</span>}
+
+              <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={hasDocument ? viewOrReplace : () => fileInputRef.current?.click()}
+                  className="flex-1 min-w-0 bg-[#FDF6F5] border border-[#F6E3E0] rounded-xl py-8 flex flex-col items-center justify-center transition-colors hover:bg-[#FBEFED]"
+                >
+                  <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative mb-3 border border-gray-100">
+                    <FileText className="text-red-500" size={22} />
+                    <span className="absolute -bottom-1 right-[-4px] bg-red-500 text-white text-[7px] font-semibold px-1 rounded">PDF</span>
+                  </div>
+                  <p className="text-xs text-gray-500 font-medium px-4 truncate max-w-full">
+                    {v.file ? v.file.name : hasDocument ? 'Click to view PDF' : 'Click to upload a certificate'}
+                  </p>
+                  {docError && <p className="text-xs text-red-600 mt-1">{docError}</p>}
+                </button>
+
+                {hasDocument && (
+                  <button
+                    type="button"
+                    onClick={clearDocument}
+                    aria-label="Remove document"
+                    className="w-11 h-11 shrink-0 rounded-lg border border-red-200 text-red-500 flex items-center justify-center hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 shrink-0">
-            <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+          <div className="flex items-center justify-end gap-3 px-7 py-5 shrink-0">
+            <button onClick={close} className="px-6 py-2.5 rounded-lg bg-[#F5F6F8] text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">Cancel</button>
             <button
               onClick={() => { if (canSave) onSave(v) }}
               disabled={!canSave || loading}
-              className="px-6 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-semibold text-white hover:bg-[#162437] transition-colors disabled:opacity-60"
+              className="px-6 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-semibold text-white hover:bg-[#162437] transition-colors disabled:opacity-60"
             >
               {loading ? 'Saving…' : 'Save'}
             </button>
@@ -1003,18 +1131,21 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
     setTimeout(() => setToast(null), 3000)
   }
 
-  const supabase = createClient()
-
+  /**
+   * Goes through a server action rather than the browser Supabase client: the
+   * bucket is private and this app has no real Supabase auth session, so a
+   * client-side upload is rejected before it starts.
+   */
   async function uploadDocument(file: File): Promise<string | null> {
-    const ext = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
-    const { data, error } = await supabase.storage.from('insurance_documents').upload(fileName, file)
-    if (error) {
-      console.error('Upload error:', error)
-      showToast(`Upload failed: ${error.message}`)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await uploadInsuranceDocument(fd)
+    if ('error' in res) {
+      console.error('Upload error:', res.error)
+      showToast(`Upload failed: ${res.error}`)
       return null
     }
-    return data.path
+    return res.path
   }
 
   function handleSavePolicy(values: PolicyFormValues) {
@@ -1111,7 +1242,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
           issue_date: values.issue_date,
           expiry_date: values.expiry_date,
           status,
-          ...(file_url ? { file_url } : {})
+          ...(file_url ? { file_url } : values.removeFile ? { file_url: null } : {})
         })
         if (res?.error) { showToast(`Error: ${res.error}`); return }
         setCerts(prev => prev.map(c => c.id === values.certId ? {
@@ -1213,6 +1344,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
     expiring: policies.filter(p => p.status === 'expiring_soon').length,
     expired: policies.filter(p => p.status === 'expired').length,
   }
+  const activeFilterCount = filters.status.length + filters.coverageType.length + filters.expiresWithin.length
   const certCompliance = certs.length > 0
     ? `${Math.round(certs.filter(c => c.status === 'valid').length / certs.length * 100)}%`
     : '—'
@@ -1222,27 +1354,22 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
       {/* Header */}
       {/* Body */}
       <div className="flex-1 overflow-y-auto relative flex flex-col">
-        {toast && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="flex items-center gap-2 bg-emerald-100 text-emerald-800 text-[13px] font-medium px-5 py-2.5 rounded-lg shadow-sm border border-emerald-200">
-              <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center shrink-0">
-                <Check size={12} className="text-white" strokeWidth={3} />
-              </div>
-              {toast}
-            </div>
-          </div>
-        )}
+        {toast && <Toast message={toast} />}
 
         {/* Stat cards */}
         <div className="grid grid-cols-4 gap-4 px-8 pt-5 flex-none">
           <StatCard label="Active COIs" value={stats.active} sub="All policies tracked" subColor="text-emerald-500"
-            icon={<div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center"><ShieldCheck size={20} className="text-emerald-500" /></div>} />
+            iconBg="bg-emerald-50"
+            icon={<ShieldCheck size={16} className="text-emerald-500" strokeWidth={1.8} />} />
           <StatCard label="Expiring Soon" value={stats.expiring} sub="Within 60 days" subColor="text-orange-500"
-            icon={<div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center"><AlertTriangle size={20} className="text-orange-500" /></div>} />
+            iconBg="bg-orange-50"
+            icon={<Clock size={16} className="text-orange-500" strokeWidth={1.8} />} />
           <StatCard label="Expired" value={stats.expired} sub="Needs renewal" subColor="text-red-500"
-            icon={<div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center"><FileWarning size={20} className="text-red-500" /></div>} />
-          <StatCard label="Cert Compliance" value={certCompliance} sub={`${certs.filter(c => c.status === 'valid').length} of ${certs.length} valid`} subColor="text-blue-500"
-            icon={<div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center"><ShieldCheck size={20} className="text-blue-500" /></div>} />
+            iconBg="bg-red-50"
+            icon={<AlertCircle size={16} className="text-red-500" strokeWidth={1.8} />} />
+          <StatCard label="Cert Compliance" value={certCompliance}
+            iconBg="bg-blue-50"
+            icon={<UserCheck size={16} className="text-blue-500" strokeWidth={1.8} />} />
         </div>
 
         {/* Tabs & Toolbar */}
@@ -1277,8 +1404,14 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
             <div className="flex-1" />
             <div className="relative">
               <button onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs border border-gray-200 rounded-lg bg-white font-medium transition-colors ${showFilters || Object.values(filters).some(a => a.length > 0) ? 'text-blue-600 border-blue-200 bg-blue-50' : 'text-gray-600 hover:bg-gray-50'}`}>
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs border rounded-lg font-medium transition-colors ${activeFilterCount > 0 ? 'border-[#0D1B2A]/20 bg-[#0D1B2A]/5 text-[#0D1B2A]' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}>
                 <FilterIcon size={13} /> Filter
+                {activeFilterCount > 0 && (
+                  <span className="w-4 h-4 flex items-center justify-center rounded-full bg-[#0D1B2A] text-white text-[9px] font-semibold">
+                    {activeFilterCount}
+                  </span>
+                )}
+                <ChevronDown size={13} className={`text-gray-400 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
               </button>
               {showFilters && <FilterDropdown filters={filters} onChange={setFilters} onClose={() => setShowFilters(false)} />}
             </div>
@@ -1364,7 +1497,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
       {modal?.type === 'deletePolicy' && (
         <DeleteModal
           title="Delete COI Policy"
-          message={`This action will permanently delete this COI policy (<b>${modal.policy.policy_holder}</b>) and all associated records.<br/><br/>This cannot be undone.`}
+          message={`Deleting this COI policy (${modal.policy.policy_holder}) will remove all associated data permanently.`}
           onConfirm={confirmDeletePolicy}
           onCancel={() => setModal(null)}
           loading={isPending}
@@ -1373,7 +1506,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
       {modal?.type === 'deleteCert' && (
         <DeleteModal
           title="Delete Certification"
-          message={`This action will permanently delete this certification (<b>${modal.cert.employee_name}, ${modal.cert.cert_name}</b>) and all associated records.<br/><br/>This cannot be undone.`}
+          message={`Deleting this certification (${modal.cert.employee_name}, ${modal.cert.cert_name}) will remove all associated data permanently.`}
           onConfirm={confirmDeleteCert}
           onCancel={() => setModal(null)}
           loading={isPending}

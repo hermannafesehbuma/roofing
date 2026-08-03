@@ -18,16 +18,16 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  todo:        'text-gray-700 bg-gray-50 border-gray-200',
-  in_progress: 'text-blue-700 bg-blue-50 border-blue-200',
-  in_review:   'text-amber-700 bg-amber-50 border-amber-200',
-  completed:   'text-emerald-700 bg-emerald-50 border-emerald-200',
+  todo:        'text-gray-600 bg-gray-100',
+  in_progress: 'text-blue-600 bg-blue-50',
+  in_review:   'text-amber-600 bg-amber-50',
+  completed:   'text-emerald-600 bg-emerald-50',
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
-  high:   'text-red-600 bg-red-50 border-red-200',
-  medium: 'text-amber-600 bg-amber-50 border-amber-200',
-  low:    'text-blue-600 bg-blue-50 border-blue-200',
+  high:   'text-red-600 bg-red-50',
+  medium: 'text-amber-600 bg-amber-50',
+  low:    'text-blue-600 bg-blue-50',
 }
 
 function dueDateLabel(d: string | null): string {
@@ -82,7 +82,7 @@ export function TasksListView({ tasks, onDeleteClick, onEditClick }: TasksListVi
                     <input type="checkbox" readOnly checked={t.status === 'completed'} className="rounded border-gray-300" />
                   </td>
                   <td className="p-4">
-                    <div className={`font-medium text-sm text-gray-900 group-hover:text-[#0D1B2A] transition-colors ${t.status === 'completed' ? 'line-through text-gray-400' : ''}`}>
+                    <div className={`font-medium text-sm text-gray-900 group-hover:text-[#0D1B2A] transition-colors`}>
                       {t.title}
                     </div>
                     {t.description && (
@@ -105,7 +105,7 @@ export function TasksListView({ tasks, onDeleteClick, onEditClick }: TasksListVi
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${PRIORITY_COLOR[t.priority]}`}>
+                    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-md ${PRIORITY_COLOR[t.priority]}`}>
                       {t.priority.charAt(0).toUpperCase() + t.priority.slice(1)}
                     </span>
                   </td>
@@ -113,7 +113,7 @@ export function TasksListView({ tasks, onDeleteClick, onEditClick }: TasksListVi
                     {dueDateLabel(t.due_date)}
                   </td>
                   <td className="p-4">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold border ${STATUS_COLOR[t.status]}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium ${STATUS_COLOR[t.status]}`}>
                       {STATUS_LABEL[t.status]}
                     </span>
                   </td>

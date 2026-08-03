@@ -93,9 +93,11 @@ export function MobileTaskList({
                       <Calendar size={11} /> {due}
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1">
-                    <Clock size={11} /> 3hr
-                  </span>
+                  {task.estimated_hours !== null && (
+                    <span className="inline-flex items-center gap-1">
+                      <Clock size={11} /> {task.estimated_hours}hr
+                    </span>
+                  )}
                 </div>
 
                 {task.status !== 'completed' && (

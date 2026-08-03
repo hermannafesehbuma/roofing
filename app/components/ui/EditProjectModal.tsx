@@ -194,11 +194,11 @@ export function EditProjectModal({ project, onClose, onSave }: Props) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] overlay-fade-in" onClick={onClose} />
 
       {/* Panel — slides in from right */}
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl panel-slide-in">
           {/* Header */}
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-base font-semibold text-gray-900">Edit Project</h2>

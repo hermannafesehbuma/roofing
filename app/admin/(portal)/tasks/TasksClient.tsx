@@ -1,19 +1,37 @@
 'use client'
 
 import { useState, useMemo, useTransition } from 'react'
-import { KanbanSquare, List, Calendar, Search, Plus, Check } from 'lucide-react'
+import { KanbanSquare, List, Calendar, Search, Plus } from 'lucide-react'
 import {
   createTask, updateTask, deleteTask,
   type TaskRow, type ProjectOption, type AssigneeOption,
-  type DbTaskStatus, type DbTaskPriority,
+  type DbTaskStatus,
 } from './actions'
 import { TaskFormPanel, type TaskFormValues } from './TaskFormPanel'
 import { TasksKanbanView } from '@/app/components/ui/tasks/TasksKanbanView'
 import { TasksListView } from '@/app/components/ui/tasks/TasksListView'
-import { TaskFilterPopover } from '@/app/components/ui/tasks/TaskFilterPopover'
+import { TaskFilterPopover, EMPTY_TASK_FILTERS, type TaskFilters } from '@/app/components/ui/tasks/TaskFilterPopover'
+import { TaskDetailModal } from '@/app/components/ui/tasks/TaskDetailModal'
+import { TasksCalendarView } from '@/app/components/ui/tasks/TasksCalendarView'
 import { TaskDeleteModal } from '@/app/components/ui/tasks/TaskDeleteModal'
+import { Toast } from '@/app/components/ui/Toast'
 import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
 import { MobileTaskList } from '@/app/components/ui/mobile/MobileTaskList'
+
+/** Buckets used by the Due Date select in the filter panel. */
+function matchesDue(due: string | null, filter: TaskFilters['dueDate']): boolean {
+  if (!filter) return true
+  if (filter === 'no_date') return due === null
+  if (!due) return false
+
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const days = Math.floor((new Date(`${due}T00:00:00`).getTime() - today.getTime()) / 86_400_000)
+
+  if (filter === 'today') return days === 0
+  if (filter === 'tomorrow') return days === 1
+  if (filter === 'overdue') return days < 0
+  return days >= 0 && days <= 7 // this_week
+}
 
 export function TasksClient({
   initialTasks,
@@ -32,12 +50,11 @@ export function TasksClient({
   const [editTask, setEditTask] = useState<TaskRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TaskRow | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
-  const [activeFilters, setActiveFilters] = useState<{
-    status: DbTaskStatus[]
-    priority: DbTaskPriority[]
-    assignee: string
-  }>({ status: [], priority: [], assignee: '' })
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [activeFilters, setActiveFilters] = useState<TaskFilters>(EMPTY_TASK_FILTERS)
+  const [viewTask, setViewTask] = useState<TaskRow | null>(null)
+  /** Due date to prefill when adding from a calendar cell. */
+  const [presetDueDate, setPresetDueDate] = useState<string | null>(null)
 
   // Stats computed from all tasks
   const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -58,25 +75,27 @@ export function TasksClient({
         (t.project_name ?? '').toLowerCase().includes(q)
       const matchStatus = activeFilters.status.length === 0 || activeFilters.status.includes(t.status)
       const matchPriority = activeFilters.priority.length === 0 || activeFilters.priority.includes(t.priority)
-      const matchAssignee = !activeFilters.assignee ||
-        (t.assignee_name ?? '').toLowerCase().includes(activeFilters.assignee.toLowerCase())
-      return matchSearch && matchStatus && matchPriority && matchAssignee
+      const matchAssignee = activeFilters.assignees.length === 0 ||
+        (t.assignee_id !== null && activeFilters.assignees.includes(t.assignee_id))
+      return matchSearch && matchStatus && matchPriority && matchAssignee && matchesDue(t.due_date, activeFilters.dueDate)
     })
   }, [tasks, search, activeFilters])
 
-  function showToast(msg: string) {
-    setToast(msg)
+  function showToast(msg: string, type: 'success' | 'error' = 'success') {
+    setToast({ message: msg, type })
     setTimeout(() => setToast(null), 3000)
   }
 
-  function openAdd() {
+  function openAdd(dueDate?: string) {
     setEditTask(null)
+    setPresetDueDate(dueDate ?? null)
     setFormError(null)
     setShowForm(true)
   }
 
   function openEdit(task: TaskRow) {
     setEditTask(task)
+    setPresetDueDate(null)
     setFormError(null)
     setShowForm(true)
   }
@@ -84,6 +103,7 @@ export function TasksClient({
   function closeForm() {
     setShowForm(false)
     setEditTask(null)
+    setPresetDueDate(null)
     setFormError(null)
   }
 
@@ -103,6 +123,7 @@ export function TasksClient({
           priority: values.priority,
           assigneeId: values.assigneeId || null,
           dueDate: values.dueDate || null,
+          estimatedHours: values.estimatedHours ? parseFloat(values.estimatedHours) : null,
         })
         if ('error' in res) { setFormError(res.error ?? null); return }
         setTasks(prev => prev.map(t => t.id === editTask.id ? {
@@ -117,6 +138,7 @@ export function TasksClient({
           assignee_name: assignee?.name ?? null,
           assignee_avatar: assignee?.avatar_url ?? null,
           due_date: values.dueDate || null,
+          estimated_hours: values.estimatedHours ? parseFloat(values.estimatedHours) : null,
         } : t))
         closeForm()
         showToast('Task updated successfully')
@@ -129,6 +151,7 @@ export function TasksClient({
           priority: values.priority,
           assigneeId: values.assigneeId || null,
           dueDate: values.dueDate || null,
+          estimatedHours: values.estimatedHours ? parseFloat(values.estimatedHours) : null,
         })
         if ('error' in res) { setFormError(res.error ?? null); return }
         setTasks(prev => [{
@@ -143,6 +166,7 @@ export function TasksClient({
           assignee_name: assignee?.name ?? null,
           assignee_avatar: assignee?.avatar_url ?? null,
           due_date: values.dueDate || null,
+          estimated_hours: values.estimatedHours ? parseFloat(values.estimatedHours) : null,
           created_at: new Date().toISOString(),
         }, ...prev])
         closeForm()
@@ -156,10 +180,10 @@ export function TasksClient({
     const title = deleteTarget.title
     startTransition(async () => {
       const res = await deleteTask(deleteTarget.id)
-      if ('error' in res) { showToast('Failed to delete task'); return }
+      if ('error' in res) { showToast('Failed to delete task', 'error'); return }
       setTasks(prev => prev.filter(t => t.id !== deleteTarget.id))
       setDeleteTarget(null)
-      showToast(`"${title}" deleted`)
+      showToast(`Task(${title}) deleted successfully`)
     })
   }
 
@@ -255,11 +279,12 @@ export function TasksClient({
 
         <TaskFilterPopover
           assignees={assignees}
-          onFilterChange={f => setActiveFilters(f)}
+          filters={activeFilters}
+          onFilterChange={setActiveFilters}
         />
 
         <button
-          onClick={openAdd}
+          onClick={() => openAdd()}
           className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] transition-colors"
         >
           <Plus size={13} /> Add Task
@@ -268,17 +293,14 @@ export function TasksClient({
 
       {/* Content */}
       <div className="hidden md:block flex-1 overflow-hidden p-8 relative">
-        {toast && (
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 mt-0 flex items-center gap-2 bg-emerald-500 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg z-30">
-            <Check size={13} strokeWidth={2.5} /> {toast}
-          </div>
-        )}
+        {toast && <Toast message={toast.message} variant={toast.type} />}
 
         {viewMode === 'kanban' && (
           <TasksKanbanView
             tasks={filtered}
             onDeleteClick={setDeleteTarget}
             onEditClick={openEdit}
+            onViewClick={setViewTask}
             onStatusChange={handleStatusChange}
           />
         )}
@@ -290,13 +312,11 @@ export function TasksClient({
           />
         )}
         {viewMode === 'calendar' && (
-          <div className="flex items-center justify-center h-full text-gray-500 bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm">
-            <div className="text-center">
-              <Calendar size={40} className="text-gray-300 mx-auto mb-4" />
-              <h3 className="text-base font-semibold text-gray-900 mb-1">Calendar View</h3>
-              <p className="text-sm text-gray-400">Coming soon.</p>
-            </div>
-          </div>
+          <TasksCalendarView
+            tasks={filtered}
+            onTaskClick={setViewTask}
+            onAddOnDate={(date) => openAdd(date)}
+          />
         )}
       </div>
 
@@ -306,6 +326,7 @@ export function TasksClient({
           <div className="fixed inset-0 bg-black/30 z-40" onClick={closeForm} />
           <TaskFormPanel
             task={editTask}
+            defaultDueDate={presetDueDate}
             projects={projects}
             assignees={assignees}
             onSave={handleSave}
@@ -314,6 +335,14 @@ export function TasksClient({
             errorMsg={formError}
           />
         </>
+      )}
+
+      {viewTask && (
+        <TaskDetailModal
+          task={viewTask}
+          onClose={() => setViewTask(null)}
+          onEdit={() => { const t = viewTask; setViewTask(null); openEdit(t) }}
+        />
       )}
 
       {/* Delete Modal */}

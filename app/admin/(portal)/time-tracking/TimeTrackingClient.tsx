@@ -8,10 +8,13 @@ import {
 } from 'lucide-react'
 import type { TimeEntryRow, DbTimeStatus, CreateTimeEntryInput, TimeFormOptions } from './actions'
 import { MobileClockScreen } from '@/app/components/ui/mobile/MobileClockScreen'
+import { SuccessModal } from '@/app/components/ui/SuccessModal'
+import { ConfirmDeleteModal as SharedConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import {
   createTimeEntry, updateTimeEntry, deleteTimeEntry,
   approveTimeEntry, rejectTimeEntry,
 } from './actions'
+import { useSlideOver } from '@/app/components/ui/useSlideOver'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316']
@@ -174,6 +177,8 @@ function LogManualEntrySidebar({
   employees: TimeFormOptions['employees']
   projects:  TimeFormOptions['projects']
 }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
   const [userId,   setUserId]   = useState(entry?.user_id    || '')
   const [date,     setDate]     = useState(entry?.date        || '')
   const [projectId, setProjectId] = useState(entry?.project_id || '')
@@ -201,12 +206,12 @@ function LogManualEntrySidebar({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-[101] flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">{entry ? 'Edit Entry' : 'Log Manual Entry'}</h2>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
+            <button onClick={close} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-8 py-8 bg-[#FCFCFD] space-y-6">
@@ -259,7 +264,7 @@ function LogManualEntrySidebar({
           </div>
 
           <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 bg-white">
-            <button onClick={onClose} className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Close</button>
+            <button onClick={close} className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Close</button>
             <button
               onClick={submit}
               disabled={saving || !userId || !date || !clockIn}
@@ -282,15 +287,17 @@ function TimeEntryDetailSidebar({
   onApprove: () => void
   onReject: () => void
 }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
   const cfg = STATUS_CONFIG[entry.status]
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-[101] flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">Time Entry Detail</h2>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
+            <button onClick={close} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-8 py-7 bg-[#FCFCFD] space-y-8">
@@ -388,7 +395,7 @@ function TimeEntryDetailSidebar({
           </div>
 
           <div className="px-7 py-5 bg-white border-t border-gray-100 flex justify-end gap-3">
-            <button onClick={onClose} className="px-6 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-xl">Close</button>
+            <button onClick={close} className="px-6 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-xl">Close</button>
             {entry.status === 'pending' && (
               <>
                 <button onClick={onReject} className="px-4 py-2.5 text-sm font-semibold text-red-600 border border-red-100 hover:bg-red-50 rounded-xl">Reject</button>
@@ -406,41 +413,12 @@ function TimeEntryDetailSidebar({
 
 function ConfirmDeleteModal({ entry, onClose, onConfirm }: { entry: TimeEntryRow; onClose: () => void; onConfirm: () => void }) {
   return (
-    <>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-[1px] z-[110]" onClick={onClose} />
-      <div className="fixed inset-0 z-[111] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center relative">
-          <button onClick={onClose} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
-          <div className="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 border border-red-100">
-            <Trash2 size={24} />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Entry</h3>
-          <p className="text-sm text-gray-500 mb-8">Are you sure you want to delete this <span className="font-semibold text-gray-800">{entry.employee_name}</span> time entry?<br />This action cannot be undone.</p>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-            <button onClick={onConfirm} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-semibold text-white shadow-sm">Delete</button>
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
-function SuccessPopup({ title, onClose }: { title: string; onClose: () => void }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-[1px] z-[120]" onClick={onClose} />
-      <div className="fixed inset-0 z-[121] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center">
-          <div className="w-14 h-14 bg-emerald-500 rounded-xl flex items-center justify-center shadow-md mb-5 text-white">
-            <Check size={32} strokeWidth={3} />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
-          <p className="text-xs font-medium text-gray-400 mb-6">The timesheet has been successfully updated.</p>
-          <button onClick={onClose} className="w-full bg-[#0D1B2A] text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-[#162437] shadow-sm">Done</button>
-        </div>
-      </div>
-    </>
+    <SharedConfirmDeleteModal
+      title="Delete Entry"
+      message={`Deleting this time entry (${entry.employee_name}) will remove all associated data permanently.`}
+      onCancel={onClose}
+      onConfirm={onConfirm}
+    />
   )
 }
 
@@ -859,7 +837,11 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
         />
       )}
       {modal.type === 'success' && (
-        <SuccessPopup title={modal.title} onClose={() => setModal({ type: 'none' })} />
+        <SuccessModal
+          title={modal.title}
+          subtitle="The timesheet has been successfully updated."
+          onClose={() => setModal({ type: 'none' })}
+        />
       )}
     </div>
   )

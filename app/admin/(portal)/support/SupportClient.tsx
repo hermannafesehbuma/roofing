@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowLeft,
-  Check,
   User,
   MapPin,
   Calendar,
@@ -33,6 +32,7 @@ import {
   createSupportTicket,
   CreateSupportTicketInput
 } from './actions'
+import { Toast } from '@/app/components/ui/Toast'
 
 type SupportClientProps = {
   initialTickets: SupportTicket[]
@@ -277,14 +277,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-[#F4F6F9] h-full overflow-hidden relative">
       {/* Toast Notification */}
-      {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#E8F8F0] border border-[#B3E8CE] rounded-lg px-4 py-3 flex items-center gap-3 shadow-lg animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="w-5 h-5 rounded-full bg-[#2E7D32] flex items-center justify-center shrink-0">
-            <Check size={12} className="text-white" strokeWidth={3} />
-          </div>
-          <span className="text-xs font-semibold text-[#1B5E20]">{toast.message}</span>
-        </div>
-      )}
+      {toast && <Toast message={toast.message} variant={toast.type} />}
 
       {/* Page toolbar — the title bar itself lives in the portal AppHeader */}
       <div className="flex items-center justify-between border-b border-gray-100 bg-white px-8 py-3 shrink-0">

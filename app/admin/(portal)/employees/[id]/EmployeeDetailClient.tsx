@@ -23,7 +23,7 @@ import {
 
 // ─── Shared ───────────────────────────────────────────────────────────────────
 function Overlay({ onClick }: { onClick?: () => void }) {
-  return <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-[1px]" onClick={onClick} />
+  return <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-[1px] overlay-fade-in" onClick={onClick} />
 }
 
 function useOutsideClick(ref: React.RefObject<HTMLElement | null>, cb: () => void) {
@@ -661,7 +661,7 @@ function RFIDetailsPanel({ rfi, managers, composing, busy, onClose, onAssign, on
   return (
     <>
       <Overlay onClick={onClose} />
-      <aside className="fixed inset-y-0 right-0 z-50 bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+      <aside className="fixed inset-y-0 right-0 z-50 bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl panel-slide-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <h3 className="text-sm font-bold text-gray-900">RFI Details</h3>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">

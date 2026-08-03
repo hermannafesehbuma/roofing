@@ -120,7 +120,7 @@ export function EmployeeFormPanel({ employee, onSave, onCancel, loading, errorMs
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 flex">
-      <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+      <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl panel-slide-in">
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-6 shrink-0">
           <h2 className="text-[17px] font-semibold text-[#101828]">

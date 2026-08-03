@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { uploadToStorage, signedUrlFor, StorageFolder } from '@/lib/storage'
 
 export type DbPolicyStatus  = 'valid' | 'expiring_soon' | 'expired'
 export type DbCoverageType  = 'general_liability' | 'workers_comp' | 'auto_liability' | 'umbrella'
@@ -122,16 +123,29 @@ export async function getCertifications(): Promise<CertRow[]> {
   })
 }
 
+/**
+ * People who can hold a certification — everyone except clients.
+ *
+ * The error is logged rather than swallowed: a failed lookup used to return an
+ * empty array silently, which surfaced as an Employee dropdown with nothing in
+ * it and no clue why.
+ */
 export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
   const admin = createAdminClient()
-  const { data } = await admin
+  const { data, error } = await admin
     .from('users')
     .select('id, first_name, last_name, role')
+    .neq('role', 'client')
     .order('first_name')
+
+  if (error) {
+    console.error('getEmployeeOptions error:', error)
+    return []
+  }
 
   return (data ?? []).map((u: any) => ({
     id: u.id,
-    name: `${u.first_name} ${u.last_name}`.trim(),
+    name: `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || 'Unnamed user',
     title: u.role,
   }))
 }
@@ -218,4 +232,36 @@ export async function deleteCertification(id: string) {
   if (error) return { error: error.message }
   revalidatePath('/admin/insurance')
   return { success: true }
+}
+
+// ─── Documents ────────────────────────────────────────────────────────────────
+/**
+ * Stores a COI / certification file and returns its bucket path.
+ *
+ * Runs on the server on purpose. `insurance_documents` is a private bucket whose
+ * RLS policies require an authenticated Supabase role, and this app never
+ * establishes a real Supabase auth session in the browser — uploading from the
+ * client sent the publishable key as a bearer token, which Storage rejected with
+ * "Invalid Compact JWS".
+ */
+export async function uploadInsuranceDocument(
+  formData: FormData
+): Promise<{ path: string } | { error: string }> {
+  const file = formData.get('file') as File | null
+  if (!file || file.size === 0) return { error: 'No file provided' }
+
+  const result = await uploadToStorage(StorageFolder.insurance, file, { fallbackExtension: 'pdf' })
+  if ('error' in result) return { error: result.error }
+
+  return { path: result.path }
+}
+
+/** Time-limited link for viewing a stored COI / certification. */
+export async function getInsuranceDocumentUrl(path: string): Promise<{ url: string } | { error: string }> {
+  if (!path) return { error: 'No document on this record' }
+
+  const url = await signedUrlFor(StorageFolder.insurance, path)
+  if (!url) return { error: 'That document is no longer available' }
+
+  return { url }
 }

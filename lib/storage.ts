@@ -2,19 +2,24 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { MAX_IMAGE_BYTES } from '@/lib/upload-limits'
 
 /**
- * Upload targets. Each kind of upload gets its own public bucket — project
- * images in `projects`, employee photos in `avatar_url`, RFI attachments in
- * `documents`. `insurance_documents` is a separate private bucket and is not
- * managed through this module.
+ * Upload targets — project images in `projects`, employee photos in
+ * `avatar_url`, RFI attachments in `documents`, COIs and certifications in
+ * `insurance_documents`.
+ *
+ * `insurance_documents` is the one private bucket: `getPublicUrl` returns a URL
+ * that 400s there, so uploads to it record the object path and reading is done
+ * through {@link signedUrlFor}.
  */
 export const STORAGE_BUCKET = 'avatar_url'
 export const PROJECTS_BUCKET = 'projects'
 export const DOCUMENTS_BUCKET = 'documents'
+export const INSURANCE_BUCKET = 'insurance_documents'
 
 const TARGETS = {
-  projects:  { bucket: PROJECTS_BUCKET,  prefix: '' },
-  avatars:   { bucket: STORAGE_BUCKET,   prefix: '' },
-  documents: { bucket: DOCUMENTS_BUCKET, prefix: '' },
+  projects:  { bucket: PROJECTS_BUCKET,  prefix: '', public: true  },
+  avatars:   { bucket: STORAGE_BUCKET,   prefix: '', public: true  },
+  documents: { bucket: DOCUMENTS_BUCKET, prefix: '', public: true  },
+  insurance: { bucket: INSURANCE_BUCKET, prefix: '', public: false },
 } as const
 
 export type StorageTarget = keyof typeof TARGETS
@@ -23,6 +28,7 @@ export const StorageFolder = {
   projects: 'projects',
   avatars: 'avatars',
   documents: 'documents',
+  insurance: 'insurance',
 } as const satisfies Record<StorageTarget, StorageTarget>
 
 export type UploadResult = { url: string; path: string } | { error: string }
@@ -106,6 +112,9 @@ export async function uploadToStorage(
         .from(bucket)
         .upload(path, bytes, { contentType, upsert: false })
       if (!error) {
+        // Private buckets have no public URL — callers store the path and mint a
+        // signed URL when someone actually opens the file.
+        if (!TARGETS[target].public) return { url: path, path }
         const { data } = admin.storage.from(bucket).getPublicUrl(path)
         return { url: data.publicUrl, path }
       }
@@ -124,6 +133,29 @@ export async function uploadToStorage(
 
   console.error('uploadToStorage failed:', lastError)
   return { error: friendlyUploadError(lastError) }
+}
+
+/**
+ * Time-limited URL for an object in a private bucket. Returns null when the
+ * object is gone, so callers can fall back rather than open a broken link.
+ */
+export async function signedUrlFor(
+  target: StorageTarget,
+  pathOrUrl: string,
+  expiresInSeconds = 60 * 60
+): Promise<string | null> {
+  const path = pathOrUrl.startsWith('http') ? storagePathFromUrl(pathOrUrl, target) : pathOrUrl
+  if (!path) return null
+
+  const { data, error } = await createAdminClient()
+    .storage.from(TARGETS[target].bucket)
+    .createSignedUrl(path, expiresInSeconds)
+
+  if (error) {
+    console.error('signedUrlFor:', error.message)
+    return null
+  }
+  return data.signedUrl
 }
 
 /** Turns a stored public URL back into a bucket path, for deletions. */

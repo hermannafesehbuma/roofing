@@ -8,6 +8,9 @@ import {
 } from 'lucide-react'
 import type { InventoryItemRow, UsageLogRow, DbInventoryStatus, CreateInventoryInput, LogUsageInput } from './actions'
 import { createInventoryItem, updateInventoryItem, deleteInventoryItem, logUsage } from './actions'
+import { ConfirmDeleteModal as SharedConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
+import { SuccessModal } from '@/app/components/ui/SuccessModal'
+import { useSlideOver } from '@/app/components/ui/useSlideOver'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function computeStatus(qty: number, min: number): DbInventoryStatus {
@@ -133,6 +136,8 @@ function ItemFormSidebar({
   onSave: (v: ItemFormValues) => void
   projects: { id: string; name: string }[]
 }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
   const [v, setV] = useState<ItemFormValues>({
     name:            item?.name            ?? '',
     sku:             item?.sku             ?? '',
@@ -157,12 +162,12 @@ function ItemFormSidebar({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-[101] flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">{item ? 'Edit Item' : 'Add Item'}</h2>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
+            <button onClick={close} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-8 py-8 bg-[#FCFCFD] space-y-7">
@@ -232,7 +237,7 @@ function ItemFormSidebar({
           </div>
 
           <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 bg-white">
-            <button onClick={onClose} className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Close</button>
+            <button onClick={close} className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Close</button>
             <button onClick={submit} disabled={saving || !v.name.trim()} className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0D1B2A] rounded-xl shadow-sm hover:bg-[#162437] disabled:opacity-50">
               {saving ? 'Saving…' : 'Save Item'}
             </button>
@@ -251,6 +256,8 @@ function LogUsageSidebar({
   onSave: (input: LogUsageInput) => void
   projects: { id: string; name: string }[]
 }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
   const [action,    setAction]    = useState<'used' | 'restocked'>('used')
   const [qty,       setQty]       = useState('1')
   const [projectId, setProjectId] = useState(item.project_id ?? '')
@@ -272,12 +279,12 @@ function LogUsageSidebar({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-[101] flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">Log Usage</h2>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
+            <button onClick={close} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-7 py-7 bg-[#FCFCFD] space-y-6">
@@ -322,7 +329,7 @@ function LogUsageSidebar({
           </div>
 
           <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 bg-white">
-            <button onClick={onClose} className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Cancel</button>
+            <button onClick={close} className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Cancel</button>
             <button onClick={submit} disabled={saving || !qty || parseInt(qty) <= 0} className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0D1B2A] rounded-xl shadow-sm hover:bg-[#162437] disabled:opacity-50">
               {saving ? 'Saving…' : 'Log Entry'}
             </button>
@@ -334,6 +341,8 @@ function LogUsageSidebar({
 }
 
 function ItemDetailSidebar({ item, usage, onClose, onEdit, onReorder }: { item: InventoryItemRow; usage: UsageLogRow[]; onClose: () => void; onEdit: () => void; onReorder: () => void }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
   const status = computeStatus(item.qty_on_hand, item.min_threshold)
   const theme  = STATUS_THEMES[status]
   const ratio  = Math.min(100, (item.qty_on_hand / (item.min_threshold * 2 || 1)) * 100)
@@ -341,12 +350,12 @@ function ItemDetailSidebar({ item, usage, onClose, onEdit, onReorder }: { item: 
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-[101] flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">Item Details</h2>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
+            <button onClick={close} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-8 py-7 bg-[#FCFCFD] space-y-8">
@@ -429,36 +438,12 @@ function ItemDetailSidebar({ item, usage, onClose, onEdit, onReorder }: { item: 
 
 function ConfirmDeleteModal({ item, onClose, onConfirm }: { item: InventoryItemRow; onClose: () => void; onConfirm: () => void }) {
   return (
-    <>
-      <div className="fixed inset-0 bg-black/50 z-[110]" onClick={onClose} />
-      <div className="fixed inset-0 z-[111] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
-          <div className="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 border border-red-100"><Trash2 size={24} /></div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Item</h3>
-          <p className="text-sm text-gray-500 mb-8">Are you sure you want to delete <span className="font-semibold text-gray-800">{item.name}</span>?<br />Stock history will be preserved for audit.</p>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-            <button onClick={onConfirm} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold shadow-sm hover:bg-red-700">Delete</button>
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
-function SuccessPopup({ message, onClose }: { message: string; onClose: () => void }) {
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-[120]" onClick={onClose} />
-      <div className="fixed inset-0 z-[121] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
-          <div className="w-14 h-14 bg-emerald-500 rounded-xl flex items-center justify-center text-white mx-auto mb-5 shadow-md shadow-emerald-100"><Check size={30} strokeWidth={3} /></div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">{message}</h3>
-          <p className="text-xs font-medium text-gray-400 mb-6">Inventory has been updated.</p>
-          <button onClick={onClose} className="w-full py-2.5 bg-[#0D1B2A] text-white text-sm font-semibold rounded-xl shadow-sm hover:bg-[#162437]">Done</button>
-        </div>
-      </div>
-    </>
+    <SharedConfirmDeleteModal
+      title="Delete Item"
+      message={`Deleting this item (${item.name}) will remove it from inventory permanently. Stock history is kept for audit.`}
+      onCancel={onClose}
+      onConfirm={onConfirm}
+    />
   )
 }
 
@@ -907,7 +892,11 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
         />
       )}
       {modal.type === 'success' && (
-        <SuccessPopup message={modal.message} onClose={() => setModal({ type: 'none' })} />
+        <SuccessModal
+          title={modal.message}
+          subtitle="Inventory has been updated."
+          onClose={() => setModal({ type: 'none' })}
+        />
       )}
     </div>
   )

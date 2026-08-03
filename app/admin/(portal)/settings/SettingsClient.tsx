@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useTransition, Fragmen
 import { useRouter } from 'next/navigation'
 import {
   Search, Filter, Plus, Eye, Pencil, Trash2,
-  MoreHorizontal, X, Check, ShieldAlert, FileText,
+  MoreHorizontal, X, ShieldAlert, FileText,
   UserCheck, AlertTriangle, Key, Shield, User,
   ChevronDown
 } from 'lucide-react'
@@ -17,6 +17,9 @@ import {
   type EmployeeRow, type CreateEmployeeInput, type UpdateEmployeeInput
 } from '../employees/actions'
 import { EmployeeFormPanel, type FormValues } from '../employees/EmployeeFormPanel'
+import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
+import { Toast } from '@/app/components/ui/Toast'
+import { useSlideOver } from '@/app/components/ui/useSlideOver'
 
 // --- Color Helpers ---
 const avatarColors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#6366F1', '#EC4899']
@@ -44,6 +47,8 @@ function InviteDrawer({ onClose, onSave, loading, errorMsg }: {
   loading: boolean
   errorMsg: string | null
 }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -71,11 +76,11 @@ function InviteDrawer({ onClose, onSave, loading, errorMsg }: {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+      <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
+      <div className={`fixed inset-y-0 right-0 z-50 bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
         <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Invite Staff</h2>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
+          <button onClick={close} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
             <X size={16} />
           </button>
         </div>
@@ -154,7 +159,7 @@ function InviteDrawer({ onClose, onSave, loading, errorMsg }: {
         <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="px-5 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             Cancel
@@ -215,33 +220,13 @@ function DeleteModal({ employee, onConfirm, onCancel, loading }: {
   loading: boolean
 }) {
   return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onCancel} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center relative">
-          <button onClick={onCancel} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
-            <X size={16} />
-          </button>
-          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-5">
-            <Trash2 size={24} className="text-red-500" />
-          </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete Employee</h2>
-          <p className="text-sm text-gray-500 leading-relaxed mb-7">
-            Are you sure want to delete this Employees from Employees management?
-          </p>
-          <div className="flex gap-3 w-full">
-            <button onClick={onCancel}
-              className="flex-1 py-2.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-              Cancel
-            </button>
-            <button onClick={onConfirm} disabled={loading}
-              className="flex-1 py-2.5 rounded-lg bg-[#0D1B2A] text-xs font-semibold text-white hover:bg-[#162437] transition-colors disabled:opacity-60">
-              {loading ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
+    <ConfirmDeleteModal
+      title="Delete Employee"
+      message={`Deleting this employee (${`${employee.first_name} ${employee.last_name}`.trim()}) will remove all associated data permanently.`}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      loading={loading}
+    />
   )
 }
 
@@ -647,14 +632,7 @@ export function SettingsClient({
   return (
     <>
       {/* Toast Notification */}
-      {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#E8F8F0] border border-[#B3E8CE] rounded-lg px-4 py-3 flex items-center gap-3 shadow-lg animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="w-5 h-5 rounded-full bg-[#2E7D32] flex items-center justify-center shrink-0">
-            <Check size={12} className="text-white" strokeWidth={3} />
-          </div>
-          <span className="text-xs font-semibold text-[#1B5E20]">{toast.message}</span>
-        </div>
-      )}
+      {toast && <Toast message={toast.message} variant={toast.type} />}
 
       {/* Invite Drawer */}
       {drawerType === 'invite' && (
@@ -669,7 +647,7 @@ export function SettingsClient({
       {/* Edit Drawer */}
       {drawerType === 'edit' && selectedEmp && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={() => { setDrawerType(null); setSelectedEmp(null) }} />
+          <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] overlay-fade-in" onClick={() => { setDrawerType(null); setSelectedEmp(null) }} />
           <EmployeeFormPanel
             employee={selectedEmp}
             onSave={handleEditSave}

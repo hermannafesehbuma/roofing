@@ -12,6 +12,7 @@ export interface TaskFormValues {
   priority: DbTaskPriority
   assigneeId: string
   dueDate: string
+  estimatedHours: string
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -41,6 +42,7 @@ function ChevronDownIcon() {
 
 export function TaskFormPanel({
   task,
+  defaultDueDate,
   projects,
   assignees,
   onSave,
@@ -49,6 +51,8 @@ export function TaskFormPanel({
   errorMsg,
 }: {
   task: TaskRow | null
+  /** Prefills Due Date when adding from a calendar cell. */
+  defaultDueDate?: string | null
   projects: ProjectOption[]
   assignees: AssigneeOption[]
   onSave: (values: TaskFormValues) => void
@@ -63,7 +67,8 @@ export function TaskFormPanel({
     status:      task?.status ?? 'todo',
     priority:    task?.priority ?? 'medium',
     assigneeId:  task?.assignee_id ?? '',
-    dueDate:     task?.due_date ?? '',
+    dueDate:     task?.due_date ?? defaultDueDate ?? '',
+    estimatedHours: task?.estimated_hours != null ? String(task.estimated_hours) : '',
   })
   const [errors, setErrors] = useState<Partial<Record<keyof TaskFormValues, string>>>({})
 
@@ -84,7 +89,7 @@ export function TaskFormPanel({
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 flex">
-      <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+      <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl panel-slide-in">
         {/* Header */}
         <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
           <h2 className="text-base font-semibold text-gray-900">
@@ -168,17 +173,31 @@ export function TaskFormPanel({
             </div>
           </Field>
 
-          <Field label="Due Date">
-            <div className="relative">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Due Date">
+              <div className="relative">
+                <input
+                  type="date"
+                  value={values.dueDate}
+                  onChange={set('dueDate')}
+                  className={`${inputCls()} pr-9`}
+                />
+                <CalendarDays size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              </div>
+            </Field>
+
+            <Field label="Estimated Hours">
               <input
-                type="date"
-                value={values.dueDate}
-                onChange={set('dueDate')}
-                className={`${inputCls()} pr-9`}
+                type="number"
+                min="0"
+                step="0.5"
+                placeholder="e.g. 3"
+                value={values.estimatedHours}
+                onChange={set('estimatedHours')}
+                className={inputCls()}
               />
-              <CalendarDays size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
-          </Field>
+            </Field>
+          </div>
         </div>
 
         {/* Footer */}

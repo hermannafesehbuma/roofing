@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { CalendarDays, Clock } from 'lucide-react'
 import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
 import type { TaskRow, DbTaskStatus } from '@/app/admin/(portal)/tasks/actions'
 
@@ -8,6 +9,7 @@ interface TasksKanbanViewProps {
   tasks: TaskRow[]
   onDeleteClick: (task: TaskRow) => void
   onEditClick: (task: TaskRow) => void
+  onViewClick: (task: TaskRow) => void
   onStatusChange: (taskId: string, status: DbTaskStatus) => void
 }
 
@@ -32,16 +34,31 @@ function dueDateLabel(d: string | null): string {
   return due.toLocaleDateString('en-US', opts)
 }
 
-function dueColor(d: string | null, status: DbTaskStatus): string {
-  if (!d || status === 'completed') return 'text-gray-400'
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const diff = Math.floor((new Date(d + 'T00:00:00').getTime() - today.getTime()) / 86400000)
-  if (diff < 0) return 'text-red-500'
-  if (diff <= 1) return 'text-amber-500'
-  return 'text-gray-400'
+const PRIORITY_CHIP: Record<string, string> = {
+  high: 'text-red-600 bg-red-50',
+  medium: 'text-amber-600 bg-amber-50',
+  low: 'text-blue-600 bg-blue-50',
 }
 
-export function TasksKanbanView({ tasks, onDeleteClick, onEditClick, onStatusChange }: TasksKanbanViewProps) {
+/**
+ * Overdue and imminent dates get a tinted chip so they read at a glance;
+ * anything further out stays quiet grey.
+ */
+function dueChip(d: string | null, status: DbTaskStatus): string {
+  if (!d || status === 'completed') return 'text-gray-400 bg-gray-50'
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const diff = Math.floor((new Date(d + 'T00:00:00').getTime() - today.getTime()) / 86400000)
+  if (diff < 0) return 'text-red-600 bg-red-50'
+  if (diff <= 1) return 'text-amber-600 bg-amber-50'
+  return 'text-gray-400 bg-gray-50'
+}
+
+/** 3 → "3hr", 1.5 → "1.5hr" */
+function formatHours(hours: number): string {
+  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}hr`
+}
+
+export function TasksKanbanView({ tasks, onDeleteClick, onEditClick, onViewClick, onStatusChange }: TasksKanbanViewProps) {
   return (
     <div className="flex gap-6 overflow-x-auto pb-4 h-full">
       {COLUMNS.map(col => {
@@ -70,6 +87,7 @@ export function TasksKanbanView({ tasks, onDeleteClick, onEditClick, onStatusCha
                     task={task}
                     onDelete={() => onDeleteClick(task)}
                     onEdit={() => onEditClick(task)}
+                    onView={() => onViewClick(task)}
                     onStatusChange={onStatusChange}
                   />
                 ))
@@ -82,10 +100,11 @@ export function TasksKanbanView({ tasks, onDeleteClick, onEditClick, onStatusCha
   )
 }
 
-function TaskCard({ task, onDelete, onEdit, onStatusChange }: {
+function TaskCard({ task, onDelete, onEdit, onView, onStatusChange }: {
   task: TaskRow
   onDelete: () => void
   onEdit: () => void
+  onView: () => void
   onStatusChange: (taskId: string, status: DbTaskStatus) => void
 }) {
   const done = task.status === 'completed'
@@ -93,46 +112,46 @@ function TaskCard({ task, onDelete, onEdit, onStatusChange }: {
 
   return (
     <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between gap-2">
         <label className="flex items-start gap-2.5 cursor-pointer group flex-1 min-w-0">
           <input
             type="checkbox"
             checked={done}
             onChange={e => onStatusChange(task.id, e.target.checked ? 'completed' : 'in_progress')}
-            className="mt-0.5 shrink-0 rounded border-gray-300 text-[#0D1B2A] focus:ring-[#0D1B2A]"
+            className="mt-0.5 shrink-0 w-4 h-4 rounded border-gray-300 text-emerald-500 accent-emerald-500 focus:ring-emerald-500"
           />
-          <span className={`text-xs font-semibold text-gray-900 group-hover:text-blue-600 transition-colors leading-snug ${done ? 'line-through text-gray-400' : ''}`}>
+          <span className="text-[13px] font-semibold text-gray-900 group-hover:text-blue-600 transition-colors leading-snug">
             {task.title}
           </span>
         </label>
-        <ActionsDropdown onEdit={onEdit} onDelete={onDelete} />
+        <ActionsDropdown onView={onView} onEdit={onEdit} onDelete={onDelete} />
       </div>
 
       {task.description && (
-        <p className="text-[11px] text-gray-400 mb-3 ml-7 line-clamp-2">{task.description}</p>
+        <p className="text-[11px] text-gray-400 mt-2 line-clamp-2 leading-relaxed">{task.description}</p>
       )}
 
-      <div className="flex items-center justify-between ml-7 mt-2">
-        <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
-            task.priority === 'high'   ? 'text-red-600 bg-red-50 border-red-200' :
-            task.priority === 'medium' ? 'text-amber-600 bg-amber-50 border-amber-200' :
-                                         'text-blue-600 bg-blue-50 border-blue-200'
-          }`}>
-            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-          </span>
-          {label && (
-            <span className={`text-[10px] font-medium ${dueColor(task.due_date, task.status)}`}>
-              📅 {label}
-            </span>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center gap-1.5 mt-3">
+        <span className={`text-[10px] font-medium px-2 py-1 rounded-md ${PRIORITY_CHIP[task.priority]}`}>
+          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+        </span>
 
-        <div className="flex items-center gap-1.5">
-          {task.project_name && (
-            <span className="text-[10px] text-gray-400 truncate max-w-[80px]">{task.project_name}</span>
-          )}
-          <div className="w-6 h-6 rounded-full overflow-hidden relative bg-gray-200 border border-white shrink-0">
+        {label && (
+          <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md ${dueChip(task.due_date, task.status)}`}>
+            <CalendarDays size={11} strokeWidth={2} /> {label}
+          </span>
+        )}
+
+        {task.estimated_hours !== null && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-400 px-1 py-1">
+            <Clock size={11} strokeWidth={2} /> {formatHours(task.estimated_hours)}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-100">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 rounded-full overflow-hidden relative bg-gray-200 shrink-0">
             {task.assignee_avatar ? (
               <Image src={task.assignee_avatar} alt={task.assignee_name ?? ''} fill sizes="24px" className="object-cover" />
             ) : (
@@ -141,7 +160,13 @@ function TaskCard({ task, onDelete, onEdit, onStatusChange }: {
               </div>
             )}
           </div>
+          <span className="text-[11px] text-gray-600 truncate">
+            {task.assignee_name ? task.assignee_name.split(' ')[0] : 'Unassigned'}
+          </span>
         </div>
+        {task.project_name && (
+          <span className="text-[11px] text-gray-400 truncate max-w-[110px]">{task.project_name}</span>
+        )}
       </div>
     </div>
   )

@@ -131,9 +131,9 @@ function InfoDrawer({ user, onClose }: { user: User; onClose: () => void }) {
    const isStaff = user.role === 'staff'
    return (
       <>
-         <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px]" onClick={onClose} />
+         <div className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px] overlay-fade-in" onClick={onClose} />
          <div className="fixed inset-y-0 right-0 z-[101] flex">
-            <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl panel-slide-in">
                <div className="px-8 py-6 flex items-center justify-between border-b border-gray-100">
                   <h3 className="text-base font-semibold text-gray-900">{isStaff ? 'Staff Info' : 'Client Info'}</h3>
                   <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 transition-colors"><X size={18}/></button>

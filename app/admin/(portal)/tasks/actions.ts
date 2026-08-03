@@ -18,6 +18,8 @@ export type TaskRow = {
   assignee_name: string | null
   assignee_avatar: string | null
   due_date: string | null
+  /** Estimated effort in hours; null until someone sets it. */
+  estimated_hours: number | null
   created_at: string
 }
 
@@ -29,8 +31,7 @@ export async function getTasks(): Promise<TaskRow[]> {
   const { data, error } = await admin
     .from('tasks')
     .select(`
-      id, project_id, title, description, status, priority,
-      assignee_id, due_date, created_at,
+      *,
       project:project_id(name),
       assignee:assignee_id(first_name, last_name, avatar_url)
     `)
@@ -55,6 +56,7 @@ export async function getTasks(): Promise<TaskRow[]> {
       : null,
     assignee_avatar: row.assignee?.avatar_url ?? null,
     due_date: row.due_date,
+    estimated_hours: row.estimated_hours ?? null,
     created_at: row.created_at,
   }))
 }
@@ -91,25 +93,44 @@ export type CreateTaskInput = {
   priority: DbTaskPriority
   assigneeId: string | null
   dueDate: string | null
+  estimatedHours: number | null
+}
+
+/** Postgres "column does not exist" — see `withoutEstimatedHours` below. */
+const UNDEFINED_COLUMN = '42703'
+
+/**
+ * `estimated_hours` arrives with a migration. Until that migration is applied
+ * the column is absent and any write naming it fails outright, so a rejected
+ * write is retried once without the field rather than losing the whole task.
+ */
+function withoutEstimatedHours<T extends Record<string, unknown>>(payload: T) {
+  const rest = { ...payload }
+  delete rest.estimated_hours
+  return rest
 }
 
 export async function createTask(input: CreateTaskInput) {
   const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('tasks')
-    .insert({
-      project_id: input.projectId,
-      title: input.title,
-      description: input.description || null,
-      status: input.status,
-      priority: input.priority,
-      assignee_id: input.assigneeId || null,
-      due_date: input.dueDate || null,
-    })
-    .select('id')
-    .single()
+  const payload = {
+    project_id: input.projectId,
+    title: input.title,
+    description: input.description || null,
+    status: input.status,
+    priority: input.priority,
+    assignee_id: input.assigneeId || null,
+    due_date: input.dueDate || null,
+    estimated_hours: input.estimatedHours ?? null,
+  }
+
+  let { data, error } = await admin.from('tasks').insert(payload).select('id').single()
+
+  if (error?.code === UNDEFINED_COLUMN) {
+    ({ data, error } = await admin.from('tasks').insert(withoutEstimatedHours(payload)).select('id').single())
+  }
 
   if (error) return { error: error.message }
+  if (!data) return { error: 'Task was created but could not be read back.' }
   revalidatePath('/admin/tasks')
   return { id: data.id }
 }
@@ -118,9 +139,7 @@ export type UpdateTaskInput = Partial<CreateTaskInput> & { id: string }
 
 export async function updateTask(input: UpdateTaskInput) {
   const admin = createAdminClient()
-  const { error } = await admin
-    .from('tasks')
-    .update({
+  const payload = {
       ...(input.projectId !== undefined && { project_id: input.projectId }),
       ...(input.title !== undefined && { title: input.title }),
       ...(input.description !== undefined && { description: input.description || null }),
@@ -128,8 +147,14 @@ export async function updateTask(input: UpdateTaskInput) {
       ...(input.priority !== undefined && { priority: input.priority }),
       ...(input.assigneeId !== undefined && { assignee_id: input.assigneeId || null }),
       ...(input.dueDate !== undefined && { due_date: input.dueDate || null }),
-    })
-    .eq('id', input.id)
+    ...(input.estimatedHours !== undefined && { estimated_hours: input.estimatedHours }),
+  }
+
+  let { error } = await admin.from('tasks').update(payload).eq('id', input.id)
+
+  if (error?.code === UNDEFINED_COLUMN) {
+    ({ error } = await admin.from('tasks').update(withoutEstimatedHours(payload)).eq('id', input.id))
+  }
 
   if (error) return { error: error.message }
   revalidatePath('/admin/tasks')

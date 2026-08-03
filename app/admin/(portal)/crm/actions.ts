@@ -238,3 +238,95 @@ export async function convertLeadToClient(leadId: string): Promise<{ clientId: s
   revalidatePath('/admin/crm')
   return { clientId: client.id }
 }
+
+// ─── Client detail panel ──────────────────────────────────────────────────────
+export type ClientActivity = {
+  id: string
+  kind: 'invoice' | 'project'
+  title: string
+  at: string
+}
+
+export type ClientDetails = {
+  totalBilled: number
+  outstanding: number
+  projectCount: number
+  activity: ClientActivity[]
+}
+
+/**
+ * Financial rollup and recent activity for the client details panel.
+ *
+ * There is no per-client event log, so "recent activity" is assembled from the
+ * records that actually changed — invoices and projects — rather than from a
+ * feed table that does not exist.
+ */
+export async function getClientDetails(clientId: string): Promise<ClientDetails> {
+  const admin = createAdminClient()
+
+  const [invoicesRes, projectsRes] = await Promise.all([
+    admin
+      .from('invoices')
+      .select('id, invoice_number, status, total, paid_at, issued_date, created_at')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false }),
+    admin
+      .from('projects')
+      .select('id, name, created_at, manager:manager_id(first_name, last_name)')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false }),
+  ])
+
+  if (invoicesRes.error) console.error('getClientDetails invoices:', invoicesRes.error.message)
+  if (projectsRes.error) console.error('getClientDetails projects:', projectsRes.error.message)
+
+  const invoices = invoicesRes.data ?? []
+  const projects = projectsRes.data ?? []
+
+  // Billed counts every invoice that left draft; outstanding is what is still owed.
+  const totalBilled = invoices
+    .filter((i) => i.status !== 'draft')
+    .reduce((sum, i) => sum + Number(i.total ?? 0), 0)
+  const outstanding = invoices
+    .filter((i) => i.status === 'sent' || i.status === 'overdue' || i.status === 'partial')
+    .reduce((sum, i) => sum + Number(i.total ?? 0), 0)
+
+  const invoiceActivity: ClientActivity[] = invoices
+    .filter((i) => i.status === 'paid' && i.paid_at)
+    .map((i) => ({
+      id: `inv-${i.id}`,
+      kind: 'invoice' as const,
+      title: `Invoice ${i.invoice_number} paid — ${currency(Number(i.total ?? 0))}`,
+      at: i.paid_at as string,
+    }))
+
+  const projectActivity: ClientActivity[] = projects.map((p) => {
+    const manager = Array.isArray(p.manager) ? p.manager[0] : p.manager
+    const managerName = fullName(manager)
+    return {
+      id: `prj-${p.id}`,
+      kind: 'project' as const,
+      title: managerName ? `New project assigned by ${managerName}` : `New project — ${p.name}`,
+      at: p.created_at as string,
+    }
+  })
+
+  const activity = [...invoiceActivity, ...projectActivity]
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .slice(0, 6)
+
+  return { totalBilled, outstanding, projectCount: projects.length, activity }
+}
+
+function fullName(user?: { first_name?: string | null; last_name?: string | null } | null) {
+  if (!user) return ''
+  return `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim()
+}
+
+function currency(value: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value)
+}

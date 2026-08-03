@@ -19,6 +19,64 @@ body {
 }
 
 /*
+ * Slide-over panels.
+ *
+ * Defined here rather than pulled from tailwindcss-animate: that plugin is not
+ * installed, so the `animate-in slide-in-from-right` classes some panels
+ * carried compiled to nothing and the drawers appeared instantly.
+ */
+@keyframes panel-slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes panel-slide-out-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+
+@keyframes overlay-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.panel-slide-in {
+  animation: panel-slide-in-right 300ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+.overlay-fade-in {
+  animation: overlay-fade-in 200ms ease-out both;
+}
+
+/*
+ * Exit halves. Panels stay mounted for the duration of these (see
+ * `useSlideOver`), otherwise the element vanishes before it can animate out.
+ */
+.panel-slide-out {
+  animation: panel-slide-out-right 240ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+.overlay-fade-out {
+  animation: overlay-fade-out 240ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-slide-in,
+  .overlay-fade-in,
+  .panel-slide-out,
+  .overlay-fade-out {
+    animation-duration: 1ms;
+  }
+}
+
+/*
  * Date fields pair the native picker with a lucide calendar icon, which renders
  * two icons side by side. Hide the native indicator but stretch its hit area
  * over the visible icon so tapping it still opens the picker.

@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation'
 import {
   ChevronRight, Pencil, Mail, Search, Filter,
   MoreHorizontal, Eye, MessageSquare, X, FileText,
-  ChevronDown, Send, Smile, ChevronLeft, Check
+  ChevronDown, Send, Smile, ChevronLeft
 } from 'lucide-react'
 import { updateEmployee, uploadAvatar, type EmployeeRow, type UpdateEmployeeInput } from '../../../employees/actions'
 import { EmployeeFormPanel, type FormValues } from '../../../employees/EmployeeFormPanel'
+import { Toast } from '@/app/components/ui/Toast'
 
 // --- Shared Helpers ---
 const avatarColors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#6366F1', '#EC4899']
@@ -334,14 +335,7 @@ export function SettingsEmployeeDetailClient({ employee: initialEmployee }: { em
   return (
     <>
       {/* Toast */}
-      {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-[#E8F8F0] border border-[#B3E8CE] rounded-lg px-4 py-3 flex items-center gap-3 shadow-lg animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="w-5 h-5 rounded-full bg-[#2E7D32] flex items-center justify-center shrink-0">
-            <Check size={12} className="text-white" strokeWidth={3} />
-          </div>
-          <span className="text-xs font-semibold text-[#1B5E20]">{toast}</span>
-        </div>
-      )}
+      {toast && <Toast message={toast} />}
 
       {showEdit && (
         <>

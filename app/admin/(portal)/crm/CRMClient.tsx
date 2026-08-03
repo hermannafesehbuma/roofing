@@ -2,15 +2,22 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react'
 import {
-  Search, Filter, Plus, X, Check, MoreHorizontal, Trash2,
+  Search, Plus, X, Check, MoreHorizontal, Trash2,
   Eye, Pencil, KanbanSquare, List, ChevronDown, ArrowUpRight,
-  ArrowUpCircle, TrendingUp, CheckCircle2, AlertCircle, } from 'lucide-react'
+  ArrowUpCircle, TrendingUp, CheckCircle2, AlertCircle,
+  UserPlus, DollarSign, Briefcase, } from 'lucide-react'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
+import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
+import { Toast as AppToast } from '@/app/components/ui/Toast'
 import {
-  createLead, updateLead, deleteLead, convertLeadToClient,
-  type LeadRow, type ClientRow, type RepOption,
+  createLead, updateLead, deleteLead, convertLeadToClient, getClientDetails,
+  type LeadRow, type ClientRow, type RepOption, type ClientDetails,
   type DbLeadStage, type DbLeadSource, type CreateLeadInput,
 } from './actions'
+import {
+  CRMFilterPopover, EMPTY_CRM_FILTERS, activeFilterCount, type CRMFilters,
+} from '@/app/components/ui/crm/CRMFilterPopover'
+import { useSlideOver } from '@/app/components/ui/useSlideOver'
 
 // ─── Display mappings ─────────────────────────────────────────────────────────
 const STAGE_COLUMNS: { key: DbLeadStage; label: string; color: string }[] = [
@@ -202,31 +209,15 @@ function ClientCard({ client, onView }: { client: ClientRow; onView: () => void 
 
 // ─── Delete Lead Modal ─────────────────────────────────────────────────────────
 function DeleteLeadModal({ lead, onConfirm, onCancel, loading }: { lead: LeadRow; onConfirm: () => void; onCancel: () => void; loading: boolean }) {
+  const name = [`${lead.first_name} ${lead.last_name}`.trim(), lead.company].filter(Boolean).join(' ')
   return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onCancel} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center">
-          <button onClick={onCancel} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
-          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-5">
-            <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
-              <Trash2 size={20} className="text-red-500" />
-            </div>
-          </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete Lead</h2>
-          <p className="text-sm text-gray-500 leading-relaxed mb-7">
-            Are you sure you want to delete <span className="font-medium text-gray-800">{lead.first_name} {lead.last_name}</span>?
-            This action cannot be undone.
-          </p>
-          <div className="flex gap-3 w-full">
-            <button onClick={onCancel} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={onConfirm} disabled={loading} className="flex-1 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors disabled:opacity-60">
-              {loading ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
+    <ConfirmDeleteModal
+      title="Delete Lead"
+      message={`Deleting this lead (${name}) will remove all associated data permanently.`}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      loading={loading}
+    />
   )
 }
 
@@ -235,6 +226,8 @@ function LeadFormPanel({ lead, reps, onClose, onSave, loading, errorMsg }: {
   lead?: LeadRow; reps: RepOption[]; onClose: () => void
   onSave: (v: LeadFormValues) => void; loading: boolean; errorMsg: string | null
 }) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
   const [v, setV] = useState<LeadFormValues>({
     firstName:    lead?.first_name ?? '',
     lastName:     lead?.last_name ?? '',
@@ -255,12 +248,12 @@ function LeadFormPanel({ lead, reps, onClose, onSave, loading, errorMsg }: {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-base font-semibold text-gray-900">{lead ? 'Edit Lead' : 'Add New Lead'}</h2>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+            <button onClick={close} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
           </div>
 
           <div className="overflow-y-auto flex-1 px-7 py-6 space-y-6">
@@ -355,7 +348,7 @@ function LeadFormPanel({ lead, reps, onClose, onSave, loading, errorMsg }: {
           </div>
 
           <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 shrink-0">
-            <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+            <button onClick={close} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
             <button onClick={() => { if (v.firstName.trim()) onSave(v) }} disabled={loading}
               className="px-6 py-2.5 rounded-xl bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors disabled:opacity-60">
               {loading ? 'Saving…' : 'Save'}
@@ -367,15 +360,130 @@ function LeadFormPanel({ lead, reps, onClose, onSave, loading, errorMsg }: {
   )
 }
 
+// ─── Details panel building blocks ─────────────────────────────────────────────
+/** Small uppercase section heading — "CONTACT INFORMATION", "DEAL INFO", … */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">{children}</p>
+}
+
+/** Bordered card holding label/value rows separated by hairlines. */
+function FieldCard({ rows }: { rows: [string, React.ReactNode][] }) {
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      {rows.map(([label, value], i) => (
+        <div
+          key={label}
+          className={`flex items-center justify-between px-4 py-3 text-sm ${i > 0 ? 'border-t border-gray-100' : ''}`}
+        >
+          <span className="text-gray-500">{label}</span>
+          <span className="text-gray-900 font-medium text-right">{value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Relative time for activity entries — "3 days ago", "a week ago". */
+function timeAgo(iso: string) {
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return ''
+  const days = Math.floor((Date.now() - then) / 86_400_000)
+  if (days <= 0) return 'today'
+  if (days === 1) return 'yesterday'
+  if (days < 7) return `${days} days ago`
+  if (days < 14) return 'a week ago'
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`
+  if (days < 60) return 'a month ago'
+  return `${Math.floor(days / 30)} months ago`
+}
+
+type ActivityEntry = { id: string; icon: React.ReactNode; title: string; meta: string }
+
+/** Vertical timeline: circular icon per entry, joined by a connecting rule. */
+function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
+  if (entries.length === 0) {
+    return <p className="text-sm text-gray-400">No activity recorded yet.</p>
+  }
+
+  return (
+    <div className="space-y-0">
+      {entries.map((entry, i) => (
+        <div key={entry.id} className="flex gap-3">
+          <div className="flex flex-col items-center">
+            <span className="w-7 h-7 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-500 shrink-0">
+              {entry.icon}
+            </span>
+            {i < entries.length - 1 && <span className="w-px flex-1 bg-gray-200 my-1" />}
+          </div>
+          <div className={i < entries.length - 1 ? 'pb-6' : ''}>
+            <p className="text-sm text-gray-900">{entry.title}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{entry.meta}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Shared chrome for both details overlays. */
+function DetailsOverlay({ title, onClose, children, footer }: {
+  title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode
+}) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
+  return (
+    <>
+      <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[540px] max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
+            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            <button onClick={close} aria-label="Close" className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="overflow-y-auto flex-1 px-6 pb-5 space-y-5">{children}</div>
+
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
+            {footer}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/** Avatar + name + email + status pill, shared by both overlays. */
+function DetailsIdentity({ id, name, email, badge }: {
+  id: string; name: string; email: string; badge: React.ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
+        style={{ backgroundColor: avatarColor(id) }}
+      >
+        {name.split(' ').map(w => w[0] ?? '').join('').slice(0, 2).toUpperCase()}
+      </div>
+      <div className="min-w-0">
+        <h3 className="font-semibold text-gray-900 text-sm truncate">{name}</h3>
+        <p className="text-xs text-gray-500 truncate">{email}</p>
+      </div>
+      <span className="ml-auto shrink-0">{badge}</span>
+    </div>
+  )
+}
+
 // ─── Lead Details Modal ────────────────────────────────────────────────────────
-function LeadDetailsModal({ lead, reps, onClose, onStageChange, onMarkWon }: {
-  lead: LeadRow; reps: RepOption[]; onClose: () => void
+function LeadDetailsModal({ lead, onClose, onStageChange, onMarkWon }: {
+  lead: LeadRow; onClose: () => void
   onStageChange: (stage: DbLeadStage) => void; onMarkWon: () => void
 }) {
   const [stage, setStage] = useState<DbLeadStage>(lead.stage)
   const [saving, setSaving] = useState(false)
   const moveStages: DbLeadStage[] = ['new_lead', 'contacted', 'proposal_sent', 'won']
-  const color = avatarColor(lead.id)
+  const fullName = `${lead.first_name} ${lead.last_name}`.trim()
 
   async function applyStageChange(s: DbLeadStage) {
     setStage(s)
@@ -384,167 +492,215 @@ function LeadDetailsModal({ lead, reps, onClose, onStageChange, onMarkWon }: {
     setSaving(false)
   }
 
+  // No per-lead event log exists, so the timeline is derived from the lead's own
+  // dates rather than invented: how long it has sat in this stage, and when it
+  // was created. `days_in_stage` already carries the elapsed time, so there is
+  // no need to read the clock during render.
+  const daysInStage = lead.days_in_stage
+  const activity: ActivityEntry[] = [
+    {
+      id: 'stage',
+      icon: <TrendingUp size={13} />,
+      title: `Moved to ${STAGE_COLUMNS.find(c => c.key === lead.stage)?.label ?? lead.stage}`,
+      meta: `${daysInStage <= 0 ? 'today' : `${daysInStage} days ago`} · ${lead.assigned_rep_name ?? 'Unassigned'}`,
+    },
+    {
+      id: 'created',
+      icon: <UserPlus size={13} />,
+      title: lead.assigned_rep_name
+        ? `Lead created and assigned to ${lead.assigned_rep_name}`
+        : 'Lead created',
+      meta: `${timeAgo(lead.created_at)} · System`,
+    },
+  ]
+
   return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-semibold text-gray-900">Lead Details</h2>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
-          </div>
+    <DetailsOverlay
+      title="Lead Details"
+      onClose={onClose}
+      footer={
+        <>
+          <button onClick={onClose} className="px-6 py-2.5 rounded-lg bg-[#F5F6F8] text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">Close</button>
+          <button onClick={onMarkWon} className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
+            Mark as Won <Check size={14} />
+          </button>
+        </>
+      }
+    >
+      <DetailsIdentity
+        id={lead.id}
+        name={fullName || lead.company || 'Lead'}
+        email={lead.email ?? '—'}
+        badge={
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+            {STAGE_COLUMNS.find(s => s.key === lead.stage)?.label ?? 'Active'}
+          </span>
+        }
+      />
 
-          <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-            {/* Identity */}
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0" style={{ backgroundColor: color }}>
-                {initials(lead.first_name, lead.last_name)}
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm">{lead.first_name} {lead.last_name}</h3>
-                <p className="text-xs text-gray-500">{lead.email ?? ''}</p>
-              </div>
-              <span className={`ml-auto inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${STAGE_COLUMNS.find(s => s.key === lead.stage)?.color.replace('bg-', 'text-').replace('-400', '-700').replace('-500', '-700')} bg-opacity-10`}>
-                {STAGE_COLUMNS.find(s => s.key === lead.stage)?.label}
-              </span>
-            </div>
+      <div>
+        <SectionLabel>Contact Information</SectionLabel>
+        <FieldCard
+          rows={[
+            ['Email', lead.email ?? '—'],
+            ['Phone', lead.phone ?? '—'],
+            ['Manager', lead.assigned_rep_name ?? '—'],
+          ]}
+        />
+      </div>
 
-            {/* Contact */}
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Contact Information</p>
-              <div className="space-y-2 text-sm">
-                {[['Email', lead.email ?? '—'], ['Phone', lead.phone ?? '—'], ['Address', lead.address ?? '—'], ['Company', lead.company ?? '—']].map(([k, v]) => (
-                  <div key={k} className="flex justify-between py-1.5 border-b border-gray-50">
-                    <span className="text-gray-500">{k}</span>
-                    <span className="text-gray-800 font-medium">{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <div>
+        <SectionLabel>Deal Info</SectionLabel>
+        <FieldCard
+          rows={[
+            ['Expected Value', fmtValue(lead.expected_value)],
+            ['Assigned Rep', lead.assigned_rep_name ?? '—'],
+            ['Days in Stage', `${lead.days_in_stage} days`],
+            ...(lead.source
+              ? ([[
+                  'Source',
+                  <span key="src" className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${SOURCE_BADGE[lead.source]}`}>
+                    • {SOURCE_LABELS[lead.source]}
+                  </span>,
+                ]] as [string, React.ReactNode][])
+              : []),
+          ]}
+        />
+      </div>
 
-            {/* Deal Info */}
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Deal Info</p>
-              <div className="space-y-2 text-sm">
-                {[
-                  ['Expected Value', fmtValue(lead.expected_value)],
-                  ['Assigned Rep', lead.assigned_rep_name ?? '—'],
-                  ['Days in Stage', `${lead.days_in_stage} days`],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex justify-between py-1.5 border-b border-gray-50">
-                    <span className="text-gray-500">{k}</span>
-                    <span className="text-gray-800 font-medium">{v}</span>
-                  </div>
-                ))}
-                {lead.source && (
-                  <div className="flex justify-between py-1.5 border-b border-gray-50">
-                    <span className="text-gray-500">Source</span>
-                    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${SOURCE_BADGE[lead.source]}`}>
-                      • {SOURCE_LABELS[lead.source]}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
+      {lead.notes && (
+        <div>
+          <SectionLabel>Notes</SectionLabel>
+          <p className="text-sm text-gray-700 border border-gray-200 rounded-xl px-4 py-3 leading-relaxed">{lead.notes}</p>
+        </div>
+      )}
 
-            {lead.notes && (
-              <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</p>
-                <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 leading-relaxed">{lead.notes}</p>
-              </div>
-            )}
-
-            {/* Move Stage */}
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Move Stage</p>
-              <div className="flex gap-2 flex-wrap">
-                {moveStages.map(s => {
-                  const col = STAGE_COLUMNS.find(c => c.key === s)!
-                  return (
-                    <button key={s} onClick={() => applyStageChange(s)} disabled={saving}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${stage === s ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
-                      {stage === s && <Check size={10} strokeWidth={2.5} />}
-                      {col.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
-            <button onClick={onClose} className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Close</button>
-            <button onClick={onMarkWon} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
-              Mark as Won <Check size={14} />
-            </button>
-          </div>
+      <div>
+        <SectionLabel>Move Stage</SectionLabel>
+        <div className="grid grid-cols-4 gap-2">
+          {moveStages.map(s => {
+            const col = STAGE_COLUMNS.find(c => c.key === s)!
+            const active = stage === s
+            return (
+              <button
+                key={s}
+                onClick={() => applyStageChange(s)}
+                disabled={saving}
+                className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium border transition-colors disabled:opacity-60 ${
+                  active
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                {col.label}
+                {active && <Check size={11} strokeWidth={3} />}
+              </button>
+            )
+          })}
         </div>
       </div>
-    </>
+
+      <div>
+        <SectionLabel>Recent Activity</SectionLabel>
+        <ActivityTimeline entries={activity} />
+      </div>
+    </DetailsOverlay>
   )
 }
 
 // ─── Client Details Modal ──────────────────────────────────────────────────────
 function ClientDetailsModal({ client, onClose }: { client: ClientRow; onClose: () => void }) {
-  const color = avatarColor(client.id)
+  const [details, setDetails] = useState<ClientDetails | null>(null)
+
+  useEffect(() => {
+    let live = true
+    getClientDetails(client.id).then(d => { if (live) setDetails(d) })
+    return () => { live = false }
+  }, [client.id])
+
+  const activity: ActivityEntry[] = (details?.activity ?? []).map(a => ({
+    id: a.id,
+    icon: a.kind === 'invoice' ? <DollarSign size={13} /> : <Briefcase size={13} />,
+    title: a.title,
+    meta: timeAgo(a.at),
+  }))
+
   return (
-    <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-            <h2 className="text-base font-semibold text-gray-900">Client Details</h2>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+    <DetailsOverlay
+      title="Client Details"
+      onClose={onClose}
+      footer={
+        <>
+          <button onClick={onClose} className="px-6 py-2.5 rounded-lg bg-[#F5F6F8] text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">Cancel</button>
+          <a
+            href={`mailto:${client.email}`}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors"
+          >
+            Message Client <ArrowUpRight size={14} />
+          </a>
+        </>
+      }
+    >
+      <DetailsIdentity
+        id={client.id}
+        name={client.name}
+        email={client.email}
+        badge={
+          <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${PORTAL_BADGE[client.portal_status]}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 inline-block" />
+            {client.portal_status.charAt(0).toUpperCase() + client.portal_status.slice(1)}
+          </span>
+        }
+      />
+
+      <div>
+        <SectionLabel>Contact Information</SectionLabel>
+        <FieldCard
+          rows={[
+            ['Email', client.email],
+            ['Phone', client.phone ?? '—'],
+            ['Manager', client.manager_name ?? '—'],
+          ]}
+        />
+      </div>
+
+      <div>
+        <SectionLabel>Financial</SectionLabel>
+        <FieldCard
+          rows={[
+            ['Total Billed', details ? fmtValue(details.totalBilled) : '…'],
+            [
+              'Outstanding',
+              details
+                ? <span className={details.outstanding > 0 ? 'text-red-600' : undefined}>{fmtValue(details.outstanding)}</span>
+                : '…',
+            ],
+            ['Projects', details ? `${details.projectCount} ${details.projectCount === 1 ? 'Project' : 'Projects'}` : '…'],
+          ]}
+        />
+      </div>
+
+      <div>
+        <SectionLabel>Portal</SectionLabel>
+        <div className="border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Client Portal</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Status: {client.portal_status.charAt(0).toUpperCase() + client.portal_status.slice(1)}
+            </p>
           </div>
-
-          <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0" style={{ backgroundColor: color }}>
-                {(client.name[0] ?? '').toUpperCase()}
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm">{client.name}</h3>
-                <p className="text-xs text-gray-500">{client.email}</p>
-              </div>
-              <span className={`ml-auto inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${PORTAL_BADGE[client.portal_status]}`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 inline-block" />
-                {client.portal_status.charAt(0).toUpperCase() + client.portal_status.slice(1)}
-              </span>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Contact Information</p>
-              <div className="space-y-2 text-sm">
-                {[['Email', client.email], ['Phone', client.phone ?? '—'], ['Company', client.company ?? '—'], ['Address', client.address ?? '—'], ['Manager', client.manager_name ?? '—']].map(([k, v]) => (
-                  <div key={k} className="flex justify-between py-1.5 border-b border-gray-50">
-                    <span className="text-gray-500">{k}</span>
-                    <span className="text-gray-800 font-medium">{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Portal Status</p>
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">Client Portal</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Status: {client.portal_status}</p>
-                </div>
-                <button className="px-4 py-1.5 bg-[#0D1B2A] text-white text-xs font-medium rounded-lg hover:bg-[#162437] transition-colors">Resend Invite</button>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
-            <button onClick={onClose} className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Close</button>
-            <button className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors">
-              Message Client <ArrowUpRight size={14} />
-            </button>
-          </div>
+          <button className="px-4 py-2 bg-[#0D1B2A] text-white text-xs font-medium rounded-lg hover:bg-[#162437] transition-colors shrink-0">
+            Resend
+          </button>
         </div>
       </div>
-    </>
+
+      <div>
+        <SectionLabel>Recent Activity</SectionLabel>
+        {details ? <ActivityTimeline entries={activity} /> : <p className="text-sm text-gray-400">Loading activity…</p>}
+      </div>
+    </DetailsOverlay>
   )
 }
 
@@ -554,11 +710,7 @@ function Toast({ msg, onDismiss }: { msg: string; onDismiss: () => void }) {
     const t = setTimeout(onDismiss, 3000)
     return () => clearTimeout(t)
   }, [onDismiss])
-  return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0D1B2A] text-white text-sm font-medium px-5 py-3 rounded-xl shadow-xl flex items-center gap-2 animate-in slide-in-from-bottom-2">
-      <Check size={15} className="text-emerald-400" /> {msg}
-    </div>
-  )
+  return <AppToast message={msg} variant={msg.startsWith('Error:') ? 'error' : 'success'} />
 }
 
 // ─── Main Client ───────────────────────────────────────────────────────────────
@@ -572,6 +724,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
   const [clients, setClients] = useState<ClientRow[]>(initialClients)
   const [tab, setTab] = useState<'leads' | 'clients'>('leads')
   const [search, setSearch] = useState('')
+  const [filters, setFilters] = useState<CRMFilters>(EMPTY_CRM_FILTERS)
   const [modal, setModal] = useState<Modal | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -586,20 +739,37 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
     .filter(l => l.stage !== 'lost' && l.stage !== 'closed')
     .reduce((sum, l) => sum + (l.expected_value ?? 0), 0)
 
+  // Search and the filter panel are combined — a lead must satisfy both.
   const filteredLeads = leads.filter(l => {
     const q = search.toLowerCase()
-    return (
+    const matchesSearch =
       l.first_name.toLowerCase().includes(q) ||
       l.last_name.toLowerCase().includes(q) ||
       (l.company ?? '').toLowerCase().includes(q) ||
       (l.email ?? '').toLowerCase().includes(q)
-    )
+
+    const matchesStage = filters.stage.length === 0 || filters.stage.includes(l.stage)
+    const matchesSource =
+      filters.source.length === 0 || (l.source !== null && filters.source.includes(l.source))
+    const matchesRep = !filters.rep || l.assigned_rep_id === filters.rep
+
+    return matchesSearch && matchesStage && matchesSource && matchesRep
   })
 
   const filteredClients = clients.filter(c => {
     const q = search.toLowerCase()
-    return c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (c.company ?? '').toLowerCase().includes(q)
+    const matchesSearch =
+      c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (c.company ?? '').toLowerCase().includes(q)
+    const matchesPortal =
+      filters.portalStatus.length === 0 || filters.portalStatus.includes(c.portal_status)
+    return matchesSearch && matchesPortal
   })
+
+  // A stage filter hides the other columns outright — leaving five empty ones
+  // on screen reads as "no results" rather than as a narrowed board.
+  const visibleStageColumns = filters.stage.length === 0
+    ? STAGE_COLUMNS
+    : STAGE_COLUMNS.filter(col => filters.stage.includes(col.key))
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
   function handleSaveLead(v: LeadFormValues) {
@@ -674,7 +844,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
       if (result.error) { showToast(`Error: ${result.error}`); return }
       setLeads(prev => prev.filter(l => l.id !== lead.id))
       setModal(null)
-      showToast(`Lead "${lead.first_name} ${lead.last_name}" deleted`)
+      showToast(`Lead(${[`${lead.first_name} ${lead.last_name}`.trim(), lead.company].filter(Boolean).join(' ')}) deleted successfully`)
     })
   }
 
@@ -739,7 +909,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
       )}
       {modal?.type === 'viewLead' && (
         <LeadDetailsModal
-          lead={modal.lead} reps={reps}
+          lead={modal.lead}
           onClose={() => setModal(null)}
           onStageChange={(stage) => handleStageChange(modal.lead.id, stage)}
           onMarkWon={() => handleMarkWon(modal.lead)}
@@ -776,9 +946,12 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
                 className="w-full pl-8 pr-4 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A]" />
             </div>
             <div className="flex-1" />
-            <button className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 bg-white transition-colors">
-              <Filter size={13} /> Filter
-            </button>
+            <CRMFilterPopover
+              tab={tab}
+              reps={reps}
+              filters={filters}
+              onFilterChange={setFilters}
+            />
             {tab === 'leads' && (
               <button
                 onClick={() => { setFormError(null); setModal({ type: 'leadForm' }) }}
@@ -790,9 +963,21 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
           </div>
 
           {/* Kanban Columns */}
+          {tab === 'leads' && filteredLeads.length === 0 && (search || activeFilterCount(filters, 'leads') > 0) && (
+            <div className="py-16 text-center">
+              <p className="text-sm text-gray-400">No leads match your filters.</p>
+              <button
+                onClick={() => { setFilters(EMPTY_CRM_FILTERS); setSearch('') }}
+                className="mt-2 text-xs font-medium text-[#0D1B2A] hover:underline"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+
           {tab === 'leads' && (
             <div className="flex gap-4 overflow-x-auto pb-2">
-              {STAGE_COLUMNS.map(col => {
+              {visibleStageColumns.map(col => {
                 const colLeads = filteredLeads.filter(l => l.stage === col.key)
                 return (
                   <div key={col.key} className="shrink-0 w-[230px]">
@@ -832,7 +1017,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
                 />
               ))}
               {filteredClients.length === 0 && (
-                <div className="col-span-4 py-16 text-center text-gray-400 text-sm">No clients found.</div>
+                <div className="col-span-4 py-16 text-center text-gray-400 text-sm">No clients match your filters.</div>
               )}
             </div>
           )}

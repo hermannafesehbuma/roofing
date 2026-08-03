@@ -14,6 +14,8 @@ import {
 import { EmployeeFormPanel, type FormValues } from './EmployeeFormPanel'
 import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
+import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
+import { Toast } from '@/app/components/ui/Toast'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Status = 'active' | 'on_leave' | 'inactive'
@@ -175,35 +177,13 @@ function DeleteModal({ employee, onConfirm, onCancel, loading }: {
   loading: boolean
 }) {
   return (
-    <>
-      <Overlay onClick={onCancel} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center relative">
-          <button onClick={onCancel} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
-            <X size={16} />
-          </button>
-          <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-5">
-            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-              <Trash2 size={20} className="text-red-500" />
-            </div>
-          </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete Employee</h2>
-          <p className="text-sm text-gray-500 leading-relaxed mb-7">
-            Are you sure want to delete <span className="font-medium text-gray-800">{employee.first_name} {employee.last_name}</span> from Employees management?
-          </p>
-          <div className="flex gap-3 w-full">
-            <button onClick={onCancel}
-              className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              Cancel
-            </button>
-            <button onClick={onConfirm} disabled={loading}
-              className="flex-1 py-2.5 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors disabled:opacity-60">
-              {loading ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
+    <ConfirmDeleteModal
+      title="Delete Employee"
+      message={`Deleting this employee (${`${employee.first_name} ${employee.last_name}`.trim()}) will remove all associated data permanently.`}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      loading={loading}
+    />
   )
 }
 
@@ -547,7 +527,13 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
   const [filterOpen, setFilterOpen] = useState(false)
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const pageSize = 20
+
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 4000)
+  }
 
   const departments = [...new Set(employees.map((e) => e.department).filter((d): d is string => !!d))].sort()
   const activeFilterCount = countFilters(filters)
@@ -639,15 +625,16 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
 
   function confirmDelete() {
     if (modal?.type !== 'delete') return
-    const id = modal.employee.id
+    const { id, first_name, last_name } = modal.employee
     startTransition(async () => {
       const result = await deleteEmployee(id)
       if (result.error) {
-        alert(`Delete failed: ${result.error}`)
+        showToast(`Delete failed: ${result.error}`, 'error')
         return
       }
       setEmployees((prev) => prev.filter((e) => e.id !== id))
       setModal(null)
+      showToast(`Employee(${`${first_name} ${last_name}`.trim()}) deleted successfully`)
     })
   }
 
@@ -745,6 +732,7 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
           <EmployeeFormPanel employee={modal.employee} onSave={handleSave} onCancel={() => setModal(null)} loading={isPending} errorMsg={formError} />
         </>
       )}
+      {toast && <Toast message={toast.message} variant={toast.type} />}
       {modal?.type === 'import' && (
         <ImportSummaryModal summary={modal.summary} onClose={() => setModal(null)} />
       )}
