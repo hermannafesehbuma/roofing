@@ -2,15 +2,44 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react'
 import {
-  Search, Filter, Plus, MoreHorizontal, Package, AlertTriangle,
+  Search, Filter, Plus, MoreHorizontal, Package, AlertTriangle, AlertCircle,
   TrendingDown, DollarSign, LayoutGrid, List, ChevronLeft, ChevronRight,
   X, Check, Pencil, Eye, Trash2, ShoppingCart, History,
 } from 'lucide-react'
 import type { InventoryItemRow, UsageLogRow, DbInventoryStatus, CreateInventoryInput, LogUsageInput } from './actions'
 import { createInventoryItem, updateInventoryItem, deleteInventoryItem, logUsage } from './actions'
 import { ConfirmDeleteModal as SharedConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
+import { FilterButton } from '@/app/components/ui/ToolbarButtons'
+import { useDismiss } from '@/app/components/ui/useDismiss'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
+
+/**
+ * Stat tile: label and a tinted glyph on top, the figure and its qualifier
+ * sharing a baseline underneath. Matches the tiles on Time Tracking.
+ */
+function StatCard({ label, value, caption, captionColor, icon, iconBg }: {
+  label: string
+  value: string
+  caption: string
+  captionColor: string
+  icon: React.ReactNode
+  /** Tinted tile behind the icon — the icon supplies its own colour. */
+  iconBg: string
+}) {
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm flex flex-col justify-between gap-4 min-h-[116px]">
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-sm text-gray-500">{label}</span>
+        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
+      </div>
+      <div className="flex items-end justify-between gap-3">
+        <p className="text-[32px] font-semibold text-gray-900 leading-none">{value}</p>
+        <p className={`text-xs leading-none pb-1 text-right ${captionColor}`}>{caption}</p>
+      </div>
+    </div>
+  )
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function computeStatus(qty: number, min: number): DbInventoryStatus {
@@ -461,6 +490,7 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
   const [tab,        setTab]        = useState<'items' | 'usage'>('items')
   const [modal,      setModal]      = useState<ModalState>({ type: 'none' })
   const [filterOpen, setFilterOpen] = useState(false)
+  const filterRef = useDismiss<HTMLDivElement>(filterOpen, () => setFilterOpen(false))
   const [search,     setSearch]     = useState('')
   const [filterStatus, setFilterStatus] = useState<DbInventoryStatus[]>([])
   const [filterCat, setFilterCat]   = useState<string[]>([])
@@ -593,38 +623,26 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
         <div className="px-8 pt-6">
           {/* Stats */}
           <div className="grid grid-cols-4 gap-5 mb-8">
-            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Total SKUs</span>
-                <div className="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600"><Package size={14} /></div>
-              </div>
-              <p className="text-3xl font-semibold text-gray-900 mb-1">{totalSKUs}</p>
-              <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Items tracked</span>
-            </div>
-            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Low Stock</span>
-                <div className="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600"><TrendingDown size={14} /></div>
-              </div>
-              <p className="text-3xl font-semibold text-gray-900 mb-1">{lowStockCount}</p>
-              <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Needs reorder</span>
-            </div>
-            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Critical / Out</span>
-                <div className="w-7 h-7 bg-red-50 rounded-lg flex items-center justify-center text-red-600"><AlertTriangle size={14} /></div>
-              </div>
-              <p className="text-3xl font-semibold text-gray-900 mb-1">{outOfStock}</p>
-              <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">Immediate action</span>
-            </div>
-            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Inventory Value</span>
-                <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600"><DollarSign size={14} /></div>
-              </div>
-              <p className="text-3xl font-semibold text-gray-900 mb-1">{fmtCurrency(totalValue)}</p>
-              <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">Total stock value</span>
-            </div>
+            <StatCard
+              label="Total SKUs" value={String(totalSKUs)}
+              caption="Items tracked" captionColor="text-emerald-600"
+              iconBg="bg-emerald-50" icon={<Package size={16} className="text-emerald-600" strokeWidth={1.9} />}
+            />
+            <StatCard
+              label="Low Stock" value={String(lowStockCount)}
+              caption="Needs reorder" captionColor="text-amber-600"
+              iconBg="bg-amber-50" icon={<AlertCircle size={16} className="text-amber-600" strokeWidth={1.9} />}
+            />
+            <StatCard
+              label="Critical / Out" value={String(outOfStock)}
+              caption="Immediate action" captionColor="text-red-600"
+              iconBg="bg-red-50" icon={<AlertCircle size={16} className="text-red-600" strokeWidth={1.9} />}
+            />
+            <StatCard
+              label="Inventory Value" value={fmtCurrency(totalValue)}
+              caption="Total stock value" captionColor="text-emerald-600"
+              iconBg="bg-emerald-50" icon={<DollarSign size={16} className="text-emerald-600" strokeWidth={1.9} />}
+            />
           </div>
 
           {/* Tabs */}
@@ -650,10 +668,8 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <button onClick={() => setFilterOpen(!filterOpen)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 shadow-sm">
-                  <Filter size={14} /> Filter {(filterStatus.length + filterCat.length) > 0 && <span className="w-4 h-4 bg-[#0D1B2A] text-white text-[9px] font-semibold rounded-full flex items-center justify-center">{filterStatus.length + filterCat.length}</span>}
-                </button>
+              <div className="relative" ref={filterRef}>
+                <FilterButton onClick={() => setFilterOpen(!filterOpen)} active={filterOpen} count={filterStatus.length + filterCat.length} />
                 {filterOpen && (
                   <div className="absolute right-0 top-11 w-72 bg-white border border-gray-100 rounded-xl shadow-xl z-20 p-5">
                     <h4 className="text-[10px] font-semibold text-gray-400 uppercase mb-3">Filter By</h4>
@@ -700,7 +716,7 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
                   </div>
                 )}
               </div>
-              <button onClick={() => setModal({ type: 'addItem' })} className="flex items-center gap-2 px-4 py-2 bg-[#0D1B2A] text-white text-xs font-semibold rounded-xl shadow-sm hover:bg-[#162437] active:scale-95 transition-all">
+              <button onClick={() => setModal({ type: 'addItem' })} className="flex items-center gap-2 px-4 py-2.5 bg-[#0D1B2A] text-white text-xs font-semibold rounded-xl shadow-sm hover:bg-[#162437] active:scale-95 transition-all">
                 <Plus size={16} /> Add Item
               </button>
             </div>

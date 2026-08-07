@@ -285,7 +285,7 @@ export function TasksClient({
 
         <button
           onClick={() => openAdd()}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] transition-colors"
         >
           <Plus size={13} /> Add Task
         </button>

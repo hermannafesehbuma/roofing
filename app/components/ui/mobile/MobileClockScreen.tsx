@@ -1,9 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { TimeEntryRow } from '@/app/admin/(portal)/time-tracking/actions'
+import {
+  getAssignedProjects,
+  getTimeEntries,
+  type TimeEntryRow,
+} from '@/app/admin/(portal)/time-tracking/actions'
 import { useCurrentUser } from '@/app/components/ui/useCurrentUser'
 import { MobileHeader } from './MobileHeader'
 import { MobileClockCard } from './MobileClockCard'
@@ -28,11 +32,13 @@ function weekDays(offset: number) {
   })
 }
 
+/** Shift length in hours; a clock-out before the clock-in crossed midnight. */
 function hoursBetween(clockIn: string, clockOut: string | null) {
   if (!clockOut) return 0
   const [hi, mi] = clockIn.split(':').map(Number)
   const [ho, mo] = clockOut.split(':').map(Number)
-  return Math.max(0, (ho * 60 + mo - (hi * 60 + mi)) / 60)
+  const mins = ho * 60 + mo - (hi * 60 + mi)
+  return (mins < 0 ? mins + 24 * 60 : mins) / 60
 }
 
 function formatTotal(hours: number) {
@@ -46,7 +52,9 @@ export function MobileClockScreen({
   entries,
   projects,
 }: {
+  /** The whole team's entries, as the desktop page loaded them. */
   entries: TimeEntryRow[]
+  /** Every project, used for admins and managers. */
   projects: { id: string; name: string }[]
 }) {
   const router = useRouter()
@@ -56,11 +64,37 @@ export function MobileClockScreen({
 
   // Crews see their own timesheet; managers reviewing on a phone see everything.
   const isCrew = profile?.role === 'staff' || profile?.role === 'technician'
-  const mine = entries.filter((e) => e.user_id === userId)
-  const visible = isCrew || mine.length > 0 ? mine : entries
 
-  const todayKey = new Date().toLocaleDateString('en-CA')
-  const openEntry = mine.find((e) => e.date === todayKey && !e.clock_out) ?? null
+  // The page renders on the server, which has no session — so the technician's
+  // own timesheet and assignments are pulled once the profile resolves.
+  const [myEntries, setMyEntries] = useState<TimeEntryRow[] | null>(null)
+  const [myProjects, setMyProjects] = useState<{ id: string; name: string }[] | null>(null)
+
+  const [reloads, setReloads] = useState(0)
+
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
+    void (async () => {
+      const [rows, assigned] = await Promise.all([
+        getTimeEntries(userId),
+        getAssignedProjects(userId),
+      ])
+      if (cancelled) return
+      setMyEntries(rows)
+      setMyProjects(assigned)
+    })()
+    return () => { cancelled = true }
+  }, [userId, reloads])
+
+  const mine = myEntries ?? entries.filter((e) => e.user_id === userId)
+  const visible = isCrew || mine.length > 0 ? mine : entries
+  // Managers and admins book against anything; crews only against assignments.
+  const clockProjects = isCrew ? myProjects ?? [] : myProjects?.length ? myProjects : projects
+
+  // Any unclosed punch, not just today's — a shift that ran past midnight, or a
+  // forgotten clock-out, still needs the button to say "Clock Out".
+  const openEntry = mine.find((e) => !e.clock_out) ?? null
 
   const days = weekDays(weekOffset)
   const weekTotal = days.reduce(
@@ -78,9 +112,9 @@ export function MobileClockScreen({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <MobileClockCard
           userId={userId}
-          projects={projects}
+          projects={clockProjects}
           openEntry={openEntry}
-          onChanged={() => router.refresh()}
+          onChanged={() => { setReloads((n) => n + 1); router.refresh() }}
         />
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">

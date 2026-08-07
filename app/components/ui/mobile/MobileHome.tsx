@@ -1,11 +1,16 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Bell, Briefcase, ClipboardList, Calendar, Clock } from 'lucide-react'
 import type { Project } from '@/app/admin/(portal)/projects/data'
 import type { TaskRow } from '@/app/admin/(portal)/tasks/actions'
-import type { TimeEntryRow } from '@/app/admin/(portal)/time-tracking/actions'
+import {
+  getAssignedProjects,
+  getOpenEntry,
+  type TimeEntryRow,
+} from '@/app/admin/(portal)/time-tracking/actions'
 import { useCurrentUser } from '@/app/components/ui/useCurrentUser'
 import { MobileAvatar } from './MobileHeader'
 import { MobileClockCard } from './MobileClockCard'
@@ -58,8 +63,29 @@ export function MobileHome({
   )
   const activeProjects = projects.filter((p) => p.status === 'in_progress').length
 
-  const openEntry =
-    timeEntries.find((e) => e.user_id === userId && e.date === todayKey && !e.clock_out) ?? null
+  // The server render has no session, so the punch state and the technician's
+  // assignments are pulled once the profile resolves.
+  const [openEntry, setOpenEntry] = useState<TimeEntryRow | null>(
+    timeEntries.find((e) => e.user_id === userId && !e.clock_out) ?? null
+  )
+  const [myProjects, setMyProjects] = useState<{ id: string; name: string }[] | null>(null)
+
+  const [reloads, setReloads] = useState(0)
+
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
+    void (async () => {
+      const [entry, assigned] = await Promise.all([getOpenEntry(userId), getAssignedProjects(userId)])
+      if (cancelled) return
+      setOpenEntry(entry)
+      setMyProjects(assigned)
+    })()
+    return () => { cancelled = true }
+  }, [userId, reloads])
+
+  const allProjects = projects.map((p) => ({ id: p.id, name: p.name }))
+  const clockProjects = isCrew ? myProjects ?? [] : myProjects?.length ? myProjects : allProjects
 
   return (
     <div className="md:hidden flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
@@ -83,9 +109,9 @@ export function MobileHome({
         <MobileClockCard
           compact
           userId={userId}
-          projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+          projects={clockProjects}
           openEntry={openEntry}
-          onChanged={() => router.refresh()}
+          onChanged={() => { setReloads((n) => n + 1); router.refresh() }}
         />
 
         <div className="grid grid-cols-2 gap-3">

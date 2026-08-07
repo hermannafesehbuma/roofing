@@ -4,19 +4,31 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, PenLine, Trash2, MoreHorizontal } from 'lucide-react';
 
+export interface ActionsDropdownItem {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  /** Renders the row in red — reserved for destructive actions. */
+  danger?: boolean;
+  /** Draws a divider above this row. */
+  separated?: boolean;
+}
+
 interface ActionsDropdownProps {
   onView?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  /** Overrides the default View / Edit / Delete rows. */
+  items?: ActionsDropdownItem[];
 }
 
 const MENU_WIDTH = 215;
-/** Roughly the tallest the menu gets (three rows) — used to decide flip-up. */
-const MENU_MAX_HEIGHT = 170;
+const ROW_HEIGHT = 46;
+const MENU_PADDING = 12;
 const GAP = 8;
 const VIEWPORT_MARGIN = 8;
 
-export function ActionsDropdown({ onView, onEdit, onDelete }: ActionsDropdownProps) {
+export function ActionsDropdown({ onView, onEdit, onDelete, items }: ActionsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -32,13 +44,14 @@ export function ActionsDropdown({ onView, onEdit, onDelete }: ActionsDropdownPro
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const flipUp = rect.bottom + GAP + MENU_MAX_HEIGHT > window.innerHeight;
+    const menuHeight = rows.length * ROW_HEIGHT + MENU_PADDING;
+    const flipUp = rect.bottom + GAP + menuHeight > window.innerHeight;
     const left = Math.min(
       Math.max(VIEWPORT_MARGIN, rect.right - MENU_WIDTH),
       window.innerWidth - MENU_WIDTH - VIEWPORT_MARGIN
     );
 
-    setCoords({ top: flipUp ? rect.top - GAP - MENU_MAX_HEIGHT : rect.bottom + GAP, left });
+    setCoords({ top: flipUp ? rect.top - GAP - menuHeight : rect.bottom + GAP, left });
     setIsOpen(true);
   }
 
@@ -72,7 +85,14 @@ export function ActionsDropdown({ onView, onEdit, onDelete }: ActionsDropdownPro
   }, [isOpen]);
 
   const itemCls =
-    'w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-[15px] text-[#1D2939] hover:bg-[#F2F4F7] transition-colors';
+    'w-full flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-[15px] hover:bg-[#F2F4F7] transition-colors';
+
+  // Default rows keep every existing call site working unchanged.
+  const rows: ActionsDropdownItem[] = items ?? [
+    ...(onView ? [{ label: 'View Detail', icon: <Eye size={19} className="shrink-0" strokeWidth={1.6} />, onClick: onView }] : []),
+    { label: 'Edit', icon: <PenLine size={19} className="shrink-0" strokeWidth={1.6} />, onClick: () => onEdit?.() },
+    { label: 'Delete', icon: <Trash2 size={19} className="shrink-0" strokeWidth={1.6} />, onClick: () => onDelete?.(), danger: true },
+  ];
 
   return (
     <>
@@ -93,17 +113,17 @@ export function ActionsDropdown({ onView, onEdit, onDelete }: ActionsDropdownPro
           style={{ position: 'fixed', top: coords.top, left: coords.left, width: MENU_WIDTH }}
           className="bg-white rounded-2xl shadow-[0_8px_30px_rgba(16,24,40,0.14)] p-1.5 z-[300]"
         >
-          {onView && (
-            <button className={itemCls} onClick={() => { setIsOpen(false); onView(); }}>
-              <Eye size={19} className="text-[#1D2939] shrink-0" strokeWidth={1.6} /> View Detail
-            </button>
-          )}
-          <button className={itemCls} onClick={() => { setIsOpen(false); onEdit?.(); }}>
-            <PenLine size={19} className="text-[#1D2939] shrink-0" strokeWidth={1.6} /> Edit
-          </button>
-          <button className={itemCls} onClick={() => { setIsOpen(false); onDelete?.(); }}>
-            <Trash2 size={19} className="text-[#F04438] shrink-0" strokeWidth={1.6} /> Delete
-          </button>
+          {rows.map((row, i) => (
+            <React.Fragment key={row.label}>
+              {row.separated && i > 0 && <div className="border-t border-gray-100 my-1" />}
+              <button
+                className={`${itemCls} ${row.danger ? 'text-[#F04438]' : 'text-[#1D2939]'}`}
+                onClick={() => { setIsOpen(false); row.onClick(); }}
+              >
+                {row.icon} {row.label}
+              </button>
+            </React.Fragment>
+          ))}
         </div>,
         document.body
       )}

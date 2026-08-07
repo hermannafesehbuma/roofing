@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Filter, Search, ChevronDown, Check } from 'lucide-react'
 import type { DbTaskStatus, DbTaskPriority, AssigneeOption } from '@/app/admin/(portal)/tasks/actions'
+import { FilterButton } from '@/app/components/ui/ToolbarButtons';
 
 export type DueDateFilter = '' | 'today' | 'tomorrow' | 'this_week' | 'overdue' | 'no_date'
 
@@ -101,23 +102,7 @@ export function TaskFilterPopover({
 
   return (
     <div className="relative" ref={popoverRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1.5 px-3 py-2 text-xs border rounded-lg transition-colors ${
-          count > 0
-            ? 'border-[#0D1B2A]/20 bg-[#0D1B2A]/5 text-[#0D1B2A] font-medium'
-            : 'border-gray-200 text-gray-600 hover:bg-gray-50 bg-white font-medium'
-        }`}
-      >
-        <Filter size={13} />
-        Filter
-        {count > 0 && (
-          <span className="w-4 h-4 flex items-center justify-center rounded-full bg-[#0D1B2A] text-white text-[9px] font-semibold">
-            {count}
-          </span>
-        )}
-        <ChevronDown size={13} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      <FilterButton onClick={() => setIsOpen(!isOpen)} active={isOpen} count={count} />
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-[360px] bg-white rounded-2xl shadow-[0_8px_30px_rgba(16,24,40,0.14)] border border-gray-100 p-5 z-50 max-h-[70vh] overflow-y-auto">

@@ -2,7 +2,8 @@
 
 import { useRef, useState, useEffect } from 'react'
 import Image from 'next/image'
-import { ChevronDown, Plus, X } from 'lucide-react'
+import {Plus, X} from 'lucide-react'
+import { PersonSelect } from '@/app/components/ui/PersonSelect'
 
 export interface EmployeeOption {
   id: string
@@ -60,7 +61,6 @@ export function TeamAssignmentFields({ employees, managerId, crew, onManagerChan
   }, [])
 
   const managers = employees.filter((e) => e.role === 'admin' || e.role === 'manager')
-  const selectedManager = employees.find((e) => e.id === managerId)
 
   function selectManager(id: string) {
     onManagerChange(id)
@@ -85,27 +85,13 @@ export function TeamAssignmentFields({ employees, managerId, crew, onManagerChan
       {/* Assigned Manager */}
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1.5">Assigned Manager</label>
-        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-[#0D1B2A]/10 focus-within:border-[#0D1B2A] transition-colors">
-          {selectedManager && (
-            <div className="ml-3">
-              <Avatar employee={selectedManager} tone="orange" />
-            </div>
-          )}
-          <select
-            value={managerId}
-            onChange={(e) => selectManager(e.target.value)}
-            className={`flex-1 appearance-none py-2.5 text-sm text-gray-800 bg-white focus:outline-none ${selectedManager ? 'pl-2 pr-8' : 'px-4'}`}
-          >
-            <option value="">Select Manager</option>
-            {managers.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="text-gray-400 mr-3 shrink-0 pointer-events-none" />
-        </div>
-        {managers.length === 0 && (
-          <p className="text-[11px] text-gray-400 mt-1">No managers or admins found.</p>
-        )}
+        <PersonSelect
+          people={managers.map((m) => ({ id: m.id, name: m.name, title: m.role, avatarUrl: m.avatar_url }))}
+          value={managerId}
+          onChange={selectManager}
+          placeholder="Select Manager"
+          emptyHint="No managers or admins found."
+        />
       </div>
 
       {/* Crew Members */}

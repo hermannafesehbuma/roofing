@@ -5,6 +5,7 @@ import { Project, ProjectStatus, ProjectType } from './data';
 import { KanbanView } from '@/app/components/ui/KanbanView';
 import { ListView } from '@/app/components/ui/ListView';
 import { FilterPopover, type ProjectFilters, type FilterManager } from '@/app/components/ui/FilterPopover';
+import { ImportExportButton } from '@/app/components/ui/ToolbarButtons';
 import { DeleteModal } from '@/app/components/ui/DeleteModal';
 import { NewProjectModal } from '@/app/components/ui/NewProjectModal';
 import { EditProjectModal } from '@/app/components/ui/EditProjectModal';
@@ -265,16 +266,7 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
         <FilterPopover managers={managers} filters={activeFilters} onFilterChange={setActiveFilters} />
 
         <div className="relative">
-          <button
-            onClick={() => setIoOpen((o) => !o)}
-            disabled={importing}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs border rounded-lg transition-colors disabled:opacity-60 ${
-              ioOpen ? 'border-gray-300 bg-gray-50 text-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            {importing ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-            Import/Export
-          </button>
+          <ImportExportButton onClick={() => setIoOpen((o) => !o)} active={ioOpen} loading={importing} />
           {ioOpen && (
             <ImportExportMenu
               exportCount={filteredProjects.length}
@@ -289,7 +281,7 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
 
         <button
           onClick={() => setShowNewProject(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#0D1B2A] text-white rounded-lg text-xs hover:bg-[#162437] transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2.5 bg-[#0D1B2A] text-white rounded-lg text-xs hover:bg-[#162437] transition-colors"
         >
           <Plus size={13} /> New Projects
         </button>

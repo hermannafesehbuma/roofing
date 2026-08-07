@@ -19,6 +19,7 @@ import {
 import { EmployeeFormPanel, type FormValues } from '../employees/EmployeeFormPanel'
 import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import { Toast } from '@/app/components/ui/Toast'
+import { FilterButton } from '@/app/components/ui/ToolbarButtons'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
 
 // --- Color Helpers ---
@@ -730,12 +731,7 @@ export function SettingsClient({
                         />
                       </div>
                       <div className="relative">
-                        <button
-                          onClick={() => setShowFilter(!showFilter)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors font-medium bg-white"
-                        >
-                          <Filter size={13} /> Filter
-                        </button>
+                        <FilterButton onClick={() => setShowFilter(!showFilter)} active={showFilter} />
                         {showFilter && (
                           <FilterPopover
                             activeFilters={filters}

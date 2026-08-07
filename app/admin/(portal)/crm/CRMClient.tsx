@@ -7,6 +7,7 @@ import {
   TrendingUp,
   UserPlus, DollarSign, Briefcase, Users, UserCheck, Banknote, } from 'lucide-react'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
+import { PersonSelect } from '@/app/components/ui/PersonSelect'
 import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import { Toast as AppToast } from '@/app/components/ui/Toast'
 import {
@@ -337,13 +338,13 @@ function LeadFormPanel({ lead, reps, onClose, onSave, loading, errorMsg }: {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Assigned Rep</label>
-                    <div className="relative">
-                      <select value={v.assignedRepId} onChange={e => set('assignedRepId', e.target.value)} className={selectCls}>
-                        <option value="">Select Rep</option>
-                        {reps.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                      </select>
-                      <ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    </div>
+                    <PersonSelect
+                      people={reps.map(r => ({ id: r.id, name: r.name, title: r.role, avatarUrl: r.avatar_url }))}
+                      value={v.assignedRepId}
+                      onChange={id => set('assignedRepId', id)}
+                      placeholder="Select Rep"
+                      emptyHint="No reps found — add an admin or manager first."
+                    />
                   </div>
                 </div>
                 <div>
@@ -962,7 +963,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
             {tab === 'leads' && (
               <button
                 onClick={() => { setFormError(null); setModal({ type: 'leadForm' }) }}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] transition-colors font-medium"
+                className="flex items-center gap-1.5 px-4 py-2.5 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] transition-colors font-medium"
               >
                 <Plus size={13} /> Add Lead
               </button>

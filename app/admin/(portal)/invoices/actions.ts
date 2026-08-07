@@ -256,27 +256,45 @@ export async function createInvoice(input: CreateInvoiceInput) {
     if (iErr) return { error: iErr.message }
   }
 
+  let emailWarning: string | undefined
+
   if (input.status === 'sent') {
-    const { data: clientUser } = await admin.from('users').select('email').eq('id', input.client_id).single()
-    const clientEmail = clientUser?.email || 'unknown@example.com'
+    // The recipient lives on `clients`, not `users` — this used to look the id up
+    // in `users` and always fall through to a placeholder address, so no client
+    // ever received their invoice.
+    const { data: client } = await admin
+      .from('clients')
+      .select('email, name, portal_user_id')
+      .eq('id', input.client_id)
+      .maybeSingle()
 
-    await admin.from('notifications').insert({
-      user_id: input.client_id,
-      title: 'New Invoice',
-      body: `You have a new invoice (${code}) ready for payment.`,
-      type: 'invoice',
-      entity_id: data.id
+    // notifications.user_id is a users(id); only a client with a portal login has one.
+    if (client?.portal_user_id) {
+      await admin.from('notifications').insert({
+        user_id: client.portal_user_id,
+        title: 'New Invoice',
+        body: `You have a new invoice (${code}) ready for payment.`,
+        type: 'invoice',
+        entity_id: data.id,
+      })
+    }
+
+    const sent = await sendEmail({
+      to: client?.email ?? '',
+      subject: `New invoice from Peak Roofing — ${code}`,
+      html: invoiceEmailHtml({
+        code,
+        clientName: client?.name ?? 'there',
+        total,
+        dueDate: input.due_date,
+      }),
     })
 
-    await sendEmail({
-      to: clientEmail,
-      subject: `New Invoice from Roofing - ${code}`,
-      html: `<p>Hello,</p><p>You have a new invoice (<strong>${code}</strong>) for $${total.toFixed(2)}.</p><p>Please log in to your portal to view and pay this invoice.</p>`
-    })
+    if (!sent.sent) emailWarning = `Invoice saved, but the email failed: ${sent.error}`
   }
 
   revalidatePath('/admin/invoices')
-  return { id: data.id, code }
+  return { id: data.id, code, emailWarning }
 }
 
 export async function updateInvoice(id: string, input: CreateInvoiceInput) {
@@ -423,4 +441,25 @@ export async function updateRecurring(id: string, input: Partial<CreateRecurring
   if (error) return { error: error.message }
   revalidatePath('/admin/invoices')
   return { success: true }
+}
+
+
+/** Plain, client-facing invoice notification. */
+function invoiceEmailHtml({ code, clientName, total, dueDate }: {
+  code: string; clientName: string; total: number; dueDate: string
+}) {
+  const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(total)
+  const due = dueDate
+    ? new Date(`${dueDate}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : null
+
+  return `
+    <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #1D2939; line-height: 1.6;">
+      <p>Hello ${clientName},</p>
+      <p>Your invoice <strong>${code}</strong> for <strong>${amount}</strong> is ready.</p>
+      ${due ? `<p>Payment is due by <strong>${due}</strong>.</p>` : ''}
+      <p>You can view and pay it from your Peak Roofing client portal.</p>
+      <p style="color:#667085; font-size: 13px;">Peak Roofing Co. · 123 Rooftop Ave, Las Vegas, NV 89101</p>
+    </div>
+  `
 }

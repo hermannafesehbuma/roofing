@@ -98,6 +98,36 @@ body {
 }
 
 /*
+ * Native date inputs have no placeholder — they always render `yyyy-mm-dd`.
+ * `DateField` adds `.date-empty` while a field is blank so the guide text can be
+ * blanked out and a real placeholder shown over it. Focus restores the editor.
+ */
+input[type="date"].date-empty:not(:focus),
+input[type="time"].date-empty:not(:focus) {
+  color: transparent;
+}
+
+/*
+ * Chrome paints the guide from the individual sub-fields, which do not always
+ * inherit the colour above — blank them too so only the overlaid placeholder
+ * shows, never `yyyy-mm-dd` or `--:-- --` alongside it.
+ */
+input[type="date"].date-empty:not(:focus)::-webkit-datetime-edit,
+input[type="time"].date-empty:not(:focus)::-webkit-datetime-edit,
+input[type="date"].date-empty:not(:focus)::-webkit-datetime-edit-fields-wrapper,
+input[type="time"].date-empty:not(:focus)::-webkit-datetime-edit-fields-wrapper,
+input[type="date"].date-empty:not(:focus)::-webkit-datetime-edit-text,
+input[type="time"].date-empty:not(:focus)::-webkit-datetime-edit-text,
+input[type="date"].date-empty:not(:focus)::-webkit-datetime-edit-year-field,
+input[type="date"].date-empty:not(:focus)::-webkit-datetime-edit-month-field,
+input[type="date"].date-empty:not(:focus)::-webkit-datetime-edit-day-field,
+input[type="time"].date-empty:not(:focus)::-webkit-datetime-edit-hour-field,
+input[type="time"].date-empty:not(:focus)::-webkit-datetime-edit-minute-field,
+input[type="time"].date-empty:not(:focus)::-webkit-datetime-edit-ampm-field {
+  color: transparent;
+}
+
+/*
  * Date fields pair the native picker with a lucide calendar icon, which renders
  * two icons side by side. Hide the native indicator but stretch its hit area
  * over the visible icon so tapping it still opens the picker.

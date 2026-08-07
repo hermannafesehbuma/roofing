@@ -40,7 +40,7 @@ export type CertRow = {
   created_at: string
 }
 
-export type EmployeeOption = { id: string; name: string; title: string | null }
+export type EmployeeOption = { id: string; name: string; title: string | null; avatar_url: string | null }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function daysDiff(expiryDate: string): number {
@@ -134,7 +134,7 @@ export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('users')
-    .select('id, first_name, last_name, role')
+    .select('id, first_name, last_name, role, avatar_url')
     .neq('role', 'client')
     .order('first_name')
 
@@ -147,6 +147,7 @@ export async function getEmployeeOptions(): Promise<EmployeeOption[]> {
     id: u.id,
     name: `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || 'Unnamed user',
     title: u.role,
+    avatar_url: u.avatar_url ?? null,
   }))
 }
 

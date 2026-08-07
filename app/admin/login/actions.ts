@@ -89,7 +89,7 @@ export async function loginUser(email: string, password: string) {
     // Fetch the authenticated user's role from public.users table
     const { data: userData } = await supabase
       .from('users')
-      .select('role, first_name, last_name, avatar_url')
+      .select('id, role, first_name, last_name, avatar_url')
       .eq('supabase_id', data.user.id)
       .single()
 
@@ -102,7 +102,10 @@ export async function loginUser(email: string, password: string) {
     return {
       success: true as const,
       user: {
-        id: data.user.id,
+        // The app's own users.id — NOT data.user.id, which is the Supabase auth
+        // id. Every foreign key in the schema points at users(id), so storing
+        // the auth id here fails constraints wherever the session is trusted.
+        id: userData?.id ?? '',
         email: data.user.email,
         role: mappedRole,
         firstName: userData?.first_name || '',

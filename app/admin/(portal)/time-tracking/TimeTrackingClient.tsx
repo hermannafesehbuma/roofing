@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import {
-  Search, Filter as FilterIcon, Plus, X, Check, MoreHorizontal,
-  Trash2, Eye, Pencil, ChevronLeft, ChevronRight,
-  Clock, MapPin, FileText, Map as MapIcon
+  Search, Plus, X, Check, ChevronLeft, ChevronRight,
+  Clock, MapPin,
+  UserCheck, AlertCircle, CalendarCheck
 } from 'lucide-react'
 import type { TimeEntryRow, DbTimeStatus, CreateTimeEntryInput, TimeFormOptions } from './actions'
 import { MobileClockScreen } from '@/app/components/ui/mobile/MobileClockScreen'
@@ -14,7 +14,14 @@ import {
   createTimeEntry, updateTimeEntry, deleteTimeEntry,
   approveTimeEntry, rejectTimeEntry,
 } from './actions'
+import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
+import { PersonSelect } from '@/app/components/ui/PersonSelect'
+import { DateField } from '@/app/components/ui/DateField'
+import { TimeField } from '@/app/components/ui/TimeField'
+import { useDismiss } from '@/app/components/ui/useDismiss'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
+import { useCurrentUser } from '@/app/components/ui/useCurrentUser'
+import { FilterButton, ImportExportButton, filterChipCls } from '@/app/components/ui/ToolbarButtons'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316']
@@ -35,21 +42,18 @@ function fmtTime(t: string | null): string {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`
 }
 
-function computeHours(clockIn: string, clockOut: string | null): string {
-  if (!clockOut) return '–'
-  const [hi, mi] = clockIn.split(':').map(Number)
-  const [ho, mo] = clockOut.split(':').map(Number)
-  const mins = ho * 60 + mo - (hi * 60 + mi)
-  if (mins <= 0) return '–'
-  return `${(mins / 60).toFixed(1)}h`
-}
-
+/** Shift length in hours; a clock-out before the clock-in crossed midnight. */
 function computeHoursNum(clockIn: string, clockOut: string | null): number {
   if (!clockOut) return 0
   const [hi, mi] = clockIn.split(':').map(Number)
   const [ho, mo] = clockOut.split(':').map(Number)
   const mins = ho * 60 + mo - (hi * 60 + mi)
-  return Math.max(0, mins / 60)
+  return (mins < 0 ? mins + 24 * 60 : mins) / 60
+}
+
+function computeHours(clockIn: string, clockOut: string | null): string {
+  if (!clockOut) return '–'
+  return `${computeHoursNum(clockIn, clockOut).toFixed(1)}h`
 }
 
 function getWeekDays(offsetWeeks = 0): { key: string; iso: string; label: string }[] {
@@ -62,9 +66,11 @@ function getWeekDays(offsetWeeks = 0): { key: string; iso: string; label: string
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
     const dayName = d.toLocaleDateString('en-US', { weekday: 'short' })
-    const dayNum = String(d.getDate()).padStart(2, '0')
-    const iso = d.toISOString().split('T')[0]
-    return { key: `${dayName} ${dayNum}`, iso, label: dayName }
+    const dayNum = String(d.getDate())
+    // Local, not toISOString(): entries carry the date the crew worked, so a
+    // UTC shift would file Monday's hours under Sunday west of Greenwich.
+    const iso = d.toLocaleDateString('en-CA')
+    return { key: `${dayName} (${dayNum})`, iso, label: dayName }
   })
 }
 
@@ -76,7 +82,11 @@ interface WeekRow {
   total: string
 }
 
-function buildWeekData(entries: TimeEntryRow[], weekDays: { key: string; iso: string }[]): WeekRow[] {
+function buildWeekData(
+  entries: TimeEntryRow[],
+  weekDays: { key: string; iso: string }[],
+  todayIso: string,
+): WeekRow[] {
   const weekIsos = new Set(weekDays.map(d => d.iso))
   const weekEntries = entries.filter(e => weekIsos.has(e.date))
 
@@ -92,19 +102,57 @@ function buildWeekData(entries: TimeEntryRow[], weekDays: { key: string; iso: st
     let total = 0
     for (const wd of weekDays) {
       const entry = userEntries.find(e => e.date === wd.iso)
+      // A day still running, or yet to come, can't be missed yet — only a day
+      // that has fully passed with nothing recorded counts against someone.
+      const hasPassed = wd.iso < todayIso
+
       if (!entry) {
-        days[wd.key] = { h: '-', s: 'none' }
+        days[wd.key] = { h: '-', s: hasPassed ? 'missed' : 'none' }
       } else {
         const h = computeHoursNum(entry.clock_in, entry.clock_out)
         total += h
+        // Clocked in on a day that has since passed but never clocked out —
+        // the shift is unaccountable, so it reads as missed rather than 0h.
+        const missedPunchOut = hasPassed && !entry.clock_out
         days[wd.key] = {
-          h: h > 0 ? `${h.toFixed(1)}h` : '-',
-          s: entry.status as 'approved' | 'pending' | 'missed',
+          h: h > 0 ? `${h.toFixed(1)}h` : missedPunchOut ? 'Missed' : '-',
+          s: missedPunchOut ? 'missed' : (entry.status as 'approved' | 'pending' | 'missed'),
         }
       }
     }
     return { userId, name: first.employee_name, role: first.employee_role, days, total: `${total.toFixed(1)}h` }
   })
+}
+
+/** Time Log filters. `date` is a preset key rather than a range the user types. */
+type TimeDatePreset = '' | 'today' | 'last7' | 'last30'
+
+interface TimeFilters {
+  status:   DbTimeStatus[]
+  projects: string[]
+  date:     TimeDatePreset
+  employee: string
+}
+
+const EMPTY_TIME_FILTERS: TimeFilters = { status: [], projects: [], date: '', employee: '' }
+
+const DATE_PRESETS: { key: Exclude<TimeDatePreset, ''>; label: string; days: number }[] = [
+  { key: 'today',  label: 'Today',        days: 0  },
+  { key: 'last7',  label: 'Last 7 days',  days: 7  },
+  { key: 'last30', label: 'Last 30 days', days: 30 },
+]
+
+/** Earliest date a preset admits, as a local YYYY-MM-DD to match entry dates. */
+function presetStart(preset: TimeDatePreset): string | null {
+  const found = DATE_PRESETS.find(p => p.key === preset)
+  if (!found) return null
+  const d = new Date()
+  d.setDate(d.getDate() - found.days)
+  return d.toLocaleDateString('en-CA')
+}
+
+function activeTimeFilterCount(f: TimeFilters) {
+  return f.status.length + f.projects.length + (f.date ? 1 : 0) + (f.employee ? 1 : 0)
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -129,41 +177,32 @@ const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm t
 const selectCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all'
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, variant = 'default' }: { label: string; value: string; sub?: string; variant?: 'default' | 'success' | 'info' | 'alert' | 'purple' }) {
-  const border = variant === 'success' ? 'border-emerald-100' : variant === 'alert' ? 'border-red-100' : variant === 'purple' ? 'border-purple-100' : 'border-gray-100'
-  const tag = variant === 'success' ? 'bg-emerald-50 text-emerald-600' : variant === 'alert' ? 'bg-red-50 text-red-600' : variant === 'info' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+function StatCard({ label, value, sub, subColor, icon, iconBg }: {
+  label: string; value: string; sub?: string; subColor?: string
+  icon: React.ReactNode
+  /** Tinted tile behind the icon — the icon supplies its own colour. */
+  iconBg: string
+}) {
   return (
-    <div className={`bg-white rounded-xl border p-5 shadow-sm ${border}`}>
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs text-gray-500 font-semibold tracking-wide uppercase">{label}</span>
-        {sub && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${tag}`}>{sub}</span>}
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-4 min-h-[112px]">
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-sm text-gray-500">{label}</span>
+        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
       </div>
-      <p className="text-3xl font-semibold text-gray-900">{value}</p>
+      <div className="flex items-end justify-between gap-3">
+        <p className="text-[30px] font-semibold text-gray-900 leading-none">{value}</p>
+        {sub && <p className={`text-xs font-medium leading-none pb-0.5 text-right ${subColor}`}>{sub}</p>}
+      </div>
     </div>
   )
 }
 
 function ActionMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit: () => void; onDelete: () => void }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [])
+  // Shared dropdown so the menu matches every other table and, being portalled,
+  // is not clipped by the log table's own scroll container.
   return (
-    <div ref={ref} className="relative flex justify-center">
-      <button onClick={(e) => { e.stopPropagation(); setOpen(!open) }} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
-        <MoreHorizontal size={14} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-8 w-40 bg-white border border-gray-100 rounded-xl shadow-xl z-30 py-1 origin-top-right overflow-hidden">
-          <button onClick={() => { setOpen(false); onView() }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><Eye size={14} className="text-gray-400" /> View Detail</button>
-          <button onClick={() => { setOpen(false); onEdit() }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><Pencil size={14} className="text-gray-400" /> Edit</button>
-          <div className="border-t border-gray-50 my-1" />
-          <button onClick={() => { setOpen(false); onDelete() }} className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2"><Trash2 size={14} /> Delete</button>
-        </div>
-      )}
+    <div className="flex justify-center">
+      <ActionsDropdown onView={onView} onEdit={onEdit} onDelete={onDelete} />
     </div>
   )
 }
@@ -178,6 +217,23 @@ function LogManualEntrySidebar({
   projects:  TimeFormOptions['projects']
 }) {
   const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
+  /** Distinct project locations, offered as Site / Location suggestions. */
+  const knownLocations = useMemo(
+    () => [...new Set(projects.map(p => p.location).filter((l): l is string => !!l))].sort(),
+    [projects]
+  )
+
+  /**
+   * Picking a project fills the site from that project's address unless the
+   * user has already typed one of their own.
+   */
+  function selectProject(id: string) {
+    setProjectId(id)
+    const project = projects.find(p => p.id === id)
+    const previous = projects.find(p => p.id === projectId)?.location ?? ''
+    if (project?.location && (!loc || loc === previous)) setLoc(project.location)
+  }
 
   const [userId,   setUserId]   = useState(entry?.user_id    || '')
   const [date,     setDate]     = useState(entry?.date        || '')
@@ -219,26 +275,41 @@ function LogManualEntrySidebar({
               <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Entry Details</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Employee</label>
-                  <select value={userId} onChange={e => setUserId(e.target.value)} className={selectCls}>
-                    <option value="">Select Employee</option>
-                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                  </select>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Employee</label>
+                  <PersonSelect
+                    people={employees.map(emp => ({ id: emp.id, name: emp.name, title: emp.role, avatarUrl: emp.avatar_url }))}
+                    value={userId}
+                    onChange={setUserId}
+                    emptyHint="No employees found — add a team member first."
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Date</label>
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Date</label>
+                  <DateField value={date} onChange={setDate} />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Project</label>
-                  <select value={projectId} onChange={e => setProjectId(e.target.value)} className={selectCls}>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Project</label>
+                  <select value={projectId} onChange={e => selectProject(e.target.value)} className={selectCls}>
                     <option value="">Select Project</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
+                  {projects.length === 0 && (
+                    <p className="text-[11px] text-amber-600 mt-1.5">No projects found — create a project first.</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Site / Location</label>
-                  <input value={loc} onChange={e => setLoc(e.target.value)} placeholder="Enter site location" className={inputCls} />
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Site / Location</label>
+                  <input
+                    list="tt-site-locations"
+                    value={loc}
+                    onChange={e => setLoc(e.target.value)}
+                    placeholder="Enter site location"
+                    className={inputCls}
+                  />
+                  {/* Suggestions are the locations already recorded on projects. */}
+                  <datalist id="tt-site-locations">
+                    {knownLocations.map(l => <option key={l} value={l} />)}
+                  </datalist>
                 </div>
               </div>
             </div>
@@ -247,24 +318,24 @@ function LogManualEntrySidebar({
               <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Time</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Clock In</label>
-                  <input type="time" value={clockIn} onChange={e => setClockIn(e.target.value)} className={inputCls} />
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Clock In</label>
+                  <TimeField value={clockIn} onChange={setClockIn} />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Clock Out</label>
-                  <input type="time" value={clockOut} onChange={e => setClockOut(e.target.value)} className={inputCls} />
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Clock Out</label>
+                  <TimeField value={clockOut} onChange={setClockOut} />
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Note</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Note</label>
               <textarea rows={4} value={note} onChange={e => setNote(e.target.value)} placeholder="Enter reason or details..." className={`${inputCls} resize-none py-3`} />
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 bg-white">
-            <button onClick={close} className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Close</button>
+            <button onClick={close} className="px-6 py-2.5 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl">Close</button>
             <button
               onClick={submit}
               disabled={saving || !userId || !date || !clockIn}
@@ -279,6 +350,21 @@ function LogManualEntrySidebar({
   )
 }
 
+/** "36.1699° N, 115.1398° W" — the punch coordinates, as the design labels them. */
+function fmtCoords(lat: number | null, lng: number | null): string | null {
+  if (lat === null || lng === null) return null
+  return `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? 'E' : 'W'}`
+}
+
+function DetailRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex justify-between items-center px-5 py-3.5">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className={`text-sm text-gray-900 ${strong ? 'font-semibold' : 'font-medium'}`}>{value}</span>
+    </div>
+  )
+}
+
 function TimeEntryDetailSidebar({
   entry, onClose, onApprove, onReject,
 }: {
@@ -290,120 +376,141 @@ function TimeEntryDetailSidebar({
   const { close, backdropCls, panelCls } = useSlideOver(onClose)
 
   const cfg = STATUS_CONFIG[entry.status]
+  const coords = fmtCoords(entry.gps_lat, entry.gps_lng)
+  const hours = computeHours(entry.clock_in, entry.clock_out)
+
   return (
     <>
       <div className={`fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-y-0 right-0 z-[101] flex">
         <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
-          <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
-            <h2 className="text-lg font-semibold text-gray-900">Time Entry Detail</h2>
+          <div className="flex items-center justify-between px-8 py-5 shrink-0">
+            <h2 className="text-xl font-semibold text-gray-900">Time Entry Detail</h2>
             <button onClick={close} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
           </div>
 
-          <div className="overflow-y-auto flex-1 px-8 py-7 bg-[#FCFCFD] space-y-8">
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-base shadow-md" style={{ backgroundColor: avatarColor(entry.user_id) }}>
-                    {entry.employee_name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900">{entry.employee_name}</h3>
-                    <p className="text-xs font-semibold text-gray-400 capitalize">{entry.employee_role}</p>
-                  </div>
+          <div className="overflow-y-auto flex-1 px-8 pb-8 space-y-7">
+            {/* Who, and what they were on */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-base shrink-0" style={{ backgroundColor: avatarColor(entry.user_id) }}>
+                  {entry.employee_name.split(' ').map(n => n[0]).join('')}
                 </div>
-                <span className={`flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full ${cfg.bg} ${cfg.text} uppercase tracking-wider`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} /> {STATUS_LABEL[entry.status]}
-                </span>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">{entry.employee_name}</h3>
+                  <p className="text-sm text-gray-400">{entry.project_name ?? entry.employee_role}</p>
+                </div>
               </div>
+              <span className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.text}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} /> {STATUS_LABEL[entry.status]}
+              </span>
             </div>
 
+            {/* Time details */}
             <div>
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Time Details</h4>
-              <div className="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50 shadow-sm">
-                {[
-                  { label: 'Date',       val: fmtDate(entry.date) },
-                  { label: 'Clock In',   val: fmtTime(entry.clock_in) },
-                  { label: 'Clock Out',  val: fmtTime(entry.clock_out) },
-                ].map(r => (
-                  <div key={r.label} className="flex justify-between items-center px-5 py-4">
-                    <span className="text-sm text-gray-500 font-medium">{r.label}</span>
-                    <span className="text-sm text-gray-900 font-semibold">{r.val}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between items-center px-5 py-4 bg-gray-50/50">
-                  <span className="text-sm text-gray-900 font-semibold">Total Hours</span>
-                  <span className="text-lg font-semibold text-gray-900">{computeHours(entry.clock_in, entry.clock_out)}</span>
-                </div>
+              <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">Time Details</h4>
+              <div className="border border-gray-100 rounded-xl divide-y divide-gray-50 bg-white">
+                <DetailRow label="Date"       value={fmtDate(entry.date)} />
+                <DetailRow label="Clock In"   value={fmtTime(entry.clock_in)} />
+                <DetailRow label="Clock Out"  value={fmtTime(entry.clock_out)} />
+                <DetailRow label="Total Hours" value={hours} strong />
               </div>
             </div>
 
+            {/* Notes */}
             {entry.note && (
               <div>
-                <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Notes</h4>
-                <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-                  <p className="text-xs text-gray-600 font-medium leading-relaxed italic">"{entry.note}"</p>
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Notes</h4>
+                <div className="bg-[#F7F8FA] border border-gray-100 rounded-xl px-5 py-4">
+                  <p className="text-sm text-gray-600 leading-relaxed">{entry.note}</p>
                 </div>
               </div>
             )}
 
+            {/* Location & project */}
             <div>
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Location &amp; Project</h4>
-              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-400">Project</p>
-                    <p className="text-sm font-semibold text-gray-900">{entry.project_name ?? '–'}</p>
+              <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">Location &amp; Project</h4>
+              <div className="border border-gray-100 rounded-xl divide-y divide-gray-50 bg-white">
+                <DetailRow label="Project" value={entry.project_name ?? '–'} />
+                <DetailRow label="Site"    value={entry.location ?? '–'} />
+              </div>
+
+              <div className="mt-3 border border-gray-100 rounded-xl overflow-hidden">
+                <div className="relative h-36 bg-[#EEF1F6]">
+                  <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#C7CEDB_1px,transparent_1px)] [background-size:12px_12px]" />
+                  {/* Street-grid suggestion — the real tiles need a map provider key. */}
+                  <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(#FFFFFF_2px,transparent_2px),linear-gradient(90deg,#FFFFFF_2px,transparent_2px)] [background-size:44px_44px]" />
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <span className="absolute -inset-5 rounded-full bg-blue-500/10 animate-pulse" />
+                    <span className="relative w-9 h-9 bg-white shadow-lg rounded-full flex items-center justify-center text-blue-600">
+                      <MapPin size={18} fill="currentColor" fillOpacity={0.25} />
+                    </span>
                   </div>
-                  {entry.location && (
-                    <div className="text-right">
-                      <p className="text-xs font-semibold text-gray-400">Site</p>
-                      <p className="text-sm font-semibold text-gray-900">{entry.location}</p>
-                    </div>
-                  )}
                 </div>
-                <div className="w-full h-32 bg-[#F0F3F8] rounded-xl relative overflow-hidden flex items-center justify-center border border-gray-100">
-                  <div className="absolute inset-0 opacity-30 bg-[radial-gradient(#D1D5DB_1px,transparent_1px)] [background-size:10px_10px]" />
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-blue-100/50 rounded-full animate-pulse flex items-center justify-center">
-                    <div className="w-8 h-8 bg-white shadow-lg rounded-full flex items-center justify-center text-blue-600">
-                      <MapPin size={18} fill="currentColor" fillOpacity={0.3} />
-                    </div>
-                  </div>
-                  <div className="absolute bottom-3 left-3 bg-white px-2.5 py-1 rounded-md shadow-sm border border-gray-100 text-[10px] font-semibold text-gray-500 flex items-center gap-1.5">
-                    <MapIcon size={10} /> GPS Verified
-                  </div>
+                <div className="flex items-center gap-2 px-4 py-3 bg-white border-t border-gray-100">
+                  <MapPin size={13} className="text-gray-400 shrink-0" />
+                  <p className="text-xs text-gray-600 truncate">
+                    {coords
+                      ? `${coords}${entry.location ? ` — ${entry.location}` : ''}`
+                      : 'No GPS captured for this punch'}
+                  </p>
                 </div>
               </div>
             </div>
 
+            {/* Entry log */}
             <div>
-              <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Entry Log</h4>
-              <div className="relative pl-6 space-y-6 text-xs">
-                <div className="absolute left-[6px] top-1 bottom-1 w-px border-l border-dashed border-gray-200" />
-                <div className="relative">
-                  <div className="absolute left-[-24px] top-0.5 w-3 h-3 rounded-full border-2 border-white bg-gray-400" />
-                  <p className="font-semibold text-gray-900">Clocked Out</p>
-                  <p className="text-gray-400 mt-0.5">{fmtDate(entry.date)} at {fmtTime(entry.clock_out)} • GPS verified</p>
-                </div>
-                <div className="relative">
-                  <div className="absolute left-[-24px] top-0.5 w-3 h-3 rounded-full border-2 border-white bg-emerald-500" />
-                  <p className="font-semibold text-gray-900">Clocked In</p>
-                  <p className="text-gray-400 mt-0.5">{fmtDate(entry.date)} at {fmtTime(entry.clock_in)} • GPS verified</p>
+              <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Entry Log</h4>
+              <div className="space-y-5">
+                {entry.clock_out ? (
+                  <div className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <span className="w-6 h-6 rounded-full bg-red-50 text-red-500 flex items-center justify-center shrink-0"><X size={12} strokeWidth={3} /></span>
+                      <span className="flex-1 w-px bg-gray-200 mt-1" />
+                    </div>
+                    <div className="pb-1">
+                      <p className="text-sm font-medium text-gray-900">Clocked out</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {fmtDate(entry.date)} at {fmtTime(entry.clock_out)} · {hours} total
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <span className="w-6 h-6 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><Clock size={12} strokeWidth={3} /></span>
+                      <span className="flex-1 w-px bg-gray-200 mt-1" />
+                    </div>
+                    <div className="pb-1">
+                      <p className="text-sm font-medium text-gray-900">Still on the clock</p>
+                      <p className="text-xs text-gray-400 mt-0.5">No clock-out recorded yet</p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <span className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0"><Check size={12} strokeWidth={3} /></span>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Clocked in</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {fmtDate(entry.date)} at {fmtTime(entry.clock_in)}
+                      {coords ? ' · GPS verified' : ''}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="px-7 py-5 bg-white border-t border-gray-100 flex justify-end gap-3">
-            <button onClick={close} className="px-6 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-xl">Close</button>
+          <div className="px-8 py-5 bg-white border-t border-gray-100 flex justify-end gap-3">
             {entry.status === 'pending' && (
               <>
-                <button onClick={onReject} className="px-4 py-2.5 text-sm font-semibold text-red-600 border border-red-100 hover:bg-red-50 rounded-xl">Reject</button>
-                <button onClick={onApprove} className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0D1B2A] rounded-xl shadow-sm flex items-center gap-2">
+                <button onClick={onReject} className="px-5 py-2.5 text-sm font-semibold text-red-600 border border-red-100 hover:bg-red-50 rounded-xl">Reject</button>
+                <button onClick={onApprove} className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0D1B2A] hover:bg-[#162437] rounded-xl shadow-sm flex items-center gap-2">
                   <Check size={16} /> Approve Entry
                 </button>
               </>
             )}
+            <button onClick={close} className="px-7 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-xl">Close</button>
           </div>
         </div>
       </div>
@@ -436,13 +543,34 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
   const [modal,        setModal]        = useState<ModalState>({ type: 'none' })
   const [weekOffset,   setWeekOffset]   = useState(0)
   const [showFilter,   setShowFilter]   = useState(false)
+  const filterRef = useDismiss<HTMLDivElement>(showFilter, () => setShowFilter(false))
+  const [filters,      setFilters]      = useState<TimeFilters>(EMPTY_TIME_FILTERS)
+  const [draft,        setDraft]        = useState<TimeFilters>(EMPTY_TIME_FILTERS)
   const [isPending,    startTransition] = useTransition()
+  // Approve / reject / delete used to swallow their errors, so a failed write
+  // looked identical to a successful one. Surface it instead.
+  const [actionError, setActionError] = useState<string | null>(null)
+  const profile = useCurrentUser()
 
+  // A punch from the phone re-renders the server page; pick the fresh rows up
+  // rather than sitting on the snapshot this component mounted with.
+  const [seededFrom, setSeededFrom] = useState(initialEntries)
+  if (seededFrom !== initialEntries) {
+    setSeededFrom(initialEntries)
+    setEntries(initialEntries)
+  }
+
+  // user_id -> photo, so the timesheet can show faces like the rest of the app.
+  const avatarByUser = useMemo(
+    () => new Map(employees.map(e => [e.id, e.avatar_url])),
+    [employees]
+  )
+
+  const today    = new Date().toLocaleDateString('en-CA')
   const weekDays = useMemo(() => getWeekDays(weekOffset), [weekOffset])
-  const weekData = useMemo(() => buildWeekData(entries, weekDays), [entries, weekDays])
+  const weekData = useMemo(() => buildWeekData(entries, weekDays, today), [entries, weekDays, today])
 
   // Stats
-  const today    = new Date().toISOString().split('T')[0]
   const todayIn  = entries.filter(e => e.date === today && e.clock_out === null).length
   const weekIsos = new Set(weekDays.map(d => d.iso))
   const weekHrs  = entries
@@ -462,11 +590,41 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
   // Week label
   const weekLabel = `${weekDays[0] ? new Date(weekDays[0].iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} – ${weekDays[6] ? new Date(weekDays[6].iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}`
 
-  const filteredEntries = entries.filter(e =>
-    !search || e.employee_name.toLowerCase().includes(search.toLowerCase()) ||
-    (e.project_name ?? '').toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredEntries = entries.filter(e => {
+    const q = search.toLowerCase()
+    const matchesSearch = !search ||
+      e.employee_name.toLowerCase().includes(q) ||
+      (e.project_name ?? '').toLowerCase().includes(q)
+    // The popover's chips used to be decorative; they now narrow the log.
+    const matchesStatus = filters.status.length === 0 || filters.status.includes(e.status)
+    const matchesProject = filters.projects.length === 0 ||
+      (e.project_id !== null && filters.projects.includes(e.project_id))
+    const matchesEmployee = !filters.employee || e.user_id === filters.employee
+    const from = presetStart(filters.date)
+    const matchesDate = !from || e.date >= from
+    return matchesSearch && matchesStatus && matchesProject && matchesEmployee && matchesDate
+  })
   const pendingEntries = filteredEntries.filter(e => e.status === 'pending' || e.status === 'missed')
+
+  /** Exports the visible week as CSV — the Export control did nothing before. */
+  function exportWeekCsv() {
+    const header = ['Employee', 'Role', ...weekDays.map(d => d.key), 'Total']
+    const rows = weekData.map(r => [
+      r.name,
+      r.role,
+      ...weekDays.map(d => r.days[d.key]?.h ?? '-'),
+      r.total,
+    ])
+    const escape = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
+    const csv = [header, ...rows].map(r => r.map(c => escape(String(c))).join(',')).join('\r\n')
+
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `timesheet-${weekDays[0]?.iso ?? 'week'}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   async function handleSaveEntry(data: CreateTimeEntryInput) {
     const editing = modal.type === 'newEntry' ? modal.entry : undefined
@@ -488,11 +646,16 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
           const proj = projects.find(p => p.id === data.project_id)
           const newEntry: TimeEntryRow = {
             ...data,
+            // The create input leaves GPS optional; the row type does not.
+            gps_lat: data.gps_lat ?? null,
+            gps_lng: data.gps_lng ?? null,
             id: res.id,
             code: res.code ?? '',
             employee_name: emp?.name ?? '',
             employee_role: emp?.role ?? '',
             project_name: proj?.name ?? null,
+            total_hours: computeHoursNum(data.clock_in, data.clock_out) || null,
+            approved_at: null,
             created_at: new Date().toISOString(),
           }
           setEntries(prev => [newEntry, ...prev])
@@ -507,15 +670,17 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
     const { entry } = modal
     startTransition(async () => {
       const res = await deleteTimeEntry(entry.id)
-      if (!('error' in res)) setEntries(prev => prev.filter(e => e.id !== entry.id))
+      if ('error' in res) { setActionError(res.error ?? 'That action could not be saved.'); return }
+      setEntries(prev => prev.filter(e => e.id !== entry.id))
     })
     setModal({ type: 'none' })
   }
 
   function handleApprove(entry: TimeEntryRow) {
     startTransition(async () => {
-      const res = await approveTimeEntry(entry.id)
-      if (!('error' in res)) setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'approved' } : e))
+      const res = await approveTimeEntry(entry.id, profile?.id)
+      if ('error' in res) { setActionError(res.error ?? 'That action could not be saved.'); return }
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'approved', approved_at: new Date().toISOString() } : e))
     })
     if (modal.type === 'viewEntry') setModal({ type: 'none' })
   }
@@ -523,7 +688,8 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
   function handleReject(entry: TimeEntryRow) {
     startTransition(async () => {
       const res = await rejectTimeEntry(entry.id)
-      if (!('error' in res)) setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'missed' } : e))
+      if ('error' in res) { setActionError(res.error ?? 'That action could not be saved.'); return }
+      setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: 'missed', approved_at: null } : e))
     })
     if (modal.type === 'viewEntry') setModal({ type: 'none' })
   }
@@ -537,27 +703,37 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
       <div className="hidden md:block flex-none bg-white border-b border-gray-100 px-8 py-3">
         <div className="flex items-center justify-end gap-3">
           <Clock size={18} className="text-gray-400" />
-          <span className="text-sm font-semibold text-gray-600">{entries.length} entries</span>
+          <span className="text-sm font-medium text-gray-600">{entries.length} entries</span>
         </div>
       </div>
 
       <div className="hidden md:block flex-1 overflow-y-auto pb-10">
+        {actionError && (
+          <div className="mx-8 mt-6 flex items-start justify-between gap-4 rounded-xl border border-red-100 bg-red-50 px-5 py-3">
+            <p className="text-xs text-red-600">{actionError}</p>
+            <button onClick={() => setActionError(null)} className="text-red-400 hover:text-red-600 shrink-0"><X size={14} /></button>
+          </div>
+        )}
         {/* Stats */}
         <div className="grid grid-cols-4 gap-5 px-8 pt-6 mb-8">
-          <StatCard label="Clocked In Now"     value={String(todayIn)}             sub="Live on site" variant="success" />
-          <StatCard label="Hours This Week"     value={`${weekHrs.toFixed(0)}h`}   sub="Team total"   variant="info" />
-          <StatCard label="Missed Punch-outs"   value={String(missedPunchout)}                         variant="alert" />
-          <StatCard label="Pending Approvals"   value={String(pendingCount)}                           variant="purple" />
+          <StatCard label="Clocked In Now" value={String(todayIn)} sub="Live on site" subColor="text-emerald-600"
+            iconBg="bg-blue-50" icon={<UserCheck size={16} className="text-blue-500" strokeWidth={1.9} />} />
+          <StatCard label="Hours This Week" value={`${weekHrs.toFixed(0)}h`} sub="Team total" subColor="text-blue-600"
+            iconBg="bg-blue-50" icon={<Clock size={16} className="text-blue-500" strokeWidth={1.9} />} />
+          <StatCard label="Missed Punch-outs" value={String(missedPunchout)}
+            subColor="text-orange-600" iconBg="bg-orange-50" icon={<AlertCircle size={16} className="text-orange-500" strokeWidth={1.9} />} />
+          <StatCard label="Pending Approvals" value={String(pendingCount)}
+            iconBg="bg-purple-50" icon={<CalendarCheck size={16} className="text-purple-500" strokeWidth={1.9} />} />
         </div>
 
         <div className="px-8">
           {/* Tabs */}
           <div className="flex border-b border-gray-200 gap-6 mb-6">
-            <button onClick={() => setTab('weekly')} className={`pb-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${tab === 'weekly' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Weekly Timesheet</button>
-            <button onClick={() => setTab('log')} className={`pb-3 text-sm font-semibold border-b-2 -mb-px flex items-center gap-2 transition-colors ${tab === 'log' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setTab('weekly')} className={`pb-3 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === 'weekly' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Weekly Timesheet</button>
+            <button onClick={() => setTab('log')} className={`pb-3 text-sm font-medium border-b-2 -mb-px flex items-center gap-2 transition-colors ${tab === 'log' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               Time Log <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{entries.length}</span>
             </button>
-            <button onClick={() => setTab('approvals')} className={`pb-3 text-sm font-semibold border-b-2 -mb-px flex items-center gap-2 transition-colors ${tab === 'approvals' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setTab('approvals')} className={`pb-3 text-sm font-medium border-b-2 -mb-px flex items-center gap-2 transition-colors ${tab === 'approvals' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               Approvals <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{pendingCount}</span>
             </button>
           </div>
@@ -566,18 +742,30 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
           {tab === 'weekly' && (
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">{weekOffset === 0 ? 'This Week' : weekOffset === -1 ? 'Last Week' : `Week ${weekOffset > 0 ? '+' : ''}${weekOffset}`}</h3>
-                <p className="text-xs text-gray-400 font-medium">{weekLabel}</p>
+                <h3 className="text-base font-semibold text-gray-900">{weekOffset === 0 ? 'This Week' : weekOffset === -1 ? 'Last Week' : `Week ${weekOffset > 0 ? '+' : ''}${weekOffset}`}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{weekLabel}</p>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex items-center bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-                  <button onClick={() => setWeekOffset(w => w - 1)} className="p-1.5 hover:bg-gray-50 rounded-lg text-gray-400"><ChevronLeft size={16} /></button>
-                  <button onClick={() => setWeekOffset(0)} className="px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 rounded-lg">This Week</button>
-                  <button onClick={() => setWeekOffset(w => w + 1)} className="p-1.5 hover:bg-gray-50 rounded-lg text-gray-400"><ChevronRight size={16} /></button>
-                </div>
-                <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 shadow-sm">
-                  <FileText size={14} /> Export
+                {/* Separate controls, as on the timesheet design. */}
+                <button
+                  onClick={() => setWeekOffset(w => w - 1)}
+                  className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronLeft size={14} /> Prev
                 </button>
+                <button
+                  onClick={() => setWeekOffset(0)}
+                  className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  This Week
+                </button>
+                <button
+                  onClick={() => setWeekOffset(w => w + 1)}
+                  className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+                <ImportExportButton onClick={exportWeekCsv} />
               </div>
             </div>
           )}
@@ -594,29 +782,107 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
                 />
               </div>
               <div className="flex items-center gap-3">
-                <div className="relative">
-                  <button onClick={() => setShowFilter(!showFilter)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 shadow-sm">
-                    <FilterIcon size={14} /> Filter
-                  </button>
+                <div className="relative" ref={filterRef}>
+                  <FilterButton
+                    onClick={() => { setDraft(filters); setShowFilter(!showFilter) }}
+                    active={showFilter}
+                    count={activeTimeFilterCount(filters)}
+                  />
                   {showFilter && (
-                    <div className="absolute right-0 top-11 bg-white border border-gray-100 shadow-xl rounded-xl w-72 z-20 p-5">
-                      <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Filter Options</h4>
-                      <div className="space-y-3">
-                        <label className="text-xs font-semibold text-gray-700 block mb-1">Status</label>
-                        <div className="flex gap-2">
-                          {(['approved', 'pending', 'missed'] as DbTimeStatus[]).map(s => (
-                            <button key={s} className="px-3 py-1 text-xs font-semibold rounded-full border border-gray-200 hover:border-blue-500 hover:text-blue-600 bg-white capitalize">{STATUS_LABEL[s]}</button>
-                          ))}
+                    <div className="absolute right-0 top-11 z-30 w-[420px] bg-white rounded-2xl shadow-[0_8px_30px_rgba(16,24,40,0.14)] p-5">
+                      <p className="text-[11px] text-gray-400 mb-4">Filter</p>
+                      <div className="space-y-5">
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700 block mb-2.5">Status</label>
+                          <div className="flex flex-wrap gap-2.5">
+                            {(['approved', 'pending', 'missed'] as DbTimeStatus[]).map(st => (
+                              <button
+                                key={st}
+                                onClick={() => setDraft(d => ({
+                                  ...d,
+                                  status: d.status.includes(st) ? d.status.filter(x => x !== st) : [...d.status, st],
+                                }))}
+                                className={filterChipCls(draft.status.includes(st))}
+                              >
+                                {STATUS_LABEL[st]}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex justify-end gap-2 border-t border-gray-100 mt-4 pt-3">
-                        <button onClick={() => setShowFilter(false)} className="px-3 py-1.5 text-xs font-semibold text-gray-500">Clear</button>
-                        <button onClick={() => setShowFilter(false)} className="px-4 py-1.5 bg-[#0D1B2A] text-white text-xs font-semibold rounded-lg">Apply</button>
+
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700 block mb-2.5">Project</label>
+                          {projects.length === 0 ? (
+                            <p className="text-[11px] text-gray-400">No projects to filter by.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2.5">
+                              {/* Capped so the popover stays a popover; search covers the rest. */}
+                              {projects.slice(0, 3).map(pr => (
+                                <button
+                                  key={pr.id}
+                                  onClick={() => setDraft(d => ({
+                                    ...d,
+                                    projects: d.projects.includes(pr.id)
+                                      ? d.projects.filter(x => x !== pr.id)
+                                      : [...d.projects, pr.id],
+                                  }))}
+                                  className={filterChipCls(draft.projects.includes(pr.id))}
+                                >
+                                  {pr.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700 block mb-2.5">Date</label>
+                          <div className="flex flex-wrap gap-2.5">
+                            {DATE_PRESETS.map(preset => (
+                              <button
+                                key={preset.key}
+                                onClick={() => setDraft(d => ({
+                                  ...d,
+                                  date: d.date === preset.key ? '' : preset.key,
+                                }))}
+                                className={filterChipCls(draft.date === preset.key)}
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700 block mb-2.5">Employee</label>
+                          <PersonSelect
+                            people={employees.map(emp => ({ id: emp.id, name: emp.name, title: emp.role, avatarUrl: emp.avatar_url }))}
+                            value={draft.employee}
+                            onChange={id => setDraft(d => ({ ...d, employee: id }))}
+                            placeholder="All employees"
+                            emptyHint="No employees to filter by."
+                          />
+                        </div>
+
+                        <div className="flex gap-3 pt-1">
+                          <button
+                            onClick={() => { setDraft(EMPTY_TIME_FILTERS); setFilters(EMPTY_TIME_FILTERS) }}
+                            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            Clear All
+                          </button>
+                          <button
+                            onClick={() => { setFilters(draft); setShowFilter(false) }}
+                            className="flex-1 px-4 py-2.5 bg-[#0D1B2A] text-white rounded-lg text-xs font-semibold hover:bg-[#162437] transition-colors"
+                          >
+                            Apply
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
-                <button onClick={() => setModal({ type: 'newEntry' })} className="flex items-center gap-2 px-4 py-2 bg-[#0D1B2A] text-white text-xs font-semibold rounded-xl shadow-sm hover:bg-[#162437] active:scale-95 transition-all">
+                <button onClick={() => setModal({ type: 'newEntry' })} className="flex items-center gap-2 px-4 py-2.5 bg-[#0D1B2A] text-white text-xs font-semibold rounded-xl shadow-sm hover:bg-[#162437] active:scale-95 transition-all">
                   <Plus size={16} /> Log Manual Entry
                 </button>
               </div>
@@ -642,7 +908,7 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
             {tab === 'weekly' && (
               <table className="w-full text-left border-collapse">
                 <thead className="bg-[#F8F9FB] border-b border-gray-100">
-                  <tr className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  <tr className="text-[13px] font-normal text-gray-500">
                     <th className="px-6 py-4">Employee</th>
                     {weekDays.map(d => <th key={d.key} className="px-4 py-4 text-center">{d.key}</th>)}
                     <th className="px-4 py-4 text-center">Total</th>
@@ -653,37 +919,48 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
                     <tr><td colSpan={9} className="px-6 py-10 text-center text-sm text-gray-400 font-medium">No entries for this week</td></tr>
                   ) : weekData.map(row => (
                     <tr key={row.userId} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-[10px]" style={{ backgroundColor: avatarColor(row.userId) }}>
-                            {row.name.split(' ').map(n => n[0]).join('')}
+                          <div
+                            className="w-10 h-10 rounded-full shrink-0 bg-cover bg-center flex items-center justify-center text-white font-medium text-xs"
+                            style={
+                              avatarByUser.get(row.userId)
+                                ? { backgroundImage: `url(${avatarByUser.get(row.userId)})` }
+                                : { backgroundColor: avatarColor(row.userId) }
+                            }
+                          >
+                            {!avatarByUser.get(row.userId) && row.name.split(' ').map(n => n[0]).join('')}
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900">{row.name}</p>
-                            <p className="text-[10px] text-gray-400 font-medium capitalize">{row.role}</p>
+                            <p className="text-sm font-normal text-gray-900 leading-tight">{row.name}</p>
+                            <p className="text-[13px] text-gray-400 font-normal capitalize mt-0.5">{row.role}</p>
                           </div>
                         </div>
                       </td>
                       {weekDays.map(wd => {
                         const cell = row.days[wd.key] || { h: '-', s: 'none' }
+                        // Every recorded state gets the same tinted pill; only
+                        // an untouched future day is left bare.
                         const style =
-                          cell.s === 'approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                          cell.s === 'pending'  ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                          cell.s === 'missed'   ? 'bg-red-50 text-red-500 border border-red-100' :
-                          'text-gray-400'
+                          cell.s === 'missed'   ? 'bg-red-50 text-red-500' :
+                          cell.s === 'approved' ? 'bg-emerald-50 text-emerald-600' :
+                          cell.s === 'pending'  ? 'bg-amber-50 text-amber-600' :
+                          'text-gray-300'
                         return (
-                          <td key={wd.key} className="px-4 py-3 text-center">
-                            <span className={`inline-flex items-center justify-center w-14 py-1.5 rounded-lg font-semibold text-[10px] ${style}`}>{cell.h}</span>
+                          <td key={wd.key} className="px-4 py-4 text-center">
+                            <span className={`inline-flex items-center justify-center min-w-[60px] px-3 py-1.5 rounded-lg text-[13px] ${style}`}>
+                              {cell.s === 'missed' ? 'Missed' : cell.h}
+                            </span>
                           </td>
                         )
                       })}
-                      <td className="px-4 py-3 text-center">
-                        <span className="font-semibold text-gray-900 text-xs">{row.total}</span>
+                      <td className="px-4 py-4 text-center">
+                        <span className="font-normal text-gray-900 text-[13px]">{row.total}</span>
                       </td>
                     </tr>
                   ))}
-                  <tr className="bg-gray-50 font-semibold text-gray-900 text-[10px] uppercase tracking-wider border-t border-gray-200">
-                    <td className="px-6 py-4">Daily Total</td>
+                  <tr className="bg-gray-50/70 text-gray-900 text-[13px] border-t border-gray-100">
+                    <td className="px-6 py-5">Daily Total</td>
                     {dailyTotals.map((t, i) => <td key={i} className="px-4 py-4 text-center">{t}</td>)}
                     <td className="px-4 py-4 text-center">{weekHrs.toFixed(1)}h</td>
                   </tr>
@@ -694,7 +971,7 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
             {tab === 'log' && (
               <table className="w-full text-left border-collapse">
                 <thead className="bg-[#F8F9FB] border-b border-gray-100">
-                  <tr className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  <tr className="text-xs font-normal text-gray-500">
                     <th className="px-6 py-4">Employee</th>
                     <th className="px-6 py-4">Date</th>
                     <th className="px-6 py-4">Project</th>
@@ -706,33 +983,40 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
                     <th className="px-6 py-4 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50 text-xs font-medium text-gray-600">
+                <tbody className="divide-y divide-gray-50 text-xs font-normal text-gray-600">
                   {filteredEntries.length === 0 ? (
                     <tr><td colSpan={9} className="px-6 py-10 text-center text-sm text-gray-400">No time entries found</td></tr>
                   ) : filteredEntries.map(item => {
                     const cfg = STATUS_CONFIG[item.status]
                     return (
                       <tr key={item.id} onClick={() => setModal({ type: 'viewEntry', entry: item })} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
-                        <td className="px-6 py-4 font-semibold text-gray-900">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[8px] font-semibold" style={{ backgroundColor: avatarColor(item.user_id) }}>
-                              {item.employee_name.split(' ').map(n => n[0]).join('')}
+                        <td className="px-6 py-5 font-normal text-gray-900">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-9 h-9 rounded-full shrink-0 bg-cover bg-center flex items-center justify-center text-white text-[11px] font-medium"
+                              style={
+                                avatarByUser.get(item.user_id)
+                                  ? { backgroundImage: `url(${avatarByUser.get(item.user_id)})` }
+                                  : { backgroundColor: avatarColor(item.user_id) }
+                              }
+                            >
+                              {!avatarByUser.get(item.user_id) && item.employee_name.split(' ').map(n => n[0]).join('')}
                             </div>
-                            {item.employee_name}
+                            <span className="text-sm">{item.employee_name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">{fmtDate(item.date)}</td>
-                        <td className="px-6 py-4">{item.project_name ?? '–'}</td>
-                        <td className="px-6 py-4 truncate max-w-[150px]">{item.location ?? '–'}</td>
-                        <td className="px-6 py-4">{fmtTime(item.clock_in)}</td>
-                        <td className="px-6 py-4">{fmtTime(item.clock_out)}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-900">{computeHours(item.clock_in, item.clock_out)}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.text} uppercase tracking-wider`}>
+                        <td className="px-6 py-5">{fmtDate(item.date)}</td>
+                        <td className="px-6 py-5">{item.project_name ?? '–'}</td>
+                        <td className="px-6 py-5 truncate max-w-[150px]">{item.location ?? '–'}</td>
+                        <td className="px-6 py-5">{fmtTime(item.clock_in)}</td>
+                        <td className="px-6 py-5">{fmtTime(item.clock_out)}</td>
+                        <td className="px-6 py-5 font-normal text-gray-900">{computeHours(item.clock_in, item.clock_out)}</td>
+                        <td className="px-6 py-5">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-normal px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>
                             <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} /> {STATUS_LABEL[item.status]}
                           </span>
                         </td>
-                        <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
+                        <td className="px-6 py-5" onClick={e => e.stopPropagation()}>
                           <ActionMenu
                             onView={() => setModal({ type: 'viewEntry', entry: item })}
                             onEdit={() => setModal({ type: 'newEntry', entry: item })}
@@ -749,7 +1033,7 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
             {tab === 'approvals' && (
               <table className="w-full text-left border-collapse">
                 <thead className="bg-[#F8F9FB] border-b border-gray-100">
-                  <tr className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  <tr className="text-xs font-normal text-gray-500">
                     <th className="px-6 py-4">Employee</th>
                     <th className="px-6 py-4">Project</th>
                     <th className="px-6 py-4">Date</th>
@@ -760,30 +1044,37 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
                     <th className="px-6 py-4 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50 text-xs font-medium text-gray-600">
+                <tbody className="divide-y divide-gray-50 text-xs font-normal text-gray-600">
                   {pendingEntries.length === 0 ? (
                     <tr><td colSpan={8} className="px-6 py-10 text-center text-sm text-gray-400">No entries pending approval</td></tr>
                   ) : pendingEntries.map(item => {
                     const cfg = STATUS_CONFIG[item.status]
                     return (
                       <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4 font-semibold text-gray-900">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[8px] font-semibold" style={{ backgroundColor: avatarColor(item.user_id) }}>
-                              {item.employee_name.split(' ').map(n => n[0]).join('')}
+                        <td className="px-6 py-5 font-normal text-gray-900">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-9 h-9 rounded-full shrink-0 bg-cover bg-center flex items-center justify-center text-white text-[11px] font-medium"
+                              style={
+                                avatarByUser.get(item.user_id)
+                                  ? { backgroundImage: `url(${avatarByUser.get(item.user_id)})` }
+                                  : { backgroundColor: avatarColor(item.user_id) }
+                              }
+                            >
+                              {!avatarByUser.get(item.user_id) && item.employee_name.split(' ').map(n => n[0]).join('')}
                             </div>
-                            {item.employee_name}
+                            <span className="text-sm">{item.employee_name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">{item.project_name ?? '–'}</td>
-                        <td className="px-6 py-4">{fmtDate(item.date)}</td>
-                        <td className="px-6 py-4">{fmtTime(item.clock_in)}</td>
-                        <td className="px-6 py-4">{fmtTime(item.clock_out)}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-900">{computeHours(item.clock_in, item.clock_out)}</td>
-                        <td className="px-6 py-4">
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${cfg.bg} ${cfg.text} capitalize`}>{STATUS_LABEL[item.status]}</span>
+                        <td className="px-6 py-5">{item.project_name ?? '–'}</td>
+                        <td className="px-6 py-5">{fmtDate(item.date)}</td>
+                        <td className="px-6 py-5">{fmtTime(item.clock_in)}</td>
+                        <td className="px-6 py-5">{fmtTime(item.clock_out)}</td>
+                        <td className="px-6 py-5 font-normal text-gray-900">{computeHours(item.clock_in, item.clock_out)}</td>
+                        <td className="px-6 py-5">
+                          <span className={`text-[10px] font-normal px-2 py-0.5 rounded ${cfg.bg} ${cfg.text} capitalize`}>{STATUS_LABEL[item.status]}</span>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-5">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleApprove(item)}

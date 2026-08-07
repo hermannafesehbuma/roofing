@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ListFilter, Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
+import { FilterButton } from '@/app/components/ui/ToolbarButtons';
 import { ProjectStatus, ProjectType } from '@/app/admin/(portal)/projects/data';
 
 export type ProjectFilters = {
@@ -94,19 +95,7 @@ export function FilterPopover({ managers, filters, onFilterChange }: FilterPopov
 
   return (
     <div className="relative" ref={popoverRef}>
-      <button
-        onClick={() => setIsOpen((v) => !v)}
-        className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-xs transition-colors ${
-          isOpen || activeCount > 0 ? 'border-gray-300 bg-gray-50 text-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-        }`}
-      >
-        <ListFilter size={13} /> Filter
-        {activeCount > 0 && (
-          <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#0D1B2A] text-white text-[10px] font-semibold flex items-center justify-center">
-            {activeCount}
-          </span>
-        )}
-      </button>
+      <FilterButton onClick={() => setIsOpen((v) => !v)} active={isOpen} count={activeCount} />
 
       {isOpen && (
         <div className="absolute right-0 top-10 w-72 max-w-[calc(100vw-3rem)] bg-white rounded-xl border border-gray-100 shadow-xl p-4 z-50">

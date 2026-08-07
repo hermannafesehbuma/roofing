@@ -2,12 +2,14 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react'
 import {
-  Search, Filter as FilterIcon, Plus, X, Check,
+  Search, Plus, X, Check,
   KanbanSquare, List as ListIcon, ChevronDown, FileText,
   AlertCircle, ShieldCheck, UserCheck, Clock,
   History, ChevronLeft, ChevronRight, ArrowUpRight, CalendarDays, Trash2,
 } from 'lucide-react'
 import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
+import { PersonSelect } from '@/app/components/ui/PersonSelect'
+import { FilterButton, filterChipCls } from '@/app/components/ui/ToolbarButtons'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import {
@@ -156,15 +158,6 @@ type Modal =
   | { type: 'deleteCert'; cert: CertRow }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-/** Pill-shaped selectable chip used across the filter panel. */
-function filterChipCls(active: boolean) {
-  return `px-3.5 py-2 rounded-full text-[11px] font-medium border whitespace-nowrap transition-colors ${
-    active
-      ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]'
-      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-  }`
-}
-
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A] transition-colors'
 const selectCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A] transition-colors'
 
@@ -230,7 +223,7 @@ function FilterDropdown({ filters, onChange, onClose }: { filters: Filters; onCh
   }
 
   return (
-    <div ref={ref} className="absolute right-0 top-12 z-40 w-[400px] bg-white rounded-2xl shadow-[0_8px_30px_rgba(16,24,40,0.14)] p-5">
+    <div ref={ref} className="absolute right-0 top-12 z-40 w-[420px] bg-white rounded-2xl shadow-[0_8px_30px_rgba(16,24,40,0.14)] p-5">
       <p className="text-[11px] text-gray-400 mb-4">Filter</p>
       <div className="space-y-5">
         <div>
@@ -1005,17 +998,12 @@ function CertFormModal({ cert, employees, onClose, onSave, loading }: {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Employee</label>
-                  <div className="relative">
-                    <select value={v.user_id} onChange={e => set('user_id', e.target.value)} className={selectCls}>
-                      <option value="">Select employee</option>
-                      {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}{emp.title ? ` — ${emp.title}` : ''}</option>)}
-                    </select>
-                    <ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  </div>
-                  {/* Without this the field just looks broken when the lookup returns nothing. */}
-                  {employees.length === 0 && (
-                    <p className="text-[11px] text-amber-600 mt-1.5">No employees found — add a team member first.</p>
-                  )}
+                  <PersonSelect
+                    people={employees.map(emp => ({ id: emp.id, name: emp.name, title: emp.title, avatarUrl: emp.avatar_url }))}
+                    value={v.user_id}
+                    onChange={id => set('user_id', id)}
+                    emptyHint="No employees found — add a team member first."
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Certification Name</label>
@@ -1403,26 +1391,17 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
             </div>
             <div className="flex-1" />
             <div className="relative">
-              <button onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs border rounded-lg font-medium transition-colors ${activeFilterCount > 0 ? 'border-[#0D1B2A]/20 bg-[#0D1B2A]/5 text-[#0D1B2A]' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}>
-                <FilterIcon size={13} /> Filter
-                {activeFilterCount > 0 && (
-                  <span className="w-4 h-4 flex items-center justify-center rounded-full bg-[#0D1B2A] text-white text-[9px] font-semibold">
-                    {activeFilterCount}
-                  </span>
-                )}
-                <ChevronDown size={13} className={`text-gray-400 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-              </button>
+              <FilterButton onClick={() => setShowFilters(!showFilters)} active={showFilters} count={activeFilterCount} />
               {showFilters && <FilterDropdown filters={filters} onChange={setFilters} onClose={() => setShowFilters(false)} />}
             </div>
             {tab === 'coi' ? (
               <button onClick={() => setModal({ type: 'uploadPolicy' })}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] font-semibold transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2.5 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] font-semibold transition-colors">
                 <Plus size={13} /> Upload COI
               </button>
             ) : (
               <button onClick={() => setModal({ type: 'certForm' })}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] font-semibold transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2.5 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] font-semibold transition-colors">
                 <Plus size={13} /> Add Certification
               </button>
             )}

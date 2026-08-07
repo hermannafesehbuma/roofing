@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useSyncExternalStore, useTransition } from 'react'
-import { Plus, X, Loader2 } from 'lucide-react'
+import { Plus, X, Loader2, MapPin, MapPinOff } from 'lucide-react'
 import {
-  createTimeEntry,
-  updateTimeEntry,
+  clockIn as clockInEntry,
+  clockOut as clockOutEntry,
   type TimeEntryRow,
 } from '@/app/admin/(portal)/time-tracking/actions'
 
@@ -47,6 +47,22 @@ function currentTime(date = new Date()) {
   return date.toTimeString().slice(0, 8)
 }
 
+/**
+ * The punch coordinates, or null. Never rejects: a crew inside a building with
+ * no fix, or one that declined the permission prompt, still has to be able to
+ * start their shift.
+ */
+function currentPosition(): Promise<{ lat: number; lng: number } | null> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return Promise.resolve(null)
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 }
+    )
+  })
+}
+
 export function MobileClockCard({
   userId,
   projects,
@@ -55,8 +71,9 @@ export function MobileClockCard({
   compact = false,
 }: {
   userId: string
+  /** Only the projects this technician is assigned to. */
   projects: { id: string; name: string }[]
-  /** The technician's clock-in for today that has no clock-out yet. */
+  /** The technician's punch that has no clock-out yet. */
   openEntry: TimeEntryRow | null
   onChanged: () => void
   compact?: boolean
@@ -72,6 +89,10 @@ export function MobileClockCard({
   const elapsed = openEntry ? secondsSinceClockIn(openEntry, nowSeconds) : 0
   const clockedIn = Boolean(openEntry)
 
+  // Hours have to land on a project to be billable, so the picker is required
+  // whenever the technician actually has assignments to choose from.
+  const projectRequired = projects.length > 0
+
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -81,19 +102,21 @@ export function MobileClockCard({
 
   function handleClockIn() {
     if (!userId) { setError('No signed-in user found.'); return }
+    if (projectRequired && !projectId) { setError('Pick the project you are working on.'); return }
     setError(null)
     startTransition(async () => {
-      const res = await createTimeEntry({
+      const gps = await currentPosition()
+      const res = await clockInEntry({
         user_id: userId,
         project_id: projectId || null,
         date: localDateKey(),
         clock_in: currentTime(),
-        clock_out: null,
-        status: 'pending',
-        note: null,
         location: location || null,
+        gps_lat: gps?.lat ?? null,
+        gps_lng: gps?.lng ?? null,
       })
       if ('error' in res && res.error) { setError(res.error); return }
+      setLocation('')
       onChanged()
     })
   }
@@ -102,15 +125,21 @@ export function MobileClockCard({
     if (!openEntry) return
     setError(null)
     startTransition(async () => {
-      const res = await updateTimeEntry(openEntry.id, {
+      const res = await clockOutEntry(openEntry.id, {
+        user_id: userId,
         clock_out: currentTime(),
         note: note || null,
       })
       if ('error' in res && res.error) { setError(res.error); return }
       setShowNote(false)
+      setNote('')
+      setProjectId('')
       onChanged()
     })
   }
+
+  const selectCls =
+    'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white'
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
@@ -129,41 +158,57 @@ export function MobileClockCard({
         {!compact && <p className="text-[11px] text-gray-400">{today}</p>}
       </div>
 
-      {!compact && !clockedIn && (
+      {!clockedIn && (
         <div className="mt-4 space-y-3">
           <div>
-            <label className="block text-[11px] font-medium text-gray-500 mb-1">Project</label>
+            {!compact && (
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Project</label>
+            )}
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white"
+              className={selectCls}
+              aria-label="Project"
             >
-              <option value="">Project</option>
+              <option value="">{projects.length ? 'Select a project' : 'No projects assigned'}</option>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
-          <div>
-            <label className="block text-[11px] font-medium text-gray-500 mb-1">Location/Site</label>
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Location"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800"
-            />
-          </div>
+          {!compact && (
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Location/Site</label>
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Location"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800"
+              />
+            </div>
+          )}
         </div>
       )}
 
-      {!compact && clockedIn && (
+      {clockedIn && (
         <div className="mt-4 space-y-3">
           {openEntry?.project_name && (
-            <p className="text-sm font-medium text-gray-900">{openEntry.project_name}</p>
+            <p className="text-sm font-medium text-gray-900 text-center">{openEntry.project_name}</p>
           )}
           {openEntry?.location && (
-            <p className="text-xs text-gray-500">{openEntry.location}</p>
+            <p className="text-xs text-gray-500 text-center">{openEntry.location}</p>
           )}
+          {/* Say either way, so a declined permission prompt is visible rather
+              than quietly producing a punch with no coordinates. */}
+          {openEntry && (openEntry.gps_lat !== null && openEntry.gps_lng !== null ? (
+            <p className="flex items-center justify-center gap-1 text-[10px] text-gray-400">
+              <MapPin size={10} /> GPS captured at clock-in
+            </p>
+          ) : (
+            <p className="flex items-center justify-center gap-1 text-[10px] text-amber-500">
+              <MapPinOff size={10} /> No location captured
+            </p>
+          ))}
 
-          {showNote ? (
+          {!compact && (showNote ? (
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-[11px] font-medium text-gray-500">Notes</label>
@@ -186,7 +231,7 @@ export function MobileClockCard({
             >
               {note ? 'Edit Note' : 'Add Note'}
             </button>
-          )}
+          ))}
         </div>
       )}
 

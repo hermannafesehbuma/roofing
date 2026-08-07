@@ -14,6 +14,7 @@ import {
 import { EmployeeFormPanel, type FormValues } from './EmployeeFormPanel'
 import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
+import { FilterButton, ImportExportButton } from '@/app/components/ui/ToolbarButtons'
 import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import { Toast } from '@/app/components/ui/Toast'
 
@@ -765,21 +766,7 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
           </div>
           <div className="flex-1" />
           <div className="relative">
-            <button
-              onClick={() => setFilterOpen((o) => !o)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs border rounded-lg transition-colors ${
-                filterOpen || activeFilterCount > 0
-                  ? 'border-gray-300 bg-gray-50 text-gray-800'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <ListFilter size={13} /> Filter
-              {activeFilterCount > 0 && (
-                <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#0D1B2A] text-white text-[10px] font-semibold flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
+            <FilterButton onClick={() => setFilterOpen((o) => !o)} active={filterOpen} count={activeFilterCount} />
             {filterOpen && (
               <FilterPopover
                 filters={filters}
@@ -790,14 +777,7 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
             )}
           </div>
           <div className="relative">
-            <button
-              onClick={() => setIoOpen((o) => !o)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs border rounded-lg transition-colors ${
-                ioOpen ? 'border-gray-300 bg-gray-50 text-gray-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Download size={13} /> Import/Export
-            </button>
+            <ImportExportButton onClick={() => setIoOpen((o) => !o)} active={ioOpen} />
             {ioOpen && (
               <ImportExportMenu
                 exportCount={filtered.length}
@@ -811,7 +791,7 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
           </div>
           <button
             onClick={() => { setFormError(null); setModal({ type: 'form', employee: null }) }}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] transition-colors font-medium"
+            className="flex items-center gap-1.5 px-4 py-2.5 text-xs text-white bg-[#0D1B2A] rounded-lg hover:bg-[#162437] transition-colors font-medium"
           >
             <Plus size={13} /> Add Employee
           </button>

@@ -40,7 +40,7 @@ export type ClientRow = {
   created_at: string
 }
 
-export type RepOption = { id: string; name: string }
+export type RepOption = { id: string; name: string; role: string | null; avatar_url: string | null }
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 export async function getLeads(): Promise<LeadRow[]> {
@@ -98,13 +98,15 @@ export async function getRepOptions(): Promise<RepOption[]> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('users')
-    .select('id, first_name, last_name')
+    .select('id, first_name, last_name, role, avatar_url')
     .in('role', ['admin', 'manager'])
     .order('first_name')
 
   return (data ?? []).map((u: any) => ({
     id: u.id,
     name: `${u.first_name} ${u.last_name}`.trim(),
+    role: u.role ?? null,
+    avatar_url: u.avatar_url ?? null,
   }))
 }
 

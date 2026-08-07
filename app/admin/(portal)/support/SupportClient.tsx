@@ -33,6 +33,7 @@ import {
   CreateSupportTicketInput
 } from './actions'
 import { Toast } from '@/app/components/ui/Toast'
+import { FilterButton } from '@/app/components/ui/ToolbarButtons'
 
 type SupportClientProps = {
   initialTickets: SupportTicket[]
@@ -357,17 +358,7 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
 
                 {/* Filter Popover Trigger */}
                 <div className="relative">
-                  <button
-                    onClick={() => setShowFilterPopover(!showFilterPopover)}
-                    className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold border rounded-lg transition-colors bg-white ${
-                      filterStatus || filterPriority
-                        ? 'border-[#0D1B2A] text-[#0D1B2A]'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Filter size={13} />
-                    Filter
-                  </button>
+                  <FilterButton onClick={() => setShowFilterPopover(!showFilterPopover)} active={showFilterPopover} count={(filterStatus ? 1 : 0) + (filterPriority ? 1 : 0)} />
 
                   {/* Popover Card */}
                   {showFilterPopover && (
