@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useTransition } from 'react'
-import { KanbanSquare, List, Calendar, Search, Plus } from 'lucide-react'
+import { KanbanSquare, List, Calendar, Search, Plus, ListChecks, LoaderCircle, Clock, CheckCircle2 } from 'lucide-react'
 import {
   createTask, updateTask, deleteTask,
   type TaskRow, type ProjectOption, type AssigneeOption,
@@ -216,32 +216,32 @@ export function TasksClient({
             value={totalCount}
             sub={`${totalCount} total`}
             subColor="text-blue-500"
-            bg="bg-blue-50"
-            dot="bg-blue-500"
+            iconBg="bg-blue-50"
+            icon={<ListChecks size={16} className="text-blue-500" strokeWidth={1.9} />}
           />
           <StatCard
             label="In Progress"
             value={inProgressCount}
             sub="active now"
             subColor="text-amber-500"
-            bg="bg-amber-50"
-            dot="bg-amber-400"
+            iconBg="bg-orange-50"
+            icon={<LoaderCircle size={16} className="text-orange-500" strokeWidth={1.9} />}
           />
           <StatCard
             label="Overdue"
             value={overdueCount}
             sub={overdueCount > 0 ? 'needs attention' : 'all on track'}
             subColor={overdueCount > 0 ? 'text-red-500' : 'text-emerald-500'}
-            bg="bg-red-50"
-            dot="bg-red-400"
+            iconBg="bg-red-50"
+            icon={<Clock size={16} className="text-red-500" strokeWidth={1.9} />}
           />
           <StatCard
             label="Completed"
             value={completedCount}
             sub="tasks done"
             subColor="text-emerald-600"
-            bg="bg-emerald-50"
-            dot="bg-emerald-500"
+            iconBg="bg-emerald-50"
+            icon={<CheckCircle2 size={16} className="text-emerald-500" strokeWidth={1.9} />}
           />
         </div>
       </div>
@@ -356,18 +356,21 @@ export function TasksClient({
   )
 }
 
-function StatCard({ label, value, sub, subColor, bg, dot }: {
-  label: string; value: number; sub: string; subColor: string; bg: string; dot: string
+function StatCard({ label, value, sub, subColor, icon, iconBg }: {
+  label: string; value: number; sub: string; subColor: string
+  icon: React.ReactNode
+  /** Tinted tile behind the icon — the icon supplies its own colour. */
+  iconBg: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-4">
-      <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
-        <span className={`w-3 h-3 rounded-full ${dot}`} />
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-4 min-h-[112px]">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-gray-500">{label}</p>
+        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
       </div>
-      <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-2xl font-semibold text-gray-900 leading-tight">{value}</p>
-        <p className={`text-[11px] font-medium ${subColor}`}>{sub}</p>
+      <div className="flex items-end justify-between gap-3">
+        <p className="text-[30px] font-semibold text-gray-900 leading-none">{value}</p>
+        {sub && <p className={`text-xs font-medium leading-none pb-0.5 text-right ${subColor}`}>{sub}</p>}
       </div>
     </div>
   )

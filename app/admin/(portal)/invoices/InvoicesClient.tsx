@@ -4,8 +4,8 @@ import { useState, useEffect, useRef, useTransition } from 'react'
 import {
   Search, Filter as FilterIcon, Plus, X, MoreHorizontal, Trash2,
   Eye, Pencil, FileText, Download, Upload, Bell, Copy, ArrowLeftRight,
-  DollarSign, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
-  Clock, AlertCircle, Percent,
+  DollarSign, CreditCard, ChevronDown, ChevronLeft, ChevronRight,
+  AlertCircle, BarChart3,
 } from 'lucide-react'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
@@ -173,18 +173,21 @@ interface RecurringFormValues {
 }
 
 // ─── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, subColor, icon }: {
-  label: string; value: string; sub?: string; subColor?: string; icon: React.ReactNode
+function StatCard({ label, value, sub, subColor, icon, iconBg }: {
+  label: string; value: string; sub?: string; subColor?: string
+  icon: React.ReactNode
+  /** Tinted tile behind the icon — the icon supplies its own colour. */
+  iconBg: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-3 min-h-[104px]">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-4 min-h-[112px]">
       <div className="flex items-start justify-between gap-3">
-        <span className="text-xs text-gray-500 font-medium">{label}</span>
-        <span className="shrink-0">{icon}</span>
+        <span className="text-sm text-gray-500">{label}</span>
+        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
       </div>
       <div className="flex items-end justify-between gap-3">
-        <p className="text-[26px] font-semibold text-gray-900 leading-none">{value}</p>
-        {sub && <p className={`text-[11px] font-medium leading-none ${subColor}`}>{sub}</p>}
+        <p className="text-[30px] font-semibold text-gray-900 leading-none">{value}</p>
+        {sub && <p className={`text-xs font-medium leading-none pb-0.5 text-right ${subColor}`}>{sub}</p>}
       </div>
     </div>
   )
@@ -443,7 +446,7 @@ function DeleteModal({ invoice, onConfirm, onCancel, loading }: {
 function MarkPaidModal({ invoice, onConfirm, onCancel, loading }: {
   invoice: InvoiceRow; onConfirm: (method: DbPayMethod, amount: number) => void; onCancel: () => void; loading: boolean
 }) {
-  const { close, backdropCls, panelCls } = useSlideOver(onCancel)
+  const { close, backdropCls, panelCls } = useSlideOver(onCancel, 'zoom')
 
   const total = invoiceTotal(invoice)
   const [method, setMethod] = useState<DbPayMethod>('bank_transfer')
@@ -452,7 +455,7 @@ function MarkPaidModal({ invoice, onConfirm, onCancel, loading }: {
     <>
       <div className={`fixed inset-0 bg-black/40 z-[110] backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-0 z-[111] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 relative">
+        <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 relative ${panelCls}`}>
           <button onClick={close} className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={16}/></button>
           <h2 className="text-base font-semibold text-gray-900 mb-1">Mark as Paid</h2>
           <p className="text-xs text-gray-400 mb-6">{invoice.code} · {fmtCurrency(total)}</p>
@@ -1160,13 +1163,13 @@ export function InvoicesClient({
         <div className="grid grid-cols-4 gap-5 px-8 pt-6 pb-2">
           <StatCard label="Revenue This Month" value={fmtCurrency(revenueThisMonth)}
             sub={`${revenueUp ? '↑' : '↓'} vs last month`} subColor={revenueUp ? 'text-emerald-600' : 'text-red-500'}
-            icon={<TrendingUp size={16} className="text-emerald-500" strokeWidth={1.8}/>}/>
+            iconBg="bg-emerald-50" icon={<DollarSign size={16} className="text-emerald-500" strokeWidth={1.8}/>}/>
           <StatCard label="Outstanding" value={fmtCurrency(outstanding)} sub="Awaiting payment" subColor="text-amber-600"
-            icon={<Clock size={16} className="text-amber-500" strokeWidth={1.8}/>}/>
+            iconBg="bg-orange-50" icon={<CreditCard size={16} className="text-orange-500" strokeWidth={1.8}/>}/>
           <StatCard label="Overdue" value={fmtCurrency(overdueSum)} sub="Needs follow-up" subColor="text-red-500"
-            icon={<AlertCircle size={16} className="text-red-500" strokeWidth={1.8}/>}/>
+            iconBg="bg-red-50" icon={<AlertCircle size={16} className="text-red-500" strokeWidth={1.8}/>}/>
           <StatCard label="Collection Rate" value={`${collectionRate}%`}
-            icon={<Percent size={16} className="text-blue-500" strokeWidth={1.8}/>}/>
+            iconBg="bg-blue-50" icon={<BarChart3 size={16} className="text-blue-500" strokeWidth={1.8}/>}/>
         </div>
 
         <div className="px-8 pt-6">

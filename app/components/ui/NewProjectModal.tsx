@@ -7,6 +7,7 @@ import type { ProjectStatus, ProjectType } from '@/app/admin/(portal)/projects/d
 import { getProjectOptions, createProject, uploadProjectImage, setProjectCrew } from '@/app/admin/(portal)/projects/actions'
 import { TeamAssignmentFields, type EmployeeOption } from './TeamAssignmentFields'
 import { IMAGE_ACCEPT, validateImageFile } from '@/lib/upload-limits'
+import { useSlideOver } from '@/app/components/ui/useSlideOver'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FormValues {
@@ -76,6 +77,7 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
 
   const [clients, setClients] = useState<{ id: string, name: string }[]>([])
   const [employees, setEmployees] = useState<EmployeeOption[]>([])
@@ -193,15 +195,15 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] overlay-fade-in" onClick={onClose} />
+      <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
 
       {/* Panel — slides in from right */}
       <div className="fixed inset-y-0 right-0 z-50 flex">
-        <div className="bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl panel-slide-in">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
           {/* Header */}
           <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
             <h2 className="text-base font-semibold text-gray-900">New Project</h2>
-            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
+            <button onClick={close} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
               <X size={16} />
             </button>
           </div>
@@ -369,7 +371,7 @@ export function NewProjectModal({ isOpen, onClose, onSave }: Props) {
             {saveError && (
               <p className="mr-auto text-xs text-red-600 leading-snug max-w-[320px]">{saveError}</p>
             )}
-            <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <button onClick={close} className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               Cancel
             </button>
             <button 

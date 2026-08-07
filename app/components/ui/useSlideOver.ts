@@ -16,7 +16,7 @@ const EXIT_MS = 240;
  * Wire `close` to every dismissal — backdrop click, the X, and Cancel — and
  * spread the class names onto the backdrop and panel elements.
  */
-export function useSlideOver(onClose: () => void) {
+export function useSlideOver(onClose: () => void, variant: 'slide' | 'zoom' = 'slide') {
   const [closing, setClosing] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -40,10 +40,14 @@ export function useSlideOver(onClose: () => void) {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [close]);
 
+  // Centred dialogs scale away; edge panels slide back off-screen.
+  const enter = variant === 'zoom' ? 'modal-zoom-in' : 'panel-slide-in';
+  const exit = variant === 'zoom' ? 'modal-zoom-out' : 'panel-slide-out';
+
   return {
     close,
     closing,
     backdropCls: closing ? 'overlay-fade-out' : 'overlay-fade-in',
-    panelCls: closing ? 'panel-slide-out' : 'panel-slide-in',
+    panelCls: closing ? exit : enter,
   };
 }

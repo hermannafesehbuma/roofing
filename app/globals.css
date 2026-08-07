@@ -67,11 +67,32 @@ body {
   animation: overlay-fade-out 240ms ease-in both;
 }
 
+@keyframes modal-zoom-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes modal-zoom-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.96); }
+}
+
+/* Centred dialogs scale rather than slide — they have no edge to slide from. */
+.modal-zoom-in {
+  animation: modal-zoom-in 180ms ease-out both;
+}
+
+.modal-zoom-out {
+  animation: modal-zoom-out 240ms ease-in both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .panel-slide-in,
   .overlay-fade-in,
   .panel-slide-out,
-  .overlay-fade-out {
+  .overlay-fade-out,
+  .modal-zoom-in,
+  .modal-zoom-out {
     animation-duration: 1ms;
   }
 }

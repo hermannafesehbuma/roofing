@@ -4,8 +4,8 @@ import { useState, useRef, useEffect, useTransition } from 'react'
 import {
   Search, Plus, X, Check, MoreHorizontal, Trash2,
   Eye, Pencil, KanbanSquare, List, ChevronDown, ArrowUpRight,
-  ArrowUpCircle, TrendingUp, CheckCircle2, AlertCircle,
-  UserPlus, DollarSign, Briefcase, } from 'lucide-react'
+  TrendingUp,
+  UserPlus, DollarSign, Briefcase, Users, UserCheck, Banknote, } from 'lucide-react'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import { Toast as AppToast } from '@/app/components/ui/Toast'
@@ -87,16 +87,23 @@ interface LeadFormValues {
 }
 
 // ─── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, subColor, icon }: {
-  label: string; value: number | string; sub: string; subColor: string; icon: React.ReactNode
+function StatCard({ label, value, sub, subColor, icon, iconBg }: {
+  label: string; value: number | string; sub: string; subColor: string
+  icon: React.ReactNode
+  /** Solid tile behind the icon; the icon itself inherits white. */
+  iconBg: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-4">
-      <div className="shrink-0">{icon}</div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-2xl font-semibold text-gray-900 leading-tight">{value}</p>
-        <p className={`text-[11px] font-medium ${subColor}`}>{sub}</p>
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-4 min-h-[112px]">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-gray-500">{label}</p>
+        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-white ${iconBg}`}>
+          {icon}
+        </span>
+      </div>
+      <div className="flex items-end justify-between gap-3">
+        <p className="text-[30px] font-semibold text-gray-900 leading-none">{value}</p>
+        {sub && <p className={`text-xs font-medium leading-none pb-0.5 text-right ${subColor}`}>{sub}</p>}
       </div>
     </div>
   )
@@ -429,13 +436,13 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
 function DetailsOverlay({ title, onClose, children, footer }: {
   title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode
 }) {
-  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+  const { close, backdropCls, panelCls } = useSlideOver(onClose, 'zoom')
 
   return (
     <>
       <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[540px] max-h-[90vh] flex flex-col overflow-hidden">
+        <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-[540px] max-h-[90vh] flex flex-col overflow-hidden ${panelCls}`}>
           <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
             <button onClick={close} aria-label="Close" className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
@@ -924,10 +931,10 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
         <main className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Stat Cards */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-            <StatCard label="Total Leads" value={leads.length} sub={`${leads.filter(l => l.stage === 'new_lead').length} new this period`} subColor="text-blue-600" icon={<div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center"><ArrowUpCircle size={18} className="text-blue-500" /></div>} />
-            <StatCard label="Active Clients" value={clients.length} sub={`${clients.filter(c => c.portal_status === 'active').length} portal active`} subColor="text-emerald-600" icon={<div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center"><CheckCircle2 size={18} className="text-emerald-500" /></div>} />
-            <StatCard label="Win Rate" value={`${winRate}%`} sub={`${wonCount} won · ${lostCount} lost`} subColor="text-purple-600" icon={<div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center"><TrendingUp size={18} className="text-purple-500" /></div>} />
-            <StatCard label="Pipeline Value" value={pipelineValue >= 1000 ? `$${(pipelineValue / 1000).toFixed(0)}K` : `$${pipelineValue}`} sub="Excluding lost/closed" subColor="text-orange-600" icon={<div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center"><AlertCircle size={18} className="text-orange-500" /></div>} />
+            <StatCard label="Total Leads" value={leads.length} sub={`${leads.filter(l => l.stage === 'new_lead').length} new this period`} subColor="text-blue-600" iconBg="bg-[#3B82F6]" icon={<Users size={16} strokeWidth={2} />} />
+            <StatCard label="Active Clients" value={clients.length} sub={`${clients.filter(c => c.portal_status === 'active').length} portal active`} subColor="text-emerald-600" iconBg="bg-[#F5B544]" icon={<UserCheck size={16} strokeWidth={2} />} />
+            <StatCard label="Win Rate" value={`${winRate}%`} sub={`${wonCount} won · ${lostCount} lost`} subColor="text-purple-600" iconBg="bg-[#22C55E]" icon={<TrendingUp size={16} strokeWidth={2} />} />
+            <StatCard label="Pipeline Value" value={pipelineValue >= 1000 ? `$${(pipelineValue / 1000).toFixed(0)}K` : `$${pipelineValue}`} sub="Excluding lost/closed" subColor="text-orange-600" iconBg="bg-[#EF4444]" icon={<Banknote size={16} strokeWidth={2} />} />
           </div>
 
           {/* Toolbar */}
