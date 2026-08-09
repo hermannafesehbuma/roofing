@@ -18,6 +18,8 @@ import {
 import {
   CRMFilterPopover, EMPTY_CRM_FILTERS, activeFilterCount, type CRMFilters,
 } from '@/app/components/ui/crm/CRMFilterPopover'
+import { ViewToggle } from '@/app/components/ui/ViewToggle'
+import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
 
 // ─── Display mappings ─────────────────────────────────────────────────────────
@@ -62,6 +64,11 @@ function avatarColor(id: string) {
 
 function initials(first: string, last: string) {
   return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase()
+}
+
+/** Whole-dollar amounts, as the client cards show them. */
+function fmtMoney(v: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v)
 }
 
 function fmtValue(v: number | null) {
@@ -161,12 +168,8 @@ function LeadCard({ lead, onView, onEdit, onDelete }: { lead: LeadRow; onView: (
           <span className="text-gray-600 truncate ml-2 max-w-[130px]">{lead.email ?? '—'}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-400">Value:</span>
-          <span className="text-gray-600 font-medium">{fmtValue(lead.expected_value)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Rep:</span>
-          <span className="text-gray-600">{lead.assigned_rep_name ?? '—'}</span>
+          <span className="text-gray-400">Address:</span>
+          <span className="text-gray-600 truncate ml-2 max-w-[130px]">{lead.address ?? '—'}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-400">Days in Stage:</span>
@@ -201,9 +204,20 @@ function ClientCard({ client, onView }: { client: ClientRow; onView: () => void 
         <ActionMenu onView={onView} onDelete={() => {}} />
       </div>
       <div className="space-y-1.5 text-[11px]">
-        {[['Company', client.company ?? '—'], ['Manager', client.manager_name ?? '—']].map(([k, v]) => (
+        {[
+          ['Company', client.company ?? '—'],
+          ['Manager', client.manager_name ?? '—'],
+          ['Projects', `${client.project_count} ${client.project_count === 1 ? 'Project' : 'Projects'}`],
+          ['Total Billed', fmtMoney(client.total_billed)],
+        ].map(([k, v]) => (
           <div key={k} className="flex justify-between"><span className="text-gray-400">{k}</span><span className="text-gray-600 font-medium">{v}</span></div>
         ))}
+        <div className="flex justify-between">
+          <span className="text-gray-400">Outstanding</span>
+          <span className={`font-medium ${client.outstanding > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+            {fmtMoney(client.outstanding)}
+          </span>
+        </div>
         <div className="flex justify-between items-center pt-0.5">
           <span className="text-gray-400">Portal</span>
           <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${PORTAL_BADGE[client.portal_status]}`}>
@@ -437,23 +451,23 @@ function ActivityTimeline({ entries }: { entries: ActivityEntry[] }) {
 function DetailsOverlay({ title, onClose, children, footer }: {
   title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode
 }) {
-  const { close, backdropCls, panelCls } = useSlideOver(onClose, 'zoom')
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
 
   return (
     <>
       <div className={`fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-[540px] max-h-[90vh] flex flex-col overflow-hidden ${panelCls}`}>
-          <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
+      <div className="fixed inset-y-0 right-0 z-50 flex">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
+          <div className="flex items-center justify-between px-7 pt-6 pb-5 shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
             <button onClick={close} aria-label="Close" className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
               <X size={18} />
             </button>
           </div>
 
-          <div className="overflow-y-auto flex-1 px-6 pb-5 space-y-5">{children}</div>
+          <div className="overflow-y-auto flex-1 px-7 pb-6 space-y-5">{children}</div>
 
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
+          <div className="flex items-center justify-end gap-3 px-7 py-5 shrink-0">
             {footer}
           </div>
         </div>
@@ -509,7 +523,7 @@ function LeadDetailsModal({ lead, onClose, onStageChange, onMarkWon }: {
     {
       id: 'stage',
       icon: <TrendingUp size={13} />,
-      title: `Moved to ${STAGE_COLUMNS.find(c => c.key === lead.stage)?.label ?? lead.stage}`,
+      title: `Moved to ${STAGE_COLUMNS.find(c => c.key === stage)?.label ?? stage}`,
       meta: `${daysInStage <= 0 ? 'today' : `${daysInStage} days ago`} · ${lead.assigned_rep_name ?? 'Unassigned'}`,
     },
     {
@@ -542,7 +556,7 @@ function LeadDetailsModal({ lead, onClose, onStageChange, onMarkWon }: {
         badge={
           <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-            {STAGE_COLUMNS.find(s => s.key === lead.stage)?.label ?? 'Active'}
+            {STAGE_COLUMNS.find(s => s.key === stage)?.label ?? 'Active'}
           </span>
         }
       />
@@ -728,6 +742,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
   reps: RepOption[]
 }) {
   const [isPending, startTransition] = useTransition()
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads)
   const [clients, setClients] = useState<ClientRow[]>(initialClients)
   const [tab, setTab] = useState<'leads' | 'clients'>('leads')
@@ -748,6 +763,15 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
     .reduce((sum, l) => sum + (l.expected_value ?? 0), 0)
 
   // Search and the filter panel are combined — a lead must satisfy both.
+  /**
+   * The freshest copy of a lead a modal was opened with. Modals hold a snapshot,
+   * so without this an edit saves whatever the row looked like when it opened.
+   */
+  function liveLead(snapshot?: LeadRow) {
+    if (!snapshot) return undefined
+    return leads.find(l => l.id === snapshot.id) ?? snapshot
+  }
+
   const filteredLeads = leads.filter(l => {
     const q = search.toLowerCase()
     const matchesSearch =
@@ -858,9 +882,12 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
 
   function handleStageChange(leadId: string, stage: DbLeadStage) {
     return updateLead({ id: leadId, stage }).then(result => {
-      if (!result.error) {
-        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage } : l))
+      if (result.error) {
+        showToast(`Error: ${result.error}`)
+        return
       }
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage } : l))
+      showToast(`Lead moved to ${STAGE_COLUMNS.find(c => c.key === stage)?.label ?? stage}`)
     })
   }
 
@@ -891,6 +918,10 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
         manager_name: lead.assigned_rep_name ?? null,
         portal_status: 'invited',
         created_at: new Date().toISOString(),
+        // A brand new client has nothing billed against it yet.
+        project_count: 0,
+        total_billed: 0,
+        outstanding: 0,
       }
       setClients(prev => [newClient, ...prev])
 
@@ -906,7 +937,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
         <DeleteLeadModal lead={modal.lead} onConfirm={confirmDeleteLead} onCancel={() => setModal(null)} loading={isPending} />
       )}
       {modal?.type === 'leadForm' && (
-        <LeadFormPanel lead={modal.lead} reps={reps} onClose={() => setModal(null)} onSave={handleSaveLead} loading={isPending} errorMsg={formError} />
+        <LeadFormPanel lead={liveLead(modal.lead)} reps={reps} onClose={() => setModal(null)} onSave={handleSaveLead} loading={isPending} errorMsg={formError} />
       )}
       {modal?.type === 'leadAdded' && (
         <SuccessModal
@@ -917,7 +948,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
       )}
       {modal?.type === 'viewLead' && (
         <LeadDetailsModal
-          lead={modal.lead}
+          lead={liveLead(modal.lead)!}
           onClose={() => setModal(null)}
           onStageChange={(stage) => handleStageChange(modal.lead.id, stage)}
           onMarkWon={() => handleMarkWon(modal.lead)}
@@ -938,16 +969,36 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
             <StatCard label="Pipeline Value" value={pipelineValue >= 1000 ? `$${(pipelineValue / 1000).toFixed(0)}K` : `$${pipelineValue}`} sub="Excluding lost/closed" subColor="text-orange-600" iconBg="bg-[#EF4444]" icon={<Banknote size={16} strokeWidth={2} />} />
           </div>
 
+          {/* Section tabs — underlined text, not a pill group. */}
+          <div className="flex items-center gap-6 border-b border-gray-200">
+            {([
+              { key: 'leads' as const,   label: 'Leads Pipeline', count: leads.length },
+              { key: 'clients' as const, label: 'Clients',        count: clients.length },
+            ]).map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`pb-3 -mb-px border-b-2 text-sm transition-colors ${
+                  tab === t.key
+                    ? 'border-[#0D1B2A] text-gray-900 font-medium'
+                    : 'border-transparent text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {t.label} ({t.count})
+              </button>
+            ))}
+          </div>
+
           {/* Toolbar */}
           <div className="flex items-center gap-3">
-            <div className="flex bg-gray-100 p-0.5 rounded-lg gap-0.5">
-              <button onClick={() => setTab('leads')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === 'leads' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                <KanbanSquare size={13} /> Leads ({leads.length})
-              </button>
-              <button onClick={() => setTab('clients')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === 'clients' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                <List size={13} /> Clients ({clients.length})
-              </button>
-            </div>
+            <ViewToggle
+              value={viewMode}
+              onChange={setViewMode}
+              options={[
+                { value: 'kanban', label: 'Kanban', icon: KanbanSquare },
+                { value: 'list',   label: 'List',   icon: List },
+              ]}
+            />
             <div className="relative flex-1 max-w-xs">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
@@ -983,7 +1034,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
             </div>
           )}
 
-          {tab === 'leads' && (
+          {tab === 'leads' && viewMode === 'kanban' && (
             <div className="flex gap-4 overflow-x-auto pb-2">
               {visibleStageColumns.map(col => {
                 const colLeads = filteredLeads.filter(l => l.stage === col.key)
@@ -1015,7 +1066,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
           )}
 
           {/* Clients Grid */}
-          {tab === 'clients' && (
+          {tab === 'clients' && viewMode === 'kanban' && (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredClients.map(client => (
                 <ClientCard
@@ -1027,6 +1078,129 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
               {filteredClients.length === 0 && (
                 <div className="col-span-4 py-16 text-center text-gray-400 text-sm">No clients match your filters.</div>
               )}
+            </div>
+          )}
+
+          {/* Leads list */}
+          {tab === 'leads' && viewMode === 'list' && (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-[#F8F9FB] text-xs font-normal text-gray-500 border-b border-gray-100">
+                      <th className="px-6 py-4">Name</th>
+                      <th className="px-6 py-4">Email</th>
+                      <th className="px-6 py-4">Address</th>
+                      <th className="px-6 py-4">Stage</th>
+                      <th className="px-6 py-4">Days in Stage</th>
+                      <th className="px-6 py-4">Source</th>
+                      <th className="px-6 py-4 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 text-sm">
+                    {filteredLeads.map(lead => (
+                      <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ backgroundColor: avatarColor(lead.id) }}>
+                              {initials(lead.first_name, lead.last_name)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-900 truncate">{lead.first_name} {lead.last_name}</p>
+                              <p className="text-[11px] text-gray-400 truncate">{lead.company ?? '—'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-xs text-gray-600">{lead.email ?? '—'}</td>
+                        <td className="px-6 py-4 text-xs text-gray-600">{lead.address ?? '—'}</td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-700">
+                            <span className={`w-2 h-2 rounded-full ${STAGE_COLUMNS.find(c => c.key === lead.stage)?.color ?? 'bg-gray-300'}`} />
+                            {STAGE_COLUMNS.find(c => c.key === lead.stage)?.label ?? lead.stage}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-xs text-gray-600">{lead.days_in_stage} Days</td>
+                        <td className="px-6 py-4">
+                          {lead.source ? (
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${SOURCE_BADGE[lead.source]}`}>
+                              • {SOURCE_LABELS[lead.source]}
+                            </span>
+                          ) : <span className="text-xs text-gray-400">—</span>}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center">
+                            <ActionsDropdown
+                              onView={() => setModal({ type: 'viewLead', lead })}
+                              onEdit={() => { setFormError(null); setModal({ type: 'leadForm', lead }) }}
+                              onDelete={() => setModal({ type: 'deleteLead', lead })}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredLeads.length === 0 && (
+                      <tr><td colSpan={7} className="py-16 text-center text-gray-400 text-sm">No leads match your filters.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Clients list */}
+          {tab === 'clients' && viewMode === 'list' && (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-[#F8F9FB] text-xs font-normal text-gray-500 border-b border-gray-100">
+                      <th className="px-6 py-4">Client</th>
+                      <th className="px-6 py-4">Company</th>
+                      <th className="px-6 py-4">Manager</th>
+                      <th className="px-6 py-4">Projects</th>
+                      <th className="px-6 py-4">Total Billed</th>
+                      <th className="px-6 py-4">Outstanding</th>
+                      <th className="px-6 py-4">Portal</th>
+                      <th className="px-6 py-4 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 text-sm">
+                    {filteredClients.map(client => (
+                      <tr key={client.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ backgroundColor: avatarColor(client.id) }}>
+                              {(client.name[0] ?? '').toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-900 truncate">{client.name}</p>
+                              <p className="text-[11px] text-gray-400 truncate">{client.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-xs text-gray-600">{client.company ?? '—'}</td>
+                        <td className="px-6 py-4 text-xs text-gray-600">{client.manager_name ?? '—'}</td>
+                        <td className="px-6 py-4 text-xs text-gray-600">{client.project_count}</td>
+                        <td className="px-6 py-4 text-xs text-gray-900">{fmtMoney(client.total_billed)}</td>
+                        <td className={`px-6 py-4 text-xs ${client.outstanding > 0 ? 'text-red-600' : 'text-gray-600'}`}>{fmtMoney(client.outstanding)}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${PORTAL_BADGE[client.portal_status]}`}>
+                            • {client.portal_status.charAt(0).toUpperCase() + client.portal_status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center">
+                            <ActionsDropdown onView={() => setModal({ type: 'viewClient', client })} />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredClients.length === 0 && (
+                      <tr><td colSpan={8} className="py-16 text-center text-gray-400 text-sm">No clients match your filters.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </main>

@@ -38,6 +38,10 @@ export type ClientRow = {
   manager_name: string | null
   portal_status: DbPortalStatus
   created_at: string
+  /** Rollups shown on the client card. */
+  project_count: number
+  total_billed: number
+  outstanding: number
 }
 
 export type RepOption = { id: string; name: string; role: string | null; avatar_url: string | null }
@@ -85,12 +89,43 @@ export async function getClients(): Promise<ClientRow[]> {
     return []
   }
 
+  // Card rollups. Fetched in two batched queries and reduced here rather than
+  // per client, so the board costs three round trips regardless of headcount.
+  const [invoicesRes, projectsRes] = await Promise.all([
+    admin.from('invoices').select('client_id, status, total'),
+    admin.from('projects').select('client_id'),
+  ])
+
+  if (invoicesRes.error) console.error('getClients invoices:', invoicesRes.error.message)
+  if (projectsRes.error) console.error('getClients projects:', projectsRes.error.message)
+
+  const billed = new Map<string, number>()
+  const owed = new Map<string, number>()
+  for (const inv of invoicesRes.data ?? []) {
+    if (!inv.client_id) continue
+    const total = Number(inv.total ?? 0)
+    // Drafts are not billed yet; sent/overdue/partial are still owed.
+    if (inv.status !== 'draft') billed.set(inv.client_id, (billed.get(inv.client_id) ?? 0) + total)
+    if (inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'partial') {
+      owed.set(inv.client_id, (owed.get(inv.client_id) ?? 0) + total)
+    }
+  }
+
+  const projectCount = new Map<string, number>()
+  for (const prj of projectsRes.data ?? []) {
+    if (!prj.client_id) continue
+    projectCount.set(prj.client_id, (projectCount.get(prj.client_id) ?? 0) + 1)
+  }
+
   return (data ?? []).map((row: any) => ({
     ...row,
     manager_name: row.manager
       ? `${row.manager.first_name} ${row.manager.last_name}`.trim()
       : null,
     manager: undefined,
+    project_count: projectCount.get(row.id) ?? 0,
+    total_billed: billed.get(row.id) ?? 0,
+    outstanding: owed.get(row.id) ?? 0,
   }))
 }
 
