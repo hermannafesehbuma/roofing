@@ -1,8 +1,9 @@
 'use client'
 
+import { useEntry } from '@/app/components/ui/animations'
 import { useState, useEffect, useRef, useTransition } from 'react'
 import {
-  Search, Filter as FilterIcon, Plus, X, Check, Mail, MoreHorizontal, Trash2,
+  Filter as FilterIcon, Plus, X, Check, Mail, MoreHorizontal, Trash2,
   Eye, Pencil, FileText, Download, Upload, Bell, Copy, ArrowLeftRight,
   DollarSign, CreditCard, ChevronDown, ChevronLeft, ChevronRight,
   AlertCircle, BarChart3,
@@ -23,6 +24,8 @@ import {
   createRecurring, updateRecurring,
 } from './actions'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
+import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { SearchInput } from '@/app/components/ui/SearchInput'
 
 // ─── Display maps ──────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<DbInvoiceStatus, string> = {
@@ -989,6 +992,7 @@ export function InvoicesClient({
   /** Invoice to open on arrival, set by `?invoice=` deep links. */
   openInvoiceId?:   string | null
 }) {
+  const enter = useEntry()
   const [isPending, startTransition] = useTransition()
   const [invoices,  setInvoices]  = useState(initialInvoices)
   const [recurring, setRecurring] = useState(initialRecurring)
@@ -1261,14 +1265,14 @@ export function InvoicesClient({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Header */}
       {/* Toast */}
       {toast && <Toast message={toast} variant={/^(Error|An unexpected)/.test(toast) ? 'error' : 'success'} />}
 
       <div className="flex-1 overflow-y-auto">
         {/* Stat cards */}
-        <div className="grid grid-cols-4 gap-5 px-8 pt-6 pb-2">
+        <div className={`grid grid-cols-4 gap-5 px-8 pt-6 ${BAND_GAP}`}>
           <StatCard label="Revenue This Month" value={fmtCurrency(revenueThisMonth)}
             sub={`${revenueUp ? '↑' : '↓'} vs last month`} subColor={revenueUp ? 'text-emerald-600' : 'text-red-500'}
             iconBg="bg-emerald-50" icon={<DollarSign size={16} className="text-emerald-500" strokeWidth={1.8}/>}/>
@@ -1280,9 +1284,9 @@ export function InvoicesClient({
             iconBg="bg-blue-50" icon={<BarChart3 size={16} className="text-blue-500" strokeWidth={1.8}/>}/>
         </div>
 
-        <div className="px-8 pt-6">
+        <div className="px-8">
           {/* Tab bar */}
-          <div className="flex border-b border-gray-200 gap-6 mb-5">
+          <div className={`flex border-b border-gray-200 gap-6 ${CONTENT_GAP}`}>
             {[
               { k: 'invoices',  label: 'Invoices',     count: invoices.length  },
               { k: 'recurring', label: 'Recurring',    count: recurring.length },
@@ -1296,17 +1300,17 @@ export function InvoicesClient({
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center justify-between mb-5">
+          <div className={`flex items-center justify-between ${CONTENT_GAP}`}>
             <div className="flex items-center gap-3">
               {/* Recurring plans are not searched — the tab explains itself instead. */}
               {tab === 'recurring' ? (
                 <p className="text-xs text-gray-500">Auto-generated invoices sent on a schedule</p>
               ) : (
-                <div className="relative">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                  <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder={`Search ${tab}…`}
-                    className="pl-9 pr-4 py-2 text-xs border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-400 w-64"/>
-                </div>
+                <SearchInput
+                  value={search}
+                  onChange={v => { setSearch(v); setPage(1) }}
+                  placeholder={`Search ${tab}`}
+                />
               )}
             </div>
             <div className="flex items-center gap-3">
@@ -1363,12 +1367,12 @@ export function InvoicesClient({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 text-sm">
-                    {pagedInvoices.map(inv => {
+                    {pagedInvoices.map((inv, i) => {
                       const total = invoiceTotal(inv)
                       const s     = STATUS_CONFIG[inv.status]
                       const overdueDays = inv.status === 'overdue' ? overdueByDays(inv.due_date) : 0
                       return (
-                        <tr key={inv.id} onClick={() => setModal({ type: 'viewInvoice', invoice: inv })} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
+                        <tr key={inv.id} onClick={() => setModal({ type: 'viewInvoice', invoice: inv })} {...enter.item(i, 'hover:bg-gray-50/50 transition-colors cursor-pointer', 25)}>
                           <td className="px-6 py-4 font-semibold text-gray-900 flex items-center gap-3">
                             <input
                               type="checkbox"
@@ -1444,8 +1448,8 @@ export function InvoicesClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 text-sm">
-                  {recurring.map(r => (
-                    <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
+                  {recurring.map((r, i) => (
+                    <tr key={r.id} {...enter.item(i, 'hover:bg-gray-50/50 transition-colors', 25)}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ backgroundColor: avatarColor(r.client_id) }}>
@@ -1508,8 +1512,8 @@ export function InvoicesClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 text-sm">
-                  {payments.map(p => (
-                    <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                  {payments.map((p, i) => (
+                    <tr key={p.id} {...enter.item(i, 'hover:bg-gray-50/50 transition-colors', 25)}>
                       <td className="px-6 py-4 text-gray-500 font-medium text-xs">{fmtDate(p.date)}</td>
                       <td className="px-6 py-4 font-semibold text-gray-900 text-xs">{p.invoice_code}</td>
                       <td className="px-6 py-4">

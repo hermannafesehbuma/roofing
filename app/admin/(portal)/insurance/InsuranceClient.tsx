@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react'
 import {
-  Search, Plus, X, Check,
+  Plus, X, Check,
   KanbanSquare, List as ListIcon, ChevronDown, FileText,
   AlertCircle, ShieldCheck, UserCheck, Clock,
   History, ChevronLeft, ChevronRight, ArrowUpRight, CalendarDays, Trash2,
@@ -11,6 +11,9 @@ import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
 import { PersonSelect } from '@/app/components/ui/PersonSelect'
 import { FilterButton, filterChipCls } from '@/app/components/ui/ToolbarButtons'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
+import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { useEntry } from '@/app/components/ui/animations'
+import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import {
   type PolicyRow, type CertRow, type EmployeeOption,
@@ -21,6 +24,7 @@ import {
 } from './actions'
 import { Toast } from '@/app/components/ui/Toast'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
+import { SearchInput } from '@/app/components/ui/SearchInput'
 
 // ─── Display maps ──────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<DbPolicyStatus, string> = {
@@ -270,10 +274,11 @@ function FilterDropdown({ filters, onChange, onClose }: { filters: Filters; onCh
 }
 
 // ─── Policy Card ───────────────────────────────────────────────────────────────
-function PolicyCard({ policy, onView, onEdit, onDelete }: { policy: PolicyRow; onView: () => void; onEdit: () => void; onDelete: () => void }) {
+function PolicyCard({ policy, index, onView, onEdit, onDelete }: { policy: PolicyRow; index: number; onView: () => void; onEdit: () => void; onDelete: () => void }) {
   const used = periodUsedPct(policy.effective_date, policy.expiry_date, policy.days_remaining)
+  const enter = useEntry()
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative">
+    <div {...enter.item(index, 'bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative')}>
       <div className="flex items-center justify-center bg-gray-50 rounded-lg py-6 mb-3">
         <div className="w-10 h-12 bg-white rounded shadow-sm flex items-center justify-center relative">
           <FileText className="text-red-500" size={24} />
@@ -344,9 +349,10 @@ function PolicyCard({ policy, onView, onEdit, onDelete }: { policy: PolicyRow; o
 }
 
 // ─── Certification Card ────────────────────────────────────────────────────────
-function CertCard({ cert, onView, onEdit, onDelete }: { cert: CertRow; onView: () => void; onEdit: () => void; onDelete: () => void }) {
+function CertCard({ cert, index, onView, onEdit, onDelete }: { cert: CertRow; index: number; onView: () => void; onEdit: () => void; onDelete: () => void }) {
+  const enter = useEntry()
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative">
+    <div {...enter.item(index, 'bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative')}>
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-300 flex items-center justify-center text-blue-900 font-semibold text-xs shrink-0">
@@ -1103,6 +1109,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
   initialCerts: CertRow[]
   employees: EmployeeOption[]
 }) {
+  const enter = useEntry()
   const [isPending, startTransition] = useTransition()
   const [tab, setTab] = useState<'coi' | 'certs'>('coi')
   const [viewMode, setViewMode] = useState<ViewMode>('kanban')
@@ -1338,14 +1345,14 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
     : '—'
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Header */}
       {/* Body */}
       <div className="flex-1 overflow-y-auto relative flex flex-col">
         {toast && <Toast message={toast} />}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-4 gap-4 px-8 pt-5 flex-none">
+        <div className={`grid grid-cols-4 gap-4 px-8 pt-5 flex-none ${BAND_GAP}`}>
           <StatCard label="Active COIs" value={stats.active} sub="All policies tracked" subColor="text-emerald-500"
             iconBg="bg-emerald-50"
             icon={<ShieldCheck size={16} className="text-emerald-500" strokeWidth={1.8} />} />
@@ -1361,8 +1368,8 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
         </div>
 
         {/* Tabs & Toolbar */}
-        <div className="px-8 pt-5 flex-none">
-          <div className="flex items-center mb-4 gap-3">
+        <div className="px-8 flex-none">
+          <div className={`flex items-center gap-3 ${BAND_GAP}`}>
             <button onClick={() => setTab('coi')}
               className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${tab === 'coi' ? 'bg-[#0D1B2A] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               COI Policies ({policies.length})
@@ -1373,22 +1380,17 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
             </button>
           </div>
 
-          <div className="flex items-center gap-3 mb-4 relative">
-            <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
-              <button onClick={() => setViewMode('kanban')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${viewMode === 'kanban' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                <KanbanSquare size={13} /> Kanban
-              </button>
-              <button onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${viewMode === 'list' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                <ListIcon size={13} /> List
-              </button>
-            </div>
-            <div className="relative">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search"
-                className="pl-8 pr-4 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A] w-52 bg-white" />
-            </div>
+          <div {...enter.fade(`flex items-center gap-3 relative ${CONTENT_GAP}`)}>
+            <ViewToggle
+              value={viewMode}
+              onChange={setViewMode}
+              className="shrink-0 mr-3"
+              options={[
+                { value: 'kanban', label: 'Kanban', icon: KanbanSquare },
+                { value: 'list',   label: 'List',   icon: ListIcon },
+              ]}
+            />
+            <SearchInput value={search} onChange={setSearch} className="w-52" />
             <div className="flex-1" />
             <div className="relative">
               <FilterButton onClick={() => setShowFilters(!showFilters)} active={showFilters} count={activeFilterCount} />
@@ -1411,29 +1413,31 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
         {/* Content */}
         <div className="px-8 pb-8 flex-1 overflow-y-auto">
           {viewMode === 'kanban' ? (
-            <div className="flex gap-6 items-start min-w-max">
+            // Columns share the row evenly rather than sitting at a fixed 320px,
+            // so the board fills the width the toolbar above it already spans.
+            <div className="flex gap-6 items-start overflow-x-auto">
               {DB_STATUSES.map(status => {
                 const colItems = tab === 'coi'
                   ? filteredPolicies.filter(p => p.status === status)
                   : filteredCerts.filter(c => c.status === status)
                 return (
-                  <div key={status} className="w-80 shrink-0">
-                    <div className="flex items-center gap-2 mb-3">
+                  <div key={status} className="flex-1 min-w-[320px]">
+                    <div className="flex items-center gap-2 mb-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
                       <div className={`w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />
                       <span className="font-semibold text-gray-800 text-xs">{STATUS_LABEL[status]}</span>
-                      <span className="bg-gray-200 text-gray-600 text-[10px] font-semibold px-1.5 py-0.5 rounded-md">{colItems.length}</span>
+                      <span className="ml-auto text-[10px] font-semibold text-gray-500">{colItems.length}</span>
                     </div>
                     <div className="space-y-4">
                       {tab === 'coi'
-                        ? (colItems as PolicyRow[]).map(p => (
-                          <PolicyCard key={p.id} policy={p}
+                        ? (colItems as PolicyRow[]).map((p, i) => (
+                          <PolicyCard key={p.id} index={i} policy={p}
                             onView={() => setModal({ type: 'viewPolicy', policy: p })}
                             onEdit={() => setModal({ type: 'uploadPolicy', policy: p })}
                             onDelete={() => setModal({ type: 'deletePolicy', policy: p })}
                           />
                         ))
-                        : (colItems as CertRow[]).map(c => (
-                          <CertCard key={c.id} cert={c}
+                        : (colItems as CertRow[]).map((c, i) => (
+                          <CertCard key={c.id} index={i} cert={c}
                             onView={() => setModal({ type: 'viewCert', cert: c })}
                             onEdit={() => setModal({ type: 'certForm', cert: c })}
                             onDelete={() => setModal({ type: 'deleteCert', cert: c })}

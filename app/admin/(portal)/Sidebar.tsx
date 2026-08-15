@@ -161,7 +161,7 @@ export default function Sidebar() {
       </div>
 
       {/* Main nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto no-scrollbar py-4 px-3 space-y-0.5">
         {visibleNavItems.map(({ label, icon: Icon, href }) => {
           const active = isActiveRoute(pathname, href)
           return (

@@ -1,7 +1,9 @@
 'use client'
 
+import { useEntry } from '@/app/components/ui/animations'
+
 import { useState, useMemo, useTransition } from 'react'
-import { KanbanSquare, List, Calendar, Search, Plus, ListChecks, LoaderCircle, Clock, CheckCircle2 } from 'lucide-react'
+import { KanbanSquare, List, Calendar, Plus, ListChecks, LoaderCircle, Clock, CheckCircle2 } from 'lucide-react'
 import {
   createTask, updateTask, deleteTask,
   type TaskRow, type ProjectOption, type AssigneeOption,
@@ -15,8 +17,10 @@ import { TaskDetailModal } from '@/app/components/ui/tasks/TaskDetailModal'
 import { TasksCalendarView } from '@/app/components/ui/tasks/TasksCalendarView'
 import { TaskDeleteModal } from '@/app/components/ui/tasks/TaskDeleteModal'
 import { Toast } from '@/app/components/ui/Toast'
+import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
 import { MobileTaskList } from '@/app/components/ui/mobile/MobileTaskList'
+import { SearchInput } from '@/app/components/ui/SearchInput'
 
 /** Buckets used by the Due Date select in the filter panel. */
 function matchesDue(due: string | null, filter: TaskFilters['dueDate']): boolean {
@@ -42,6 +46,7 @@ export function TasksClient({
   projects: ProjectOption[]
   assignees: AssigneeOption[]
 }) {
+  const enter = useEntry()
   const [isPending, startTransition] = useTransition()
   const [tasks, setTasks] = useState<TaskRow[]>(initialTasks)
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'calendar'>('kanban')
@@ -195,7 +200,7 @@ export function TasksClient({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Phones get the field view: a filtered card list with inline actions. */}
       <div className="md:hidden flex flex-col h-full overflow-hidden">
         <MobileHeader title="Task" />
@@ -209,7 +214,7 @@ export function TasksClient({
       </div>
 
       {/* Stat cards */}
-      <div className="hidden md:block flex-none px-8 py-5 bg-white border-b border-gray-100">
+      <div className="hidden md:block flex-none px-8 py-5 bg-white">
         <div className="grid grid-cols-4 gap-4">
           <StatCard
             label="Total Tasks"
@@ -247,33 +252,24 @@ export function TasksClient({
       </div>
 
       {/* Toolbar */}
-      <div className="hidden md:flex flex-none px-8 py-4 bg-white border-b border-gray-100 items-center gap-3">
-        <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
-          {(['kanban', 'list', 'calendar'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                viewMode === mode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {mode === 'kanban' && <KanbanSquare size={13} />}
-              {mode === 'list' && <List size={13} />}
-              {mode === 'calendar' && <Calendar size={13} />}
-              {mode.charAt(0).toUpperCase() + mode.slice(1)}
-            </button>
-          ))}
-        </div>
+      <div {...enter.fade('hidden md:flex flex-none px-8 py-4 bg-white items-center gap-3')}>
+        <ViewToggle
+          value={viewMode}
+          onChange={setViewMode}
+          className="mr-3"
+          options={[
+            { value: 'kanban',   label: 'Kanban',   icon: KanbanSquare },
+            { value: 'list',     label: 'List',     icon: List },
+            { value: 'calendar', label: 'Calendar', icon: Calendar },
+          ]}
+        />
 
-        <div className="relative">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search tasks or projects"
-            className="pl-8 pr-4 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A] w-56"
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search tasks or projects"
+          className="w-56"
+        />
 
         <div className="flex-1" />
 

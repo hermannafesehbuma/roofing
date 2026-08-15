@@ -14,7 +14,6 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  ArrowLeft,
   User,
   MapPin,
   Calendar,
@@ -34,6 +33,11 @@ import {
 } from './actions'
 import { Toast } from '@/app/components/ui/Toast'
 import { FilterButton } from '@/app/components/ui/ToolbarButtons'
+import { FilterPanel, FilterChipGroup } from '@/app/components/ui/FilterPanel'
+import { BAND_GAP } from '@/app/components/ui/spacing'
+import { SearchInput } from '@/app/components/ui/SearchInput'
+import { useSlideOver } from '@/app/components/ui/useSlideOver'
+import { SlideOverPanel } from '@/app/components/ui/SlideOverPanel'
 
 type SupportClientProps = {
   initialTickets: SupportTicket[]
@@ -50,6 +54,9 @@ const agentsList = [
 ]
 
 const ticketTypes = ['Technical Bug', 'Payment Issue', 'Service Issue', 'Misconduct', 'Other']
+
+const ticketInputCls  = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A] transition-all'
+const ticketSelectCls = `${ticketInputCls} appearance-none`
 
 export default function SupportClient({ initialTickets }: SupportClientProps) {
   const router = useRouter()
@@ -276,47 +283,25 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-[#F4F6F9] h-full overflow-hidden relative">
+    <div className="flex-1 flex flex-col min-w-0 bg-white h-full overflow-hidden relative">
       {/* Toast Notification */}
       {toast && <Toast message={toast.message} variant={toast.type} />}
 
       {/* Page toolbar — the title bar itself lives in the portal AppHeader */}
       <div className="flex items-center justify-between border-b border-gray-100 bg-white px-8 py-3 shrink-0">
-        {selectedTicket ? (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSelectedTicket(null)}
-              className="p-1.5 rounded-lg hover:bg-gray-50 text-gray-500 hover:text-gray-800 transition-colors border border-gray-100"
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900 leading-tight">
-                {selectedTicket.code}
-              </h2>
-              <p className="text-[10px] text-gray-400 font-semibold mt-0.5">
-                Assignee: {selectedTicket.agentName}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <h2 className="text-sm font-semibold text-gray-900">Support Tickets</h2>
-            <button
-              onClick={() => setShowNewTicketModal(true)}
-              className="bg-[#0D1B2A] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#162437] transition-colors flex items-center gap-1.5"
-            >
-              <Plus size={14} /> New Ticket
-            </button>
-          </>
-        )}
+        <h2 className="text-sm font-semibold text-gray-900">Support Tickets</h2>
+        <button
+          onClick={() => setShowNewTicketModal(true)}
+          className="bg-[#0D1B2A] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-[#162437] transition-colors flex items-center gap-1.5"
+        >
+          <Plus size={14} /> New Ticket
+        </button>
       </div>
 
-      {selectedTicket === null ? (
-        /* --- VIEW 1: TICKETS DASHBOARD LIST --- */
-        <div className="flex-1 overflow-y-auto p-8 space-y-6">
+      {/* Ticket list — the detail rides above it in a slide-over. */}
+      <div className="flex-1 overflow-y-auto p-8">
           {/* Stats Cards Section */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 ${BAND_GAP}`}>
             {[
               { label: 'Total Ticket', value: totalTicketsCount, icon: FolderOpen, color: 'text-blue-500 bg-blue-50 border-blue-100' },
               { label: 'Opened Ticket', value: openedTicketsCount, icon: AlertCircle, color: 'text-amber-500 bg-amber-50 border-amber-100' },
@@ -343,85 +328,45 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
 
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 {/* Search */}
-                <div className="relative flex-1 sm:flex-initial">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-                    <Search size={14} />
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Search complaint, client, ID..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-xs placeholder-gray-400 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A]"
-                  />
-                </div>
+                <SearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search complaint, client, ID"
+                  className="flex-1 sm:flex-initial sm:w-64"
+                />
 
                 {/* Filter Popover Trigger */}
                 <div className="relative">
                   <FilterButton onClick={() => setShowFilterPopover(!showFilterPopover)} active={showFilterPopover} count={(filterStatus ? 1 : 0) + (filterPriority ? 1 : 0)} />
 
-                  {/* Popover Card */}
                   {showFilterPopover && (
-                    <div className="absolute right-0 mt-2.5 w-64 bg-white border border-gray-100 rounded-xl shadow-2xl p-5 z-40 space-y-4">
-                      {/* Status filter */}
-                      <div>
-                        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {(['opened', 'pending', 'resolved'] as const).map((st) => (
-                            <button
-                              key={st}
-                              onClick={() => setFilterStatus(filterStatus === st ? null : st)}
-                              className={`px-3 py-1.5 text-[10px] font-semibold rounded-lg border transition-all uppercase tracking-wide ${
-                                filterStatus === st
-                                  ? 'bg-[#0D1B2A] border-[#0D1B2A] text-white'
-                                  : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'
-                              }`}
-                            >
-                              {st}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Priority filter */}
-                      <div>
-                        <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Priority</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {(['low', 'medium', 'high'] as const).map((pr) => (
-                            <button
-                              key={pr}
-                              onClick={() => setFilterPriority(filterPriority === pr ? null : pr)}
-                              className={`px-3 py-1.5 text-[10px] font-semibold rounded-lg border transition-all uppercase tracking-wide ${
-                                filterPriority === pr
-                                  ? 'bg-[#0D1B2A] border-[#0D1B2A] text-white'
-                                  : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'
-                              }`}
-                            >
-                              {pr}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                        <button
-                          onClick={() => {
-                            setFilterStatus(null)
-                            setFilterPriority(null)
-                            setShowFilterPopover(false)
-                          }}
-                          className="text-[10px] font-semibold text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-wider"
-                        >
-                          Clear All
-                        </button>
-                        <button
-                          onClick={() => setShowFilterPopover(false)}
-                          className="px-4 py-1.5 bg-[#0D1B2A] hover:bg-[#162437] text-white text-[10px] font-semibold rounded-lg transition-colors uppercase tracking-wider"
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    </div>
+                    <FilterPanel
+                      onClear={() => { setFilterStatus(null); setFilterPriority(null); setShowFilterPopover(false) }}
+                      onApply={() => setShowFilterPopover(false)}
+                    >
+                      {/* Both facets are single-select: picking a second value
+                          replaces the first, so `selected` holds at most one. */}
+                      <FilterChipGroup
+                        label="Status"
+                        options={[
+                          { value: 'opened',   label: 'Opened' },
+                          { value: 'pending',  label: 'Pending' },
+                          { value: 'resolved', label: 'Resolved' },
+                        ]}
+                        selected={filterStatus ? [filterStatus] : []}
+                        onToggle={v => setFilterStatus(filterStatus === v ? null : v)}
+                      />
+                      <FilterChipGroup
+                        label="Priority"
+                        options={[
+                          { value: 'low',    label: 'Low' },
+                          { value: 'high',   label: 'High' },
+                          { value: 'medium', label: 'Medium' },
+                        ]}
+                        selected={filterPriority ? [filterPriority] : []}
+                        onToggle={v => setFilterPriority(filterPriority === v ? null : v)}
+                      />
+                    </FilterPanel>
                   )}
                 </div>
               </div>
@@ -635,114 +580,45 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
             </div>
           </div>
         </div>
-      ) : (
-        /* --- VIEW 2: TICKET DETAILED CHAT VIEW --- */
-        <div className="flex-1 flex min-h-0 overflow-hidden bg-white">
-          {/* Sub-Layout Sidebar: Support tickets list */}
-          <div className="w-80 border-r border-gray-100 flex flex-col shrink-0">
-            {/* Sidebar Stats & Title */}
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/30">
-              <span className="text-xs font-semibold text-gray-800">Total Tickets {tickets.length}</span>
-              <span className="text-[10px] font-semibold bg-[#0D1B2A]/5 text-[#0D1B2A] px-2 py-0.5 rounded-full uppercase tracking-wider">
-                Newest
-              </span>
-            </div>
 
-            {/* Sidebar Search */}
-            <div className="p-4 border-b border-gray-100">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <Search size={13} />
-                </span>
-                <input
-                  type="text"
-                  placeholder="Search complaint, client, ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-xs placeholder-gray-400 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A]"
-                />
-              </div>
-            </div>
-
-            {/* Sidebar list items */}
-            <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-              {filteredTickets.map((t) => {
-                const isActive = t.id === selectedTicket.id
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => handleSelectTicket(t)}
-                    className={`w-full text-left p-5 transition-colors hover:bg-gray-50/50 flex flex-col gap-2 ${
-                      isActive ? 'bg-[#0D1B2A]/5 hover:bg-[#0D1B2A]/5' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-800">{t.id}</span>
-                      <span className="text-[10px] text-gray-400 font-semibold">{t.dateSubmitted.split(',')[0]}</span>
-                    </div>
-                    <p className="text-xs font-medium text-gray-500 line-clamp-1 leading-normal">
-                      {t.complaint}
-                    </p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-semibold border uppercase tracking-wider ${
-                          t.status === 'opened'
-                            ? 'bg-blue-50 border-blue-100 text-blue-600'
-                            : t.status === 'pending'
-                            ? 'bg-amber-50 border-amber-100 text-amber-600'
-                            : 'bg-emerald-50 border-emerald-100 text-emerald-600'
-                        }`}
-                      >
-                        {t.status}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            t.priority === 'high'
-                              ? 'bg-red-500'
-                              : t.priority === 'medium'
-                              ? 'bg-amber-500'
-                              : 'bg-blue-500'
-                          }`}
-                        />
-                        <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">{t.priority}</span>
+      {/* Ticket detail — a right-hand panel, as everywhere else in the portal.
+          The rail of other tickets is gone: the list it duplicated is right
+          behind the panel. */}
+      {selectedTicket && (
+        <SlideOverPanel onClose={() => setSelectedTicket(null)} width="w-[860px]">
+          {closePanel => (
+            <>
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-100 border border-gray-100 shrink-0">
+                    {selectedTicket.agentAvatar ? (
+                      <img src={selectedTicket.agentAvatar} alt={selectedTicket.agentName} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 font-semibold text-sm">
+                        {selectedTicket.agentName.charAt(0)}
                       </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Sub-Layout Main: Chat panel */}
-          <div className="flex-1 flex flex-col min-w-0 h-full bg-gray-50/20 relative">
-            {/* Chat header */}
-            <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full overflow-hidden bg-gray-100 border border-gray-100">
-                  {selectedTicket.agentAvatar ? (
-                    <img src={selectedTicket.agentAvatar} alt={selectedTicket.agentName} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500 font-semibold text-sm">
-                      {selectedTicket.agentName.charAt(0)}
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-semibold text-gray-900 truncate">{selectedTicket.code}</h2>
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">Assignee: {selectedTicket.agentName}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-800">{selectedTicket.agentName}</h3>
-                  <p className="text-[10px] text-gray-400 font-semibold mt-0.5">{selectedTicket.id}</p>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={() => setShowDetailsDrawer(true)}
+                    className="px-4 py-2 bg-gray-50 border border-gray-100 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    Ticket Details
+                  </button>
+                  <button onClick={closePanel} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
+                    <X size={18} />
+                  </button>
                 </div>
               </div>
 
-              {/* Action details toggle */}
-              <button
-                onClick={() => setShowDetailsDrawer(true)}
-                className="px-4 py-2 bg-gray-50 border border-gray-100 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Ticket Details
-              </button>
-            </div>
-
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-gray-50/20">
             {/* Messages body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col">
               {selectedTicket.messages.length === 0 ? (
@@ -1049,93 +925,111 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
               </div>
             </div>
           )}
-        </div>
+            </>
+          )}
+        </SlideOverPanel>
       )}
 
-      {/* NEW TICKET MODAL */}
+      {/* NEW TICKET PANEL */}
       {showNewTicketModal && (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-[1px]" onClick={() => setShowNewTicketModal(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-[#F8FAFC]">
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900">Create Support Ticket</h2>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Submit a new request or issue to the support team</p>
-                </div>
-                <button onClick={() => setShowNewTicketModal(false)} className="p-1.5 rounded-full hover:bg-gray-200 text-gray-400">
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="p-6 space-y-5 flex-1 overflow-y-auto">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Issue Type</label>
-                    <select
-                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 bg-white"
-                      value={newTicketData.type}
-                      onChange={(e) => setNewTicketData({ ...newTicketData, type: e.target.value })}
-                    >
-                      <option value="General Inquiry">General Inquiry</option>
-                      <option value="Technical Issue">Technical Issue</option>
-                      <option value="Billing Issue">Billing Issue</option>
-                      <option value="Feature Request">Feature Request</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Priority</label>
-                    <select
-                      className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 bg-white"
-                      value={newTicketData.priority}
-                      onChange={(e) => setNewTicketData({ ...newTicketData, priority: e.target.value as TicketPriority })}
-                    >
-                      <option value="low">Low Priority</option>
-                      <option value="medium">Medium Priority</option>
-                      <option value="high">High Priority</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Location / Context</label>
-                  <input
-                    type="text"
-                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500"
-                    placeholder="e.g. Project A, Dashboard, Payment Page"
-                    value={newTicketData.location}
-                    onChange={(e) => setNewTicketData({ ...newTicketData, location: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Description</label>
-                  <textarea
-                    rows={4}
-                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 resize-none"
-                    placeholder="Please describe your issue in detail..."
-                    value={newTicketData.complaint}
-                    onChange={(e) => setNewTicketData({ ...newTicketData, complaint: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-[#F8FAFC]">
-                <button
-                  onClick={() => setShowNewTicketModal(false)}
-                  className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateTicket}
-                  className="px-4 py-2 rounded-lg bg-[#0D1B2A] text-sm font-medium text-white hover:bg-[#162437] transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isSubmittingTicket && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                  Submit Ticket
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
+        <NewTicketPanel
+          value={newTicketData}
+          onChange={setNewTicketData}
+          onClose={() => setShowNewTicketModal(false)}
+          onSubmit={handleCreateTicket}
+          submitting={isSubmittingTicket}
+        />
       )}
 
     </div>
+  )
+}
+
+/**
+ * New ticket form. A right-hand slide-over rather than a centred dialog, so
+ * raising a ticket matches every other create flow in the portal.
+ */
+function NewTicketPanel({ value, onChange, onClose, onSubmit, submitting }: {
+  value:      CreateSupportTicketInput
+  onChange:   (next: CreateSupportTicketInput) => void
+  onClose:    () => void
+  onSubmit:   () => void
+  submitting: boolean
+}) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+  const set = (patch: Partial<CreateSupportTicketInput>) => onChange({ ...value, ...patch })
+
+  return (
+    <>
+      <div className={`fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
+      <div className="fixed inset-y-0 right-0 z-[101] flex">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
+          <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Create Support Ticket</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Submit a new request or issue to the support team</p>
+            </div>
+            <button onClick={close} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="overflow-y-auto flex-1 px-7 py-7 bg-[#FCFCFD] space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Issue Type</label>
+                <select className={ticketSelectCls} value={value.type} onChange={e => set({ type: e.target.value })}>
+                  <option value="General Inquiry">General Inquiry</option>
+                  <option value="Technical Issue">Technical Issue</option>
+                  <option value="Billing Issue">Billing Issue</option>
+                  <option value="Feature Request">Feature Request</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Priority</label>
+                <select className={ticketSelectCls} value={value.priority} onChange={e => set({ priority: e.target.value as TicketPriority })}>
+                  <option value="low">Low Priority</option>
+                  <option value="medium">Medium Priority</option>
+                  <option value="high">High Priority</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Location / Context</label>
+              <input
+                className={ticketInputCls}
+                placeholder="e.g. Project A, Dashboard, Payment Page"
+                value={value.location}
+                onChange={e => set({ location: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Description</label>
+              <textarea
+                rows={5}
+                className={`${ticketInputCls} resize-none`}
+                placeholder="Please describe your issue in detail..."
+                value={value.complaint}
+                onChange={e => set({ complaint: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 bg-white">
+            <button onClick={close} className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Cancel</button>
+            <button
+              onClick={onSubmit}
+              disabled={submitting || !value.complaint.trim() || !value.location.trim()}
+              className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0D1B2A] rounded-xl shadow-sm hover:bg-[#162437] disabled:opacity-50 flex items-center gap-2"
+            >
+              {submitting && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              Submit Ticket
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }

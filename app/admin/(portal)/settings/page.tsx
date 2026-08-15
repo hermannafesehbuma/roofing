@@ -1,6 +1,7 @@
 import { getSettingsStats, getPermissions, getAuditLogs } from './actions'
 import { getEmployees } from '../employees/actions'
 import { SettingsClient } from './SettingsClient'
+import { MarkVisited } from '@/app/components/ui/animations'
 
 export default async function SettingsPage() {
   const employees = await getEmployees()
@@ -9,11 +10,14 @@ export default async function SettingsPage() {
   const initialAuditLogs = await getAuditLogs()
 
   return (
-    <SettingsClient
-      initialEmployees={employees}
-      stats={stats}
-      initialPermissions={initialPermissions}
-      initialAuditLogs={initialAuditLogs}
-    />
+    <>
+      <MarkVisited />
+      <SettingsClient
+        initialEmployees={employees}
+        stats={stats}
+        initialPermissions={initialPermissions}
+        initialAuditLogs={initialAuditLogs}
+      />
+    </>
   )
 }

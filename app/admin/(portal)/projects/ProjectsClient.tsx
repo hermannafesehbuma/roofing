@@ -9,12 +9,15 @@ import { ImportExportButton } from '@/app/components/ui/ToolbarButtons';
 import { DeleteModal } from '@/app/components/ui/DeleteModal';
 import { NewProjectModal } from '@/app/components/ui/NewProjectModal';
 import { EditProjectModal } from '@/app/components/ui/EditProjectModal';
-import { KanbanSquare, List, Search, Download, Plus, Loader2, Upload, FileDown, FileText, X } from 'lucide-react'
+import { KanbanSquare, List, Download, Plus, Upload, FileDown, FileText, X } from 'lucide-react'
 import Image from 'next/image';
+import { KanbanSkeleton, TableSkeleton, CardGridSkeleton } from '@/app/components/ui/Skeleton';
+import { useEntry } from '@/app/components/ui/animations';
 import { getProjects, deleteProject, importProjects } from './actions';
 import { ViewToggle } from '@/app/components/ui/ViewToggle';
 import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader';
 import { MobileProjectList } from '@/app/components/ui/mobile/MobileProjectList';
+import { SearchInput } from '@/app/components/ui/SearchInput'
 import {
   CSV_COLUMNS, toCsv, downloadCsv, parseProjectCsv, type ImportSummary,
 } from './csv';
@@ -108,6 +111,7 @@ function ImportSummaryModal({ summary, onClose }: { summary: ImportSummary; onCl
 }
 
 export function ProjectsClient({ initialProjects }: { initialProjects: Project[] }) {
+  const enter = useEntry();
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
   const [projectsData, setProjectsData] = useState<Project[]>(initialProjects);
@@ -224,15 +228,13 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Phones get the field view: status pills over a stack of project cards. */}
       <div className="md:hidden flex flex-col h-full overflow-hidden">
         <MobileHeader title="Projects" />
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-7 h-7 animate-spin text-[#0A1629]" />
-            </div>
+            <CardGridSkeleton count={4} />
           ) : (
             <MobileProjectList projects={filteredProjects} />
           )}
@@ -240,7 +242,7 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
       </div>
 
       {/* Toolbar */}
-      <div className="hidden md:flex flex-none px-7 py-3 bg-white border-b border-gray-100 items-center gap-3">
+      <div {...enter.fade('hidden md:flex flex-none px-7 py-3 bg-white items-center gap-3')}>
         <ViewToggle
           value={viewMode}
           onChange={setViewMode}
@@ -250,16 +252,11 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
           ]}
         />
 
-        <div className="relative flex-1 max-w-xs">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-4 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A]"
-          />
-        </div>
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          className="flex-1 max-w-xs"
+        />
 
         <div className="flex-1" />
 
@@ -290,9 +287,10 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto p-8">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-8 h-8 animate-spin text-[#0A1629]" />
-          </div>
+          // Shaped like whichever view is about to appear, so nothing shifts.
+          viewMode === 'kanban'
+            ? <KanbanSkeleton columns={3} cardsPerColumn={2} withImage />
+            : <TableSkeleton rows={8} columns={6} />
         ) : (
           viewMode === 'kanban' ? (
             <KanbanView projects={filteredProjects} onDeleteClick={setProjectToDelete} onEditClick={setProjectToEdit} />

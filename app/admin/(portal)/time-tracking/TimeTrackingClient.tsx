@@ -1,8 +1,9 @@
 'use client'
 
+import { useEntry } from '@/app/components/ui/animations'
 import { useState, useTransition, useMemo } from 'react'
 import {
-  Search, Plus, X, Check, ChevronLeft, ChevronRight,
+  Plus, X, Check, ChevronLeft, ChevronRight,
   Clock, MapPin,
   UserCheck, AlertCircle, CalendarCheck
 } from 'lucide-react'
@@ -22,6 +23,8 @@ import { useDismiss } from '@/app/components/ui/useDismiss'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
 import { useCurrentUser } from '@/app/components/ui/useCurrentUser'
 import { FilterButton, ImportExportButton, filterChipCls } from '@/app/components/ui/ToolbarButtons'
+import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { SearchInput } from '@/app/components/ui/SearchInput'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316']
@@ -537,6 +540,7 @@ interface Props {
 }
 
 export function TimeTrackingClient({ initialEntries, employees, projects }: Props) {
+  const enter = useEntry()
   const [entries,      setEntries]      = useState(initialEntries)
   const [tab,          setTab]          = useState<'weekly' | 'log' | 'approvals'>('weekly')
   const [search,       setSearch]       = useState('')
@@ -695,7 +699,7 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Phones get the on-site clock: punch in/out plus this week's summary. */}
       <MobileClockScreen entries={entries} projects={projects} />
 
@@ -715,9 +719,11 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
           </div>
         )}
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-5 px-8 pt-6 mb-8">
+        <div className={`grid grid-cols-4 gap-5 px-8 pt-6 ${BAND_GAP}`}>
+          {/* Each tile carries its own hue — green for who is on site, blue for
+              hours, amber for misses, purple for approvals. */}
           <StatCard label="Clocked In Now" value={String(todayIn)} sub="Live on site" subColor="text-emerald-600"
-            iconBg="bg-blue-50" icon={<UserCheck size={16} className="text-blue-500" strokeWidth={1.9} />} />
+            iconBg="bg-emerald-50" icon={<UserCheck size={16} className="text-emerald-500" strokeWidth={1.9} />} />
           <StatCard label="Hours This Week" value={`${weekHrs.toFixed(0)}h`} sub="Team total" subColor="text-blue-600"
             iconBg="bg-blue-50" icon={<Clock size={16} className="text-blue-500" strokeWidth={1.9} />} />
           <StatCard label="Missed Punch-outs" value={String(missedPunchout)}
@@ -728,19 +734,20 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
 
         <div className="px-8">
           {/* Tabs */}
-          <div className="flex border-b border-gray-200 gap-6 mb-6">
+          <div className={`flex border-b border-gray-200 gap-6 ${BAND_GAP}`}>
             <button onClick={() => setTab('weekly')} className={`pb-3 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === 'weekly' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Weekly Timesheet</button>
-            <button onClick={() => setTab('log')} className={`pb-3 text-sm font-medium border-b-2 -mb-px flex items-center gap-2 transition-colors ${tab === 'log' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
-              Time Log <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{entries.length}</span>
+            {/* Counts read inline in brackets, not as badges. */}
+            <button onClick={() => setTab('log')} className={`pb-3 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === 'log' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+              Time Log ({entries.length})
             </button>
-            <button onClick={() => setTab('approvals')} className={`pb-3 text-sm font-medium border-b-2 -mb-px flex items-center gap-2 transition-colors ${tab === 'approvals' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
-              Approvals <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{pendingCount}</span>
+            <button onClick={() => setTab('approvals')} className={`pb-3 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === 'approvals' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+              Approvals Log ({pendingCount})
             </button>
           </div>
 
           {/* Toolbar */}
           {tab === 'weekly' && (
-            <div className="flex items-center justify-between mb-5">
+            <div className={`flex items-center justify-between ${CONTENT_GAP}`}>
               <div>
                 <h3 className="text-base font-semibold text-gray-900">{weekOffset === 0 ? 'This Week' : weekOffset === -1 ? 'Last Week' : `Week ${weekOffset > 0 ? '+' : ''}${weekOffset}`}</h3>
                 <p className="text-xs text-gray-400 mt-0.5">{weekLabel}</p>
@@ -771,16 +778,8 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
           )}
 
           {tab === 'log' && (
-            <div className="flex items-center justify-between mb-5">
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search logs..."
-                  className="pl-9 pr-4 py-2 text-xs border border-gray-200 rounded-xl bg-white w-60 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500"
-                />
-              </div>
+            <div className={`flex items-center justify-between ${CONTENT_GAP}`}>
+              <SearchInput value={search} onChange={setSearch} placeholder="Search logs" className="w-60" />
               <div className="flex items-center gap-3">
                 <div className="relative" ref={filterRef}>
                   <FilterButton
@@ -890,7 +889,7 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
           )}
 
           {tab === 'approvals' && (
-            <div className="flex items-center justify-between mb-5">
+            <div className={`flex items-center justify-between ${CONTENT_GAP}`}>
               <p className="text-xs text-gray-500 font-medium">Review and approve time entries submitted by your team</p>
               <button
                 onClick={() => {
@@ -917,8 +916,8 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
                 <tbody className="divide-y divide-gray-50 text-xs">
                   {weekData.length === 0 ? (
                     <tr><td colSpan={9} className="px-6 py-10 text-center text-sm text-gray-400 font-medium">No entries for this week</td></tr>
-                  ) : weekData.map(row => (
-                    <tr key={row.userId} className="hover:bg-gray-50/50 transition-colors">
+                  ) : weekData.map((row, i) => (
+                    <tr key={row.userId} {...enter.item(i, 'hover:bg-gray-50/50 transition-colors', 25)}>
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-3">
                           <div
@@ -986,10 +985,10 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
                 <tbody className="divide-y divide-gray-50 text-xs font-normal text-gray-600">
                   {filteredEntries.length === 0 ? (
                     <tr><td colSpan={9} className="px-6 py-10 text-center text-sm text-gray-400">No time entries found</td></tr>
-                  ) : filteredEntries.map(item => {
+                  ) : filteredEntries.map((item, i) => {
                     const cfg = STATUS_CONFIG[item.status]
                     return (
-                      <tr key={item.id} onClick={() => setModal({ type: 'viewEntry', entry: item })} className="hover:bg-gray-50/50 transition-colors cursor-pointer">
+                      <tr key={item.id} onClick={() => setModal({ type: 'viewEntry', entry: item })} {...enter.item(i, 'hover:bg-gray-50/50 transition-colors cursor-pointer', 25)}>
                         <td className="px-6 py-5 font-normal text-gray-900">
                           <div className="flex items-center gap-3">
                             <div
@@ -1047,10 +1046,10 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
                 <tbody className="divide-y divide-gray-50 text-xs font-normal text-gray-600">
                   {pendingEntries.length === 0 ? (
                     <tr><td colSpan={8} className="px-6 py-10 text-center text-sm text-gray-400">No entries pending approval</td></tr>
-                  ) : pendingEntries.map(item => {
+                  ) : pendingEntries.map((item, i) => {
                     const cfg = STATUS_CONFIG[item.status]
                     return (
-                      <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                      <tr key={item.id} {...enter.item(i, 'hover:bg-gray-50/50 transition-colors', 25)}>
                         <td className="px-6 py-5 font-normal text-gray-900">
                           <div className="flex items-center gap-3">
                             <div

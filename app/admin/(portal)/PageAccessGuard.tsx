@@ -97,11 +97,11 @@ export default function PageAccessGuard({ children }: { children: React.ReactNod
   }, [router])
 
   if (!mounted || isAuthenticated === null) {
-    return <div className="flex-1 bg-[#F4F6F9]" />
+    return <div className="flex-1 bg-white" />
   }
 
   if (isAuthenticated === false) {
-    return <div className="flex-1 bg-[#F4F6F9]" />
+    return <div className="flex-1 bg-white" />
   }
 
   // Clients get a four-page portal and nothing else, whatever the permissions
@@ -154,7 +154,7 @@ export default function PageAccessGuard({ children }: { children: React.ReactNod
 
 function AccessRestrictedView({ pageName, onBack, backLabel = 'Back to Dashboard' }: { pageName: string; onBack: () => void; backLabel?: string }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#F4F6F9] min-h-[500px]">
+    <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white min-h-[500px]">
       <div className="bg-white rounded-2xl p-10 max-w-md w-full shadow-lg border border-gray-100 flex flex-col items-center text-center">
         <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-6 animate-pulse">
           <ShieldAlert size={30} className="text-red-500" />

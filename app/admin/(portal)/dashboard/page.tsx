@@ -8,6 +8,7 @@ import { MobileHome } from '@/app/components/ui/mobile/MobileHome'
 import RevenueBars from './RevenueBars'
 import CrewUtilizationBars from './CrewUtilizationBars'
 import { ProgressRing, SplitRing, MultiRing } from './StatRings'
+import { MarkVisited } from '@/app/components/ui/animations'
 
 function RingCard({ title, tag, tagChevron, chart, legend }: {
   title: string
@@ -163,6 +164,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      <MarkVisited />
       {/* Field crews get the phone home screen; the analytics board is desktop-only. */}
       <MobileHome
         projects={projects}

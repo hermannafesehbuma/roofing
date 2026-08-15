@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { CalendarDays, Clock } from 'lucide-react'
 import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
+import { useEntry } from '@/app/components/ui/animations'
 import type { TaskRow, DbTaskStatus } from '@/app/admin/(portal)/tasks/actions'
 
 interface TasksKanbanViewProps {
@@ -65,25 +66,26 @@ export function TasksKanbanView({ tasks, onDeleteClick, onEditClick, onViewClick
         const colTasks = tasks.filter(t => t.status === col.key)
         return (
           <div key={col.key} className="min-w-[280px] w-full flex flex-col flex-1">
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-dashed border-gray-200">
+            <div className="flex items-center justify-between mb-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${col.dot}`} />
                 <h3 className="font-semibold text-sm text-gray-900">{col.label}</h3>
               </div>
-              <span className="text-[10px] font-semibold w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-500">
+              <span className="text-[10px] font-semibold text-gray-500">
                 {colTasks.length}
               </span>
             </div>
 
             <div className="flex flex-col gap-3">
               {colTasks.length === 0 ? (
-                <div className="text-center py-8 text-xs text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <div className="text-center py-8 text-xs text-gray-400 rounded-xl border-2 border-dashed border-gray-200">
                   No tasks
                 </div>
               ) : (
-                colTasks.map(task => (
+                colTasks.map((task, i) => (
                   <TaskCard
                     key={task.id}
+                    index={i}
                     task={task}
                     onDelete={() => onDeleteClick(task)}
                     onEdit={() => onEditClick(task)}
@@ -100,8 +102,9 @@ export function TasksKanbanView({ tasks, onDeleteClick, onEditClick, onViewClick
   )
 }
 
-function TaskCard({ task, onDelete, onEdit, onView, onStatusChange }: {
+function TaskCard({ task, index, onDelete, onEdit, onView, onStatusChange }: {
   task: TaskRow
+  index: number
   onDelete: () => void
   onEdit: () => void
   onView: () => void
@@ -109,9 +112,10 @@ function TaskCard({ task, onDelete, onEdit, onView, onStatusChange }: {
 }) {
   const done = task.status === 'completed'
   const label = dueDateLabel(task.due_date)
+  const enter = useEntry()
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
+    <div {...enter.item(index, 'bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all')}>
       <div className="flex items-start justify-between gap-2">
         <label className="flex items-start gap-2.5 cursor-pointer group flex-1 min-w-0">
           <input

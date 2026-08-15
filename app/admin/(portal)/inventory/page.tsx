@@ -1,10 +1,11 @@
-import { getInventoryItems, getUsageLog, getInventoryFormOptions } from './actions'
+import { getInventoryItems, getUsageLog, getPurchaseOrders, getInventoryFormOptions } from './actions'
 import { InventoryClient } from './InventoryClient'
 
 export default async function InventoryPage() {
-  const [items, usage, formOptions] = await Promise.all([
+  const [items, usage, purchaseOrders, formOptions] = await Promise.all([
     getInventoryItems(),
     getUsageLog(),
+    getPurchaseOrders(),
     getInventoryFormOptions(),
   ])
 
@@ -12,6 +13,7 @@ export default async function InventoryPage() {
     <InventoryClient
       initialItems={items}
       initialUsage={usage}
+      initialPurchaseOrders={purchaseOrders}
       projects={formOptions.projects}
     />
   )

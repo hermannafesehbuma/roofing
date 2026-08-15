@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react'
 import {
-  Search, Plus, X, Check, MoreHorizontal, Trash2,
+  Plus, X, Check, MoreHorizontal, Trash2,
   Eye, Pencil, KanbanSquare, List, ChevronDown, ArrowUpRight,
   TrendingUp,
   UserPlus, DollarSign, Briefcase, Users, UserCheck, Banknote, } from 'lucide-react'
@@ -21,15 +21,18 @@ import {
 import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
+import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { SearchInput } from '@/app/components/ui/SearchInput'
+import { useEntry } from '@/app/components/ui/animations'
 
 // ─── Display mappings ─────────────────────────────────────────────────────────
 const STAGE_COLUMNS: { key: DbLeadStage; label: string; color: string }[] = [
-  { key: 'new_lead',       label: 'New Lead',      color: 'bg-blue-400'    },
-  { key: 'contacted',      label: 'Contacted',     color: 'bg-amber-400'   },
-  { key: 'proposal_sent',  label: 'Proposal Sent', color: 'bg-purple-400'  },
-  { key: 'lost',           label: 'Lost',          color: 'bg-red-400'     },
+  { key: 'new_lead',       label: 'New Lead',      color: 'bg-gray-300'    },
+  { key: 'contacted',      label: 'Contacted',     color: 'bg-blue-500'    },
+  { key: 'proposal_sent',  label: 'Proposal Sent', color: 'bg-orange-500'  },
+  { key: 'lost',           label: 'Lost',          color: 'bg-red-500'     },
   { key: 'won',            label: 'Won',           color: 'bg-emerald-500' },
-  { key: 'closed',         label: 'Closed',        color: 'bg-gray-400'    },
+  { key: 'closed',         label: 'Closed',        color: 'bg-cyan-500'    },
 ]
 
 const SOURCE_LABELS: Record<DbLeadSource, string> = {
@@ -145,11 +148,12 @@ function ActionMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit?:
 }
 
 // ─── Lead Card ─────────────────────────────────────────────────────────────────
-function LeadCard({ lead, onView, onEdit, onDelete }: { lead: LeadRow; onView: () => void; onEdit: () => void; onDelete: () => void }) {
+function LeadCard({ lead, index, onView, onEdit, onDelete }: { lead: LeadRow; index: number; onView: () => void; onEdit: () => void; onDelete: () => void }) {
   const color = avatarColor(lead.id)
   const srcKey = lead.source
+  const enter = useEntry()
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-shadow">
+    <div {...enter.item(index, 'bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-shadow')}>
       <div className="flex items-start justify-between mb-2.5">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-semibold shrink-0" style={{ backgroundColor: color }}>
@@ -187,10 +191,11 @@ function LeadCard({ lead, onView, onEdit, onDelete }: { lead: LeadRow; onView: (
 }
 
 // ─── Client Card ───────────────────────────────────────────────────────────────
-function ClientCard({ client, onView }: { client: ClientRow; onView: () => void }) {
+function ClientCard({ client, index, onView }: { client: ClientRow; index: number; onView: () => void }) {
   const color = avatarColor(client.id)
+  const enter = useEntry()
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-shadow">
+    <div {...enter.item(index, 'bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-shadow')}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-semibold shrink-0" style={{ backgroundColor: color }}>
@@ -741,6 +746,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
   initialClients: ClientRow[]
   reps: RepOption[]
 }) {
+  const enter = useEntry()
   const [isPending, startTransition] = useTransition()
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
   const [leads, setLeads] = useState<LeadRow[]>(initialLeads)
@@ -960,9 +966,9 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-5">
+        <main className="flex-1 overflow-y-auto p-6">
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-2 xl:grid-cols-4 gap-4 ${BAND_GAP}`}>
             <StatCard label="Total Leads" value={leads.length} sub={`${leads.filter(l => l.stage === 'new_lead').length} new this period`} subColor="text-blue-600" iconBg="bg-[#3B82F6]" icon={<Users size={16} strokeWidth={2} />} />
             <StatCard label="Active Clients" value={clients.length} sub={`${clients.filter(c => c.portal_status === 'active').length} portal active`} subColor="text-emerald-600" iconBg="bg-[#F5B544]" icon={<UserCheck size={16} strokeWidth={2} />} />
             <StatCard label="Win Rate" value={`${winRate}%`} sub={`${wonCount} won · ${lostCount} lost`} subColor="text-purple-600" iconBg="bg-[#22C55E]" icon={<TrendingUp size={16} strokeWidth={2} />} />
@@ -970,7 +976,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
           </div>
 
           {/* Section tabs — underlined text, not a pill group. */}
-          <div className="flex items-center gap-6 border-b border-gray-200">
+          <div className={`flex items-center gap-6 border-b border-gray-200 ${BAND_GAP}`}>
             {([
               { key: 'leads' as const,   label: 'Leads Pipeline', count: leads.length },
               { key: 'clients' as const, label: 'Clients',        count: clients.length },
@@ -990,7 +996,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center gap-3">
+          <div {...enter.fade(`flex items-center gap-3 ${CONTENT_GAP}`)}>
             <ViewToggle
               value={viewMode}
               onChange={setViewMode}
@@ -999,11 +1005,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
                 { value: 'list',   label: 'List',   icon: List },
               ]}
             />
-            <div className="relative flex-1 max-w-xs">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
-                className="w-full pl-8 pr-4 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A]" />
-            </div>
+            <SearchInput value={search} onChange={setSearch} className="flex-1 max-w-xs" />
             <div className="flex-1" />
             <CRMFilterPopover
               tab={tab}
@@ -1040,15 +1042,16 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
                 const colLeads = filteredLeads.filter(l => l.stage === col.key)
                 return (
                   <div key={col.key} className="shrink-0 w-[230px]">
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
                       <span className={`w-2.5 h-2.5 rounded-full ${col.color}`} />
                       <span className="text-xs font-semibold text-gray-700">{col.label}</span>
-                      <span className="ml-auto text-[11px] text-gray-400 bg-gray-100 rounded-full px-1.5 py-0.5 font-medium">{colLeads.length}</span>
+                      <span className="ml-auto text-[11px] font-medium text-gray-500">{colLeads.length}</span>
                     </div>
                     <div className="space-y-3">
-                      {colLeads.map(lead => (
+                      {colLeads.map((lead, i) => (
                         <LeadCard
                           key={lead.id}
+                          index={i}
                           lead={lead}
                           onView={() => setModal({ type: 'viewLead', lead })}
                           onEdit={() => { setFormError(null); setModal({ type: 'leadForm', lead }) }}
@@ -1068,9 +1071,10 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
           {/* Clients Grid */}
           {tab === 'clients' && viewMode === 'kanban' && (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredClients.map(client => (
+              {filteredClients.map((client, i) => (
                 <ClientCard
                   key={client.id}
+                  index={i}
                   client={client}
                   onView={() => setModal({ type: 'viewClient', client })}
                 />
@@ -1098,8 +1102,8 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 text-sm">
-                    {filteredLeads.map(lead => (
-                      <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors">
+                    {filteredLeads.map((lead, i) => (
+                      <tr key={lead.id} {...enter.item(i, 'hover:bg-gray-50/50 transition-colors', 25)}>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ backgroundColor: avatarColor(lead.id) }}>
@@ -1165,8 +1169,8 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 text-sm">
-                    {filteredClients.map(client => (
-                      <tr key={client.id} className="hover:bg-gray-50/50 transition-colors">
+                    {filteredClients.map((client, i) => (
+                      <tr key={client.id} {...enter.item(i, 'hover:bg-gray-50/50 transition-colors', 25)}>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0" style={{ backgroundColor: avatarColor(client.id) }}>

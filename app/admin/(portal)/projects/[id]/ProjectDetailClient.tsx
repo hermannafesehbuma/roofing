@@ -27,7 +27,7 @@ export function ProjectDetailClient({ project }: ProjectDetailClientProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       <EditProjectModal
         project={isEditing ? project : null}
         onClose={() => setIsEditing(false)}

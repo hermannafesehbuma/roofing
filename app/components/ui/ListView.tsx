@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Project } from '@/app/admin/(portal)/projects/data';
 import { ActionsDropdown } from './ActionsDropdown';
+import { useEntry } from './animations';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
@@ -45,6 +46,7 @@ function pageList(total: number, current: number): (number | 'ellipsis')[] {
 
 export function ListView({ projects, onDeleteClick, onEditClick }: ListViewProps) {
   const router = useRouter();
+  const enter = useEntry();
   const [requestedPage, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -103,10 +105,13 @@ export function ListView({ projects, onDeleteClick, onEditClick }: ListViewProps
           </tr>
         </thead>
         <tbody>
-          {rows.map((p) => {
+          {rows.map((p, i) => {
             const st = statusConfig[p.status] ?? statusConfig.in_progress;
             return (
-              <tr key={p.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/60 transition-colors group">
+              <tr
+                key={p.id}
+                {...enter.item(i, 'border-b border-gray-100 last:border-0 hover:bg-gray-50/60 transition-colors group', 25)}
+              >
                 <td className="pl-6 pr-2 py-4">
                   <input
                     type="checkbox"

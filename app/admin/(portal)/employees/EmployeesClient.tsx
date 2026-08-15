@@ -1,5 +1,6 @@
 'use client'
 
+import { useEntry } from '@/app/components/ui/animations'
 import { useState, useRef, useEffect, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -17,6 +18,7 @@ import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import { FilterButton, ImportExportButton } from '@/app/components/ui/ToolbarButtons'
 import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import { Toast } from '@/app/components/ui/Toast'
+import { SearchInput } from '@/app/components/ui/SearchInput'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Status = 'active' | 'on_leave' | 'inactive'
@@ -458,16 +460,17 @@ function ActionMenu({ onClose, onView, onEdit, onDelete }: {
 }
 
 // ─── Employee Card ────────────────────────────────────────────────────────────
-function EmployeeCard({ emp, onEdit, onDelete, onView }: {
-  emp: EmployeeRow; onEdit: () => void; onDelete: () => void; onView: () => void
+function EmployeeCard({ emp, index, onEdit, onDelete, onView }: {
+  emp: EmployeeRow; index: number; onEdit: () => void; onDelete: () => void; onView: () => void
 }) {
   const [open, setOpen] = useState(false)
   const st = statusConfig[emp.status]
   const close = useCallback(() => setOpen(false), [])
   const color = avatarColor(emp.id)
+  const enter = useEntry()
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible hover:shadow-md transition-shadow">
+    <div {...enter.item(index, 'bg-white rounded-xl border border-gray-100 shadow-sm overflow-visible hover:shadow-md transition-shadow')}>
       <div className="h-36 relative flex items-center justify-center rounded-t-xl" style={{ backgroundColor: `${color}18` }}>
         {emp.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -517,6 +520,7 @@ function EmployeeCard({ emp, onEdit, onDelete, onView }: {
 // ─── Main Client Component ────────────────────────────────────────────────────
 export function EmployeesClient({ initialEmployees }: { initialEmployees: EmployeeRow[] }) {
   const router = useRouter()
+  const enter = useEntry()
   const [isPending, startTransition] = useTransition()
   const [employees, setEmployees] = useState<EmployeeRow[]>(initialEmployees)
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
@@ -750,7 +754,7 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top bar */}
         {/* Toolbar */}
-        <div className="bg-white border-b border-gray-100 px-7 py-3 flex items-center gap-3">
+        <div {...enter.fade('bg-white px-7 py-3 flex items-center gap-3')}>
           <ViewToggle
             value={view}
             onChange={setView}
@@ -759,11 +763,11 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
               { value: 'list', label: 'List', icon: List },
             ]}
           />
-          <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Search"
-              className="w-full pl-8 pr-4 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D1B2A]/10 focus:border-[#0D1B2A]" />
-          </div>
+          <SearchInput
+            value={search}
+            onChange={v => { setSearch(v); setPage(1) }}
+            className="flex-1 max-w-xs"
+          />
           <div className="flex-1" />
           <div className="relative">
             <FilterButton onClick={() => setFilterOpen((o) => !o)} active={filterOpen} count={activeFilterCount} />
@@ -801,9 +805,9 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
         <main className="flex-1 overflow-y-auto p-6">
           {view === 'kanban' ? (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {paginated.map((emp) => (
+              {paginated.map((emp, i) => (
                 <EmployeeCard
-                  key={emp.id} emp={emp}
+                  key={emp.id} index={i} emp={emp}
                   onEdit={() => handleEdit(emp)}
                   onDelete={() => handleDelete(emp)}
                   onView={() => handleView(emp)}
@@ -824,11 +828,11 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
                   </tr>
                 </thead>
                 <tbody>
-                  {paginated.map((emp) => {
+                  {paginated.map((emp, i) => {
                     const st = statusConfig[emp.status]
                     const color = avatarColor(emp.id)
                     return (
-                      <tr key={emp.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <tr key={emp.id} {...enter.item(i, 'border-b border-gray-50 hover:bg-gray-50/50 transition-colors', 25)}>
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
                             {emp.avatar_url ? (

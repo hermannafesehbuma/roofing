@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { Search, Upload, Download, Trash2, FileText, X } from 'lucide-react'
+import { Upload, Download, Trash2, FileText, X } from 'lucide-react'
 import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
+import { SearchInput } from '@/app/components/ui/SearchInput'
+import { Skeleton } from '@/app/components/ui/Skeleton'
 import { readSession } from '@/lib/session'
 import {
   getDocuments, getDocumentProjects, uploadDocument, deleteDocument,
@@ -101,15 +103,7 @@ export function DocumentsClient() {
               </span>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="relative flex-1 sm:w-56">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search"
-                  className="w-full h-10 pl-9 pr-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:border-[#0A1629]"
-                />
-              </div>
+              <SearchInput value={search} onChange={setSearch} className="flex-1 sm:w-56" />
               <button
                 onClick={() => setShowUpload(true)}
                 className="h-10 px-4 shrink-0 rounded-lg bg-[#0A1629] text-white text-sm font-medium hover:bg-[#152844] transition-colors flex items-center gap-2"
@@ -126,7 +120,20 @@ export function DocumentsClient() {
           )}
 
           {loading ? (
-            <p className="px-6 py-16 text-center text-sm text-gray-400">Loading documents…</p>
+            // Row placeholders rather than a bare card: this table already sits
+            // inside one, so TableSkeleton's own frame would double up.
+            <div className="px-6 py-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 py-4 border-b border-gray-50 last:border-0">
+                  <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+                  <Skeleton className="h-3.5 flex-1 max-w-[180px]" />
+                  <Skeleton className="h-3.5 w-28 hidden md:block" />
+                  <Skeleton className="h-3.5 w-24 hidden md:block" />
+                  <Skeleton className="h-3.5 w-16 hidden md:block" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </div>
+              ))}
+            </div>
           ) : filtered.length === 0 ? (
             <div className="px-6 py-16 text-center">
               <FileText className="w-8 h-8 text-gray-300 mx-auto mb-3" />

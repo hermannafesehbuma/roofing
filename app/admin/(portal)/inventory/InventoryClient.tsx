@@ -1,18 +1,28 @@
 'use client'
 
+import { useEntry } from '@/app/components/ui/animations'
 import { useState, useRef, useEffect, useTransition } from 'react'
 import {
-  Search, Filter, Plus, MoreHorizontal, Package, AlertTriangle, AlertCircle,
-  TrendingDown, DollarSign, LayoutGrid, List, ChevronLeft, ChevronRight,
+  Filter, Plus, MoreHorizontal, Package, AlertTriangle, AlertCircle,
+  TrendingDown, CircleDollarSign, LayoutGrid, List, ChevronLeft, ChevronRight,
   X, Check, Pencil, Eye, Trash2, ShoppingCart, History,
 } from 'lucide-react'
-import type { InventoryItemRow, UsageLogRow, DbInventoryStatus, CreateInventoryInput, LogUsageInput } from './actions'
-import { createInventoryItem, updateInventoryItem, deleteInventoryItem, logUsage } from './actions'
+import type {
+  InventoryItemRow, UsageLogRow, PurchaseOrderRow, DbInventoryStatus, DbPoStatus,
+  CreateInventoryInput, CreatePurchaseOrderInput, LogUsageInput,
+} from './actions'
+import {
+  createInventoryItem, updateInventoryItem, deleteInventoryItem, logUsage,
+  createPurchaseOrder, updatePurchaseOrderStatus,
+} from './actions'
 import { ConfirmDeleteModal as SharedConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import { FilterButton } from '@/app/components/ui/ToolbarButtons'
 import { useDismiss } from '@/app/components/ui/useDismiss'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
+import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { ViewToggle } from '@/app/components/ui/ViewToggle'
+import { SearchInput } from '@/app/components/ui/SearchInput'
 
 /**
  * Stat tile: label and a tinted glyph on top, the figure and its qualifier
@@ -60,10 +70,18 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+// Low stock is orange rather than amber so the board, the card tiles and the
+// "Needs reorder" stat all carry the one warning hue.
 const STATUS_THEMES: Record<DbInventoryStatus, { border: string; bg: string; text: string; dot: string; progress: string; label: string }> = {
   in_stock:     { border: 'border-emerald-100', bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-500', progress: 'bg-emerald-500', label: 'In Stock' },
-  low_stock:    { border: 'border-amber-100',   bg: 'bg-amber-50',   text: 'text-amber-600',   dot: 'bg-amber-500',   progress: 'bg-amber-500',   label: 'Low Stock' },
+  low_stock:    { border: 'border-orange-100',  bg: 'bg-orange-50',  text: 'text-orange-600',  dot: 'bg-orange-500',  progress: 'bg-orange-500',  label: 'Low Stock' },
   out_of_stock: { border: 'border-red-100',     bg: 'bg-red-50',     text: 'text-red-600',     dot: 'bg-red-500',     progress: 'bg-red-500',     label: 'Out of Stock' },
+}
+
+const PO_THEMES: Record<DbPoStatus, { bg: string; text: string; dot: string; label: string }> = {
+  draft:    { bg: 'bg-gray-50',    text: 'text-gray-600',    dot: 'bg-gray-400',    label: 'Draft' },
+  sent:     { bg: 'bg-blue-50',    text: 'text-blue-600',    dot: 'bg-blue-500',    label: 'Sent' },
+  received: { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-500', label: 'Received' },
 }
 
 const CATEGORIES = ['Membranes', 'Flashings', 'Fasteners', 'Tools', 'Sealants', 'Insulation', 'Other']
@@ -79,10 +97,48 @@ type ModalState =
   | { type: 'viewDetail'; item: InventoryItemRow }
   | { type: 'deleteConfirm'; item: InventoryItemRow }
   | { type: 'logUsage'; item: InventoryItemRow }
+  | { type: 'createPO'; item: InventoryItemRow }
   | { type: 'success'; message: string }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function ActionMenu({ onView, onEdit, onLogUsage, onDelete }: { onView: () => void; onEdit: () => void; onLogUsage: () => void; onDelete: () => void }) {
+/** One labelled row of toggle chips in the filter dropdown. */
+function FilterGroup<T extends string>({ label, options, selected, onToggle }: {
+  label:    string
+  options:  { value: T; label: string }[]
+  selected: T[]
+  onToggle: (value: T) => void
+}) {
+  if (options.length === 0) return null
+  return (
+    <div>
+      <label className="text-xs font-semibold text-gray-700 block mb-2">{label}</label>
+      <div className="flex flex-wrap gap-2">
+        {options.map(o => {
+          const active = selected.includes(o.value)
+          return (
+            <button
+              key={o.value}
+              onClick={() => onToggle(o.value)}
+              className={`px-3 py-1.5 text-[11px] font-medium rounded-full border transition-colors ${active ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+            >
+              {o.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+interface ItemActions {
+  onView:     () => void
+  onEdit:     () => void
+  onCreatePO: () => void
+  onLogUsage: () => void
+  onDelete:   () => void
+}
+
+function ActionMenu({ onView, onEdit, onCreatePO, onLogUsage, onDelete }: ItemActions) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -99,6 +155,7 @@ function ActionMenu({ onView, onEdit, onLogUsage, onDelete }: { onView: () => vo
         <div className="absolute right-0 top-8 w-44 bg-white border border-gray-100 rounded-xl shadow-xl z-30 py-1">
           <button onClick={() => { setOpen(false); onView() }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><Eye size={14} className="text-gray-400" /> View Detail</button>
           <button onClick={() => { setOpen(false); onEdit() }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><Pencil size={14} className="text-gray-400" /> Edit</button>
+          <button onClick={() => { setOpen(false); onCreatePO() }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><ShoppingCart size={14} className="text-gray-400" /> Create PO</button>
           <button onClick={() => { setOpen(false); onLogUsage() }} className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2"><History size={14} className="text-gray-400" /> Log Usage</button>
           <div className="border-t border-gray-50 my-1" />
           <button onClick={() => { setOpen(false); onDelete() }} className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2"><Trash2 size={14} /> Delete</button>
@@ -108,37 +165,62 @@ function ActionMenu({ onView, onEdit, onLogUsage, onDelete }: { onView: () => vo
   )
 }
 
-function KanbanCard({ item, onView, onEdit, onLogUsage, onDelete }: { item: InventoryItemRow; onView: () => void; onEdit: () => void; onLogUsage: () => void; onDelete: () => void }) {
+/**
+ * Board card. The glyph tile and overflow menu sit on their own row above the
+ * name, the facts read as label/value pairs, and the stock meter closes the
+ * card with its caption underneath — the order the board design uses.
+ */
+function KanbanCard({ item, index, ...actions }: { item: InventoryItemRow; index: number } & ItemActions) {
   const status = computeStatus(item.qty_on_hand, item.min_threshold)
   const theme  = STATUS_THEMES[status]
   const ratio  = Math.min(100, (item.qty_on_hand / (item.min_threshold * 2 || 1)) * 100)
+  const enter = useEntry()
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
+    <div {...enter.item(index, 'bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all')}>
       <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900 leading-tight">{item.name}</h4>
-          <p className="text-[10px] font-semibold text-gray-400 mt-0.5">{item.sku}</p>
+        {/* Glyph tile carries the status tint too, so a card reads at a glance
+            even once it is dragged away from its column. */}
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${theme.bg}`}>
+          <Package size={15} className={theme.text} strokeWidth={1.8} />
         </div>
-        <ActionMenu onView={onView} onEdit={onEdit} onLogUsage={onLogUsage} onDelete={onDelete} />
+        <ActionMenu {...actions} />
       </div>
-      <div className="mb-3">
-        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1 w-fit ${theme.bg} ${theme.text} uppercase`}>
-          <div className={`w-1 h-1 rounded-full ${theme.dot}`} /> {theme.label}
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-y-2 text-[11px] font-medium text-gray-500 mb-4">
-        <div>Category:</div><div className="text-gray-900 font-semibold text-right">{item.category}</div>
-        <div>Qty on Hand:</div><div className="text-gray-900 font-semibold text-right">{item.qty_on_hand} {item.unit_of_measure}s</div>
-        <div>Unit Cost:</div><div className="text-gray-900 font-semibold text-right">{fmtCurrency(item.unit_cost)}</div>
-        <div>Supplier:</div><div className="text-gray-900 font-semibold text-right truncate">{item.supplier}</div>
-      </div>
-      <div className="pt-3 border-t border-gray-50">
-        <div className="flex justify-between text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-          <span>Stock Level</span><span>Min: {item.min_threshold}</span>
+
+      <h4 className="text-sm font-semibold text-gray-900 leading-tight">{item.name}</h4>
+      <p className="text-xs text-gray-400 mt-0.5 mb-4">{item.sku}</p>
+
+      <div className="space-y-2.5 text-xs mb-4">
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Status:</span>
+          <span className={`font-semibold flex items-center gap-1.5 px-2 py-0.5 rounded ${theme.bg} ${theme.text}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${theme.dot}`} />
+            {theme.label}
+          </span>
         </div>
-        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className={`h-full ${theme.progress} transition-all`} style={{ width: `${ratio}%` }} />
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Category:</span>
+          <span className="text-gray-800 font-medium">{item.category}</span>
         </div>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Qty on Hand:</span>
+          <span className="text-gray-800 font-medium">{item.qty_on_hand} {item.unit_of_measure}s</span>
+        </div>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400">Unit Cost:</span>
+          <span className="text-gray-800 font-medium">{fmtCurrency(item.unit_cost)}</span>
+        </div>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400 shrink-0">Supplier:</span>
+          <span className="text-gray-800 font-medium truncate">{item.supplier}</span>
+        </div>
+      </div>
+
+      <div className="h-1 w-full rounded-full bg-gray-100 overflow-hidden">
+        <div className={`h-full rounded-full ${theme.progress} transition-all`} style={{ width: `${ratio}%` }} />
+      </div>
+      <div className="pt-2.5 flex items-center justify-between text-[11px]">
+        <span className="text-gray-400">Stock level</span>
+        <span className="text-gray-400">Min: {item.min_threshold}</span>
       </div>
     </div>
   )
@@ -369,6 +451,109 @@ function LogUsageSidebar({
   )
 }
 
+function CreatePOSidebar({
+  item, onClose, onSave,
+}: {
+  item: InventoryItemRow
+  onClose: () => void
+  onSave: (input: CreatePurchaseOrderInput) => void
+}) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose)
+
+  // Reordering back to twice the minimum is the default the buyer can override.
+  const suggested = Math.max(item.min_threshold * 2 - item.qty_on_hand, 1)
+
+  const [qty,      setQty]      = useState(String(suggested))
+  const [supplier, setSupplier] = useState(item.supplier ?? '')
+  const [unitCost, setUnitCost] = useState(String(item.unit_cost))
+  const [status,   setStatus]   = useState<DbPoStatus>('draft')
+  const [saving,   setSaving]   = useState(false)
+
+  const qtyNum   = parseInt(qty) || 0
+  const costNum  = parseFloat(unitCost) || 0
+  const total    = qtyNum * costNum
+
+  async function submit() {
+    if (qtyNum <= 0) return
+    setSaving(true)
+    await onSave({
+      inventory_item_id: item.id,
+      quantity:          qtyNum,
+      supplier:          supplier.trim() || null,
+      unit_cost:         costNum,
+      status,
+    })
+    setSaving(false)
+  }
+
+  return (
+    <>
+      <div className={`fixed inset-0 bg-black/40 z-[100] backdrop-blur-[1px] ${backdropCls}`} onClick={close} />
+      <div className="fixed inset-y-0 right-0 z-[101] flex">
+        <div className={`bg-white w-[640px] max-w-full h-full flex flex-col shadow-2xl ${panelCls}`}>
+          <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 shrink-0">
+            <h2 className="text-lg font-semibold text-gray-900">Create Purchase Order</h2>
+            <button onClick={close} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={18} /></button>
+          </div>
+
+          <div className="overflow-y-auto flex-1 px-7 py-7 bg-[#FCFCFD] space-y-6">
+            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm flex items-center gap-3">
+              <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400 border border-gray-100"><Package size={20} /></div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                <p className="text-xs font-semibold text-gray-400">{item.sku} • {item.qty_on_hand} {item.unit_of_measure}s on hand • min {item.min_threshold}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Quantity ({item.unit_of_measure}s)</label>
+                <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Unit Cost ($)</label>
+                <input type="number" min="0" step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} className={inputCls} />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Supplier</label>
+              <input value={supplier} onChange={e => setSupplier(e.target.value)} placeholder="e.g. ABC Roofing Supply" className={inputCls} />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Status</label>
+              <div className="flex gap-3">
+                {(['draft', 'sent'] as DbPoStatus[]).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setStatus(s)}
+                    className={`flex-1 py-3 rounded-xl border text-sm font-semibold transition-colors ${status === s ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+                  >
+                    {s === 'draft' ? 'Save as Draft' : 'Send to Supplier'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-500">Order Total</span>
+              <span className="text-lg font-semibold text-gray-900">{fmtCurrency(total)}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-gray-100 bg-white">
+            <button onClick={close} className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-xl">Cancel</button>
+            <button onClick={submit} disabled={saving || qtyNum <= 0} className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0D1B2A] rounded-xl shadow-sm hover:bg-[#162437] disabled:opacity-50">
+              {saving ? 'Saving…' : 'Create PO'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function ItemDetailSidebar({ item, usage, onClose, onEdit, onReorder }: { item: InventoryItemRow; usage: UsageLogRow[]; onClose: () => void; onEdit: () => void; onReorder: () => void }) {
   const { close, backdropCls, panelCls } = useSlideOver(onClose)
 
@@ -478,22 +663,26 @@ function ConfirmDeleteModal({ item, onClose, onConfirm }: { item: InventoryItemR
 
 // ─── Main Client Component ─────────────────────────────────────────────────────
 interface Props {
-  initialItems:  InventoryItemRow[]
-  initialUsage:  UsageLogRow[]
-  projects:      { id: string; name: string }[]
+  initialItems:          InventoryItemRow[]
+  initialUsage:          UsageLogRow[]
+  initialPurchaseOrders: PurchaseOrderRow[]
+  projects:              { id: string; name: string }[]
 }
 
-export function InventoryClient({ initialItems, initialUsage, projects }: Props) {
+export function InventoryClient({ initialItems, initialUsage, initialPurchaseOrders, projects }: Props) {
+  const enter = useEntry()
   const [items,      setItems]      = useState(initialItems)
   const [usage,      setUsage]      = useState(initialUsage)
+  const [pos,        setPos]        = useState(initialPurchaseOrders)
   const [view,       setView]       = useState<'kanban' | 'list'>('kanban')
-  const [tab,        setTab]        = useState<'items' | 'usage'>('items')
+  const [tab,        setTab]        = useState<'items' | 'pos' | 'usage'>('items')
   const [modal,      setModal]      = useState<ModalState>({ type: 'none' })
   const [filterOpen, setFilterOpen] = useState(false)
   const filterRef = useDismiss<HTMLDivElement>(filterOpen, () => setFilterOpen(false))
   const [search,     setSearch]     = useState('')
   const [filterStatus, setFilterStatus] = useState<DbInventoryStatus[]>([])
   const [filterCat, setFilterCat]   = useState<string[]>([])
+  const [filterSupplier, setFilterSupplier] = useState<string[]>([])
   const [isPending,  startTransition] = useTransition()
 
   // Stats
@@ -506,11 +695,39 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
     const s = computeStatus(item.qty_on_hand, item.min_threshold)
     if (filterStatus.length > 0 && !filterStatus.includes(s)) return false
     if (filterCat.length > 0 && !filterCat.includes(item.category)) return false
+    if (filterSupplier.length > 0 && !filterSupplier.includes(item.supplier)) return false
     if (search && !item.name.toLowerCase().includes(search.toLowerCase()) && !item.sku.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 
+  // The search box sits above every tab, so each tab's rows answer to it.
+  const q = search.trim().toLowerCase()
+  const filteredPos = pos.filter(p => !q
+    || p.item_name.toLowerCase().includes(q)
+    || p.item_sku.toLowerCase().includes(q)
+    || (p.supplier ?? '').toLowerCase().includes(q))
+  const filteredUsage = usage.filter(u => !q
+    || u.item_name.toLowerCase().includes(q)
+    || u.item_sku.toLowerCase().includes(q))
+
   const categories = [...new Set(items.map(i => i.category))]
+  const suppliers  = [...new Set(items.map(i => i.supplier).filter(Boolean))]
+  const activeFilters = filterStatus.length + filterCat.length + filterSupplier.length
+
+  function clearFilters() {
+    setFilterStatus([])
+    setFilterCat([])
+    setFilterSupplier([])
+  }
+
+  /** Builds the per-item handler set the card and table row both hang off. */
+  const itemActions = (item: InventoryItemRow): ItemActions => ({
+    onView:     () => setModal({ type: 'viewDetail', item }),
+    onEdit:     () => setModal({ type: 'addItem', item }),
+    onCreatePO: () => setModal({ type: 'createPO', item }),
+    onLogUsage: () => setModal({ type: 'logUsage', item }),
+    onDelete:   () => setModal({ type: 'deleteConfirm', item }),
+  })
 
   async function handleSaveItem(v: ItemFormValues) {
     const input: CreateInventoryInput = {
@@ -598,6 +815,51 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
     })
   }
 
+  async function handleCreatePO(input: CreatePurchaseOrderInput) {
+    const item = items.find(i => i.id === input.inventory_item_id)
+    startTransition(async () => {
+      const res = await createPurchaseOrder(input)
+      if ('error' in res) {
+        console.error('Create PO err:', res.error)
+        alert(`Error: ${res.error}`)
+        return
+      }
+      setPos(prev => [{
+        id:                res.id,
+        inventory_item_id: input.inventory_item_id,
+        item_name:         item?.name ?? 'Unknown',
+        item_sku:          item?.sku ?? '',
+        quantity:          input.quantity,
+        supplier:          input.supplier,
+        unit_cost:         input.unit_cost,
+        total_cost:        res.total_cost,
+        status:            input.status,
+        ordered_at:        res.ordered_at,
+        received_at:       null,
+        created_at:        res.created_at,
+      }, ...prev])
+      setModal({ type: 'success', message: 'Purchase order created' })
+    })
+  }
+
+  function handleAdvancePO(po: PurchaseOrderRow, status: DbPoStatus) {
+    startTransition(async () => {
+      const res = await updatePurchaseOrderStatus(po.id, status)
+      if ('error' in res) {
+        console.error('PO status err:', res.error)
+        return
+      }
+      setPos(prev => prev.map(p => p.id === po.id
+        ? {
+            ...p,
+            status,
+            ordered_at:  status === 'sent'     ? res.at : p.ordered_at,
+            received_at: status === 'received' ? res.at : p.received_at,
+          }
+        : p))
+    })
+  }
+
   function handleDelete() {
     if (modal.type !== 'deleteConfirm') return
     const { item } = modal
@@ -609,7 +871,7 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
   }
 
   // Group usage by date for the usage log
-  const usageByDate = usage.reduce<Record<string, UsageLogRow[]>>((acc, u) => {
+  const usageByDate = filteredUsage.reduce<Record<string, UsageLogRow[]>>((acc, u) => {
     const date = fmtDate(u.created_at)
     if (!acc[date]) acc[date] = []
     acc[date].push(u)
@@ -617,101 +879,100 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
   }, {})
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
+    <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Header */}
       <div className="flex-1 overflow-y-auto pb-10">
         <div className="px-8 pt-6">
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-5 mb-8">
+          <div className={`grid grid-cols-4 gap-5 ${BAND_GAP}`}>
+            {/* Tinted -50 tile under a -500 glyph, the same weighting the
+                Time Tracking tiles use, so the two screens read as one set. */}
             <StatCard
               label="Total SKUs" value={String(totalSKUs)}
               caption="Items tracked" captionColor="text-emerald-600"
-              iconBg="bg-emerald-50" icon={<Package size={16} className="text-emerald-600" strokeWidth={1.9} />}
+              iconBg="bg-emerald-50" icon={<Package size={16} className="text-emerald-500" strokeWidth={1.9} />}
             />
             <StatCard
               label="Low Stock" value={String(lowStockCount)}
-              caption="Needs reorder" captionColor="text-amber-600"
-              iconBg="bg-amber-50" icon={<AlertCircle size={16} className="text-amber-600" strokeWidth={1.9} />}
+              caption="Needs reorder" captionColor="text-orange-500"
+              iconBg="bg-orange-50" icon={<AlertCircle size={16} className="text-orange-500" strokeWidth={1.9} />}
             />
             <StatCard
               label="Critical / Out" value={String(outOfStock)}
-              caption="Immediate action" captionColor="text-red-600"
-              iconBg="bg-red-50" icon={<AlertCircle size={16} className="text-red-600" strokeWidth={1.9} />}
+              caption="Immediate action" captionColor="text-red-500"
+              iconBg="bg-red-50" icon={<AlertCircle size={16} className="text-red-500" strokeWidth={1.9} />}
             />
             <StatCard
               label="Inventory Value" value={fmtCurrency(totalValue)}
               caption="Total stock value" captionColor="text-emerald-600"
-              iconBg="bg-emerald-50" icon={<DollarSign size={16} className="text-emerald-600" strokeWidth={1.9} />}
+              iconBg="bg-emerald-50" icon={<CircleDollarSign size={16} className="text-emerald-500" strokeWidth={1.9} />}
             />
           </div>
 
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200 gap-6 mb-6">
-            <button onClick={() => setTab('items')} className={`pb-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${tab === 'items' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
-              Items <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px] ml-1">{totalSKUs}</span>
-            </button>
-            <button onClick={() => setTab('usage')} className={`pb-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${tab === 'usage' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
-              Usage Log <span className="bg-gray-100 px-1.5 py-0.5 rounded text-[10px] ml-1">{usage.length}</span>
-            </button>
+          {/* Tabs — segmented pills on a light track, active one filled navy. */}
+          <div className={`flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit ${BAND_GAP}`}>
+            {([
+              { id: 'items', label: 'Items',           count: totalSKUs },
+              { id: 'pos',   label: 'Purchase Orders', count: pos.length },
+              { id: 'usage', label: 'Usage Log',       count: null },
+            ] as const).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${tab === t.id ? 'bg-[#0D1B2A] text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
+              >
+                {t.label}{t.count !== null && ` (${t.count})`}
+              </button>
+            ))}
           </div>
 
           {/* Toolbar */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="flex bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
-                <button onClick={() => setView('kanban')} className={`p-1.5 rounded-md transition-colors ${view === 'kanban' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid size={16} /></button>
-                <button onClick={() => setView('list')} className={`p-1.5 rounded-md transition-colors ${view === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}><List size={16} /></button>
-              </div>
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search inventory..." className="pl-9 pr-4 py-2 text-xs border border-gray-200 rounded-xl bg-white w-64 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10" />
-              </div>
+          <div className={`flex items-center justify-between ${CONTENT_GAP}`}>
+            <div className="flex items-center gap-6">
+              {/* Only the item board has two shapes — the PO and usage tabs
+                  are always tables, so the switch belongs to Items alone. */}
+              {tab === 'items' && (
+                <ViewToggle
+                  value={view}
+                  onChange={setView}
+                  options={[
+                    { value: 'kanban', label: 'Kanban', icon: LayoutGrid },
+                    { value: 'list',   label: 'List',   icon: List },
+                  ]}
+                />
+              )}
+              <SearchInput value={search} onChange={setSearch} />
             </div>
             <div className="flex items-center gap-3">
-              <div className="relative" ref={filterRef}>
-                <FilterButton onClick={() => setFilterOpen(!filterOpen)} active={filterOpen} count={filterStatus.length + filterCat.length} />
+              {/* Chips filter item attributes, so the control belongs to that tab. */}
+              <div className={`relative ${tab === 'items' ? '' : 'hidden'}`} ref={filterRef}>
+                <FilterButton onClick={() => setFilterOpen(!filterOpen)} active={filterOpen} count={activeFilters} />
                 {filterOpen && (
-                  <div className="absolute right-0 top-11 w-72 bg-white border border-gray-100 rounded-xl shadow-xl z-20 p-5">
-                    <h4 className="text-[10px] font-semibold text-gray-400 uppercase mb-3">Filter By</h4>
+                  <div className="absolute right-0 top-11 w-80 bg-white border border-gray-100 rounded-xl shadow-xl z-20 p-5">
+                    <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">Filter</h4>
                     <div className="space-y-4">
-                      <div>
-                        <label className="text-xs font-semibold text-gray-700 block mb-2">Stock Status</label>
-                        <div className="flex flex-wrap gap-2">
-                          {(['in_stock', 'low_stock', 'out_of_stock'] as DbInventoryStatus[]).map(s => {
-                            const active = filterStatus.includes(s)
-                            return (
-                              <button
-                                key={s}
-                                onClick={() => setFilterStatus(prev => active ? prev.filter(x => x !== s) : [...prev, s])}
-                                className={`px-2.5 py-1 text-[10px] font-semibold rounded-full border transition-colors ${active ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]' : 'border-gray-200 bg-white hover:border-gray-300'}`}
-                              >
-                                {STATUS_THEMES[s].label}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-gray-700 block mb-2">Category</label>
-                        <div className="flex flex-wrap gap-2">
-                          {categories.map(c => {
-                            const active = filterCat.includes(c)
-                            return (
-                              <button
-                                key={c}
-                                onClick={() => setFilterCat(prev => active ? prev.filter(x => x !== c) : [...prev, c])}
-                                className={`px-2.5 py-1 text-[10px] font-semibold rounded-full border transition-colors ${active ? 'bg-[#0D1B2A] text-white border-[#0D1B2A]' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-100'}`}
-                              >
-                                {c}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
+                      <FilterGroup
+                        label="Stock Status"
+                        options={(['in_stock', 'low_stock', 'out_of_stock'] as DbInventoryStatus[]).map(s => ({ value: s, label: STATUS_THEMES[s].label }))}
+                        selected={filterStatus}
+                        onToggle={v => setFilterStatus(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])}
+                      />
+                      <FilterGroup
+                        label="Category"
+                        options={categories.map(c => ({ value: c, label: c }))}
+                        selected={filterCat}
+                        onToggle={v => setFilterCat(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])}
+                      />
+                      <FilterGroup
+                        label="Supplier"
+                        options={suppliers.map(s => ({ value: s, label: s }))}
+                        selected={filterSupplier}
+                        onToggle={v => setFilterSupplier(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])}
+                      />
                     </div>
-                    <div className="flex justify-end gap-2 border-t border-gray-100 mt-4 pt-3">
-                      <button onClick={() => { setFilterStatus([]); setFilterCat([]) }} className="px-3 py-1.5 text-xs font-semibold text-gray-500">Clear</button>
-                      <button onClick={() => setFilterOpen(false)} className="px-4 py-1.5 bg-[#0D1B2A] text-white text-xs font-semibold rounded-lg shadow-sm">Apply</button>
+                    <div className="flex gap-3 border-t border-gray-100 mt-5 pt-4">
+                      <button onClick={clearFilters} className="flex-1 py-2.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Clear All</button>
+                      <button onClick={() => setFilterOpen(false)} className="flex-1 py-2.5 bg-[#0D1B2A] text-white text-xs font-semibold rounded-lg shadow-sm hover:bg-[#162437] transition-colors">Apply</button>
                     </div>
                   </div>
                 )}
@@ -725,7 +986,9 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
           {/* Items Tab */}
           {tab === 'items' && (
             <>
-              {filteredItems.length === 0 ? (
+              {/* The board carries its own empty states per column, so it stays
+                  up even with nothing in stock; only the table falls back. */}
+              {view === 'list' && filteredItems.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 flex flex-col items-center text-center">
                   <Package size={40} className="text-gray-200 mb-4" />
                   <p className="text-sm font-semibold text-gray-500">No inventory items found</p>
@@ -737,23 +1000,23 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
                     const colItems = filteredItems.filter(i => computeStatus(i.qty_on_hand, i.min_threshold) === colStatus)
                     const theme = STATUS_THEMES[colStatus]
                     return (
-                      <div key={colStatus} className="flex flex-col min-h-[400px]">
-                        <div className={`flex items-center gap-2 mb-4 pb-2 border-b-2 ${theme.border}`}>
-                          <div className={`w-2 h-2 rounded-full ${theme.dot}`} />
-                          <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wider">{theme.label}</h3>
-                          <span className="ml-auto bg-white border border-gray-100 px-1.5 py-0.5 rounded text-[10px] font-semibold text-gray-500">{colItems.length}</span>
+                      <div key={colStatus} className="flex flex-col">
+                        {/* Neutral header — only the dot carries the status
+                            colour, as on the Projects board. */}
+                        <div className="flex items-center gap-2.5 mb-4 rounded-xl bg-gray-50 px-4 py-3.5">
+                          <div className={`w-2.5 h-2.5 rounded-full ${theme.dot}`} />
+                          <h3 className="text-base font-semibold text-gray-900">{theme.label}</h3>
+                          <span className="ml-auto w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">{colItems.length}</span>
                         </div>
                         <div className="space-y-4">
-                          {colItems.map(item => (
-                            <KanbanCard
-                              key={item.id}
-                              item={item}
-                              onView={() => setModal({ type: 'viewDetail', item })}
-                              onEdit={() => setModal({ type: 'addItem', item })}
-                              onLogUsage={() => setModal({ type: 'logUsage', item })}
-                              onDelete={() => setModal({ type: 'deleteConfirm', item })}
-                            />
+                          {colItems.map((item, i) => (
+                            <KanbanCard key={item.id} index={i} item={item} {...itemActions(item)} />
                           ))}
+                          {colItems.length === 0 && (
+                            <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center text-gray-400 text-xs">
+                              No {theme.label.toLowerCase()} items
+                            </div>
+                          )}
                         </div>
                       </div>
                     )
@@ -777,11 +1040,11 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 text-xs font-medium text-gray-600">
-                      {filteredItems.map(item => {
+                      {filteredItems.map((item, i) => {
                         const status = computeStatus(item.qty_on_hand, item.min_threshold)
                         const theme  = STATUS_THEMES[status]
                         return (
-                          <tr key={item.id} onClick={() => setModal({ type: 'viewDetail', item })} className="hover:bg-gray-50/50 cursor-pointer">
+                          <tr key={item.id} onClick={() => setModal({ type: 'viewDetail', item })} {...enter.item(i, 'hover:bg-gray-50/50 cursor-pointer', 25)}>
                             <td className="px-6 py-4 font-semibold text-gray-900">{item.name}</td>
                             <td className="px-6 py-4">{item.sku}</td>
                             <td className="px-6 py-4">{item.category}</td>
@@ -796,12 +1059,7 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
                               </span>
                             </td>
                             <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
-                              <ActionMenu
-                                onView={() => setModal({ type: 'viewDetail', item })}
-                                onEdit={() => setModal({ type: 'addItem', item })}
-                                onLogUsage={() => setModal({ type: 'logUsage', item })}
-                                onDelete={() => setModal({ type: 'deleteConfirm', item })}
-                              />
+                              <ActionMenu {...itemActions(item)} />
                             </td>
                           </tr>
                         )
@@ -820,10 +1078,74 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
             </>
           )}
 
+          {/* Purchase Orders Tab */}
+          {tab === 'pos' && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              {filteredPos.length === 0 ? (
+                <div className="p-16 flex flex-col items-center text-center">
+                  <ShoppingCart size={40} className="text-gray-200 mb-4" />
+                  <p className="text-sm font-semibold text-gray-500">No purchase orders yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Raise one from an item&rsquo;s Create PO action</p>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-[#F8F9FB] border-b border-gray-100">
+                    <tr className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      <th className="px-6 py-4">Created</th>
+                      <th className="px-6 py-4">Item</th>
+                      <th className="px-6 py-4">SKU</th>
+                      <th className="px-6 py-4">Supplier</th>
+                      <th className="px-6 py-4">Qty</th>
+                      <th className="px-6 py-4">Unit Cost</th>
+                      <th className="px-6 py-4">Total</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 text-xs font-medium text-gray-600">
+                    {filteredPos.map((po, i) => {
+                      const theme = PO_THEMES[po.status]
+                      const next: DbPoStatus | null =
+                        po.status === 'draft' ? 'sent' : po.status === 'sent' ? 'received' : null
+                      return (
+                        <tr key={po.id} {...enter.item(i, 'hover:bg-gray-50/50', 25)}>
+                          <td className="px-6 py-4">{fmtDate(po.created_at)}</td>
+                          <td className="px-6 py-4 font-semibold text-gray-900">{po.item_name}</td>
+                          <td className="px-6 py-4 text-gray-400">{po.item_sku}</td>
+                          <td className="px-6 py-4">{po.supplier ?? '–'}</td>
+                          <td className="px-6 py-4 font-semibold text-gray-900">{po.quantity}</td>
+                          <td className="px-6 py-4">{fmtCurrency(po.unit_cost)}</td>
+                          <td className="px-6 py-4 font-semibold text-gray-900">{fmtCurrency(po.total_cost)}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded font-semibold text-[10px] ${theme.bg} ${theme.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${theme.dot}`} />
+                              {theme.label}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {next && (
+                              <button
+                                onClick={() => handleAdvancePO(po, next)}
+                                disabled={isPending}
+                                className="px-3 py-1.5 border border-gray-200 rounded-lg text-[11px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Mark {PO_THEMES[next].label}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
           {/* Usage Log Tab */}
           {tab === 'usage' && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              {usage.length === 0 ? (
+              {filteredUsage.length === 0 ? (
                 <div className="p-16 flex flex-col items-center text-center">
                   <History size={40} className="text-gray-200 mb-4" />
                   <p className="text-sm font-semibold text-gray-500">No usage logged yet</p>
@@ -890,6 +1212,13 @@ export function InventoryClient({ initialItems, initialUsage, projects }: Props)
           onClose={() => setModal({ type: 'none' })}
           onEdit={() => setModal({ type: 'addItem', item: modal.item })}
           onReorder={() => setModal({ type: 'none' })}
+        />
+      )}
+      {modal.type === 'createPO' && (
+        <CreatePOSidebar
+          item={modal.item}
+          onClose={() => setModal({ type: 'none' })}
+          onSave={handleCreatePO}
         />
       )}
       {modal.type === 'logUsage' && (

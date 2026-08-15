@@ -8,6 +8,7 @@ import {
    CheckCheck, Check, ArrowLeft
 } from 'lucide-react'
 import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
+import { MarkVisited } from '@/app/components/ui/animations'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface User {
@@ -239,7 +240,8 @@ export default function InboxPage() {
    const activeConversation = mockConversation // Simplified, in real would fetch by userId
 
    return (
-      <div className="flex flex-col h-full bg-[#F3F5F8] overflow-hidden">
+      <div className="flex flex-col h-full bg-white overflow-hidden">
+         <MarkVisited />
          {!showThreadOnMobile && <MobileHeader title="Inbox" />}
 
          {/* Fixed Global Header */}
