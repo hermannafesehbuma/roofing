@@ -20,36 +20,10 @@ import { FilterButton } from '@/app/components/ui/ToolbarButtons'
 import { useDismiss } from '@/app/components/ui/useDismiss'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
-import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { CONTENT_GAP } from '@/app/components/ui/spacing'
 import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { SearchInput } from '@/app/components/ui/SearchInput'
-
-/**
- * Stat tile: label and a tinted glyph on top, the figure and its qualifier
- * sharing a baseline underneath. Matches the tiles on Time Tracking.
- */
-function StatCard({ label, value, caption, captionColor, icon, iconBg }: {
-  label: string
-  value: string
-  caption: string
-  captionColor: string
-  icon: React.ReactNode
-  /** Tinted tile behind the icon — the icon supplies its own colour. */
-  iconBg: string
-}) {
-  return (
-    <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm flex flex-col justify-between gap-4 min-h-[116px]">
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-sm text-gray-500">{label}</span>
-        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
-      </div>
-      <div className="flex items-end justify-between gap-3">
-        <p className="text-[32px] font-semibold text-gray-900 leading-none">{value}</p>
-        <p className={`text-xs leading-none pb-1 text-right ${captionColor}`}>{caption}</p>
-      </div>
-    </div>
-  )
-}
+import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function computeStatus(qty: number, min: number): DbInventoryStatus {
@@ -884,33 +858,33 @@ export function InventoryClient({ initialItems, initialUsage, initialPurchaseOrd
       <div className="flex-1 overflow-y-auto pb-10">
         <div className="px-8 pt-6">
           {/* Stats */}
-          <div className={`grid grid-cols-4 gap-5 ${BAND_GAP}`}>
+          <StatCardGrid>
             {/* Tinted -50 tile under a -500 glyph, the same weighting the
                 Time Tracking tiles use, so the two screens read as one set. */}
             <StatCard
               label="Total SKUs" value={String(totalSKUs)}
-              caption="Items tracked" captionColor="text-emerald-600"
+              sub="Items tracked" subColor="text-emerald-600"
               iconBg="bg-emerald-50" icon={<Package size={16} className="text-emerald-500" strokeWidth={1.9} />}
             />
             <StatCard
               label="Low Stock" value={String(lowStockCount)}
-              caption="Needs reorder" captionColor="text-orange-500"
+              sub="Needs reorder" subColor="text-orange-500"
               iconBg="bg-orange-50" icon={<AlertCircle size={16} className="text-orange-500" strokeWidth={1.9} />}
             />
             <StatCard
               label="Critical / Out" value={String(outOfStock)}
-              caption="Immediate action" captionColor="text-red-500"
+              sub="Immediate action" subColor="text-red-500"
               iconBg="bg-red-50" icon={<AlertCircle size={16} className="text-red-500" strokeWidth={1.9} />}
             />
             <StatCard
               label="Inventory Value" value={fmtCurrency(totalValue)}
-              caption="Total stock value" captionColor="text-emerald-600"
+              sub="Total stock value" subColor="text-emerald-600"
               iconBg="bg-emerald-50" icon={<CircleDollarSign size={16} className="text-emerald-500" strokeWidth={1.9} />}
             />
-          </div>
+          </StatCardGrid>
 
           {/* Tabs — segmented pills on a light track, active one filled navy. */}
-          <div className={`flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit ${BAND_GAP}`}>
+          <div className={`flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit ${CONTENT_GAP}`}>
             {([
               { id: 'items', label: 'Items',           count: totalSKUs },
               { id: 'pos',   label: 'Purchase Orders', count: pos.length },
@@ -1005,7 +979,7 @@ export function InventoryClient({ initialItems, initialUsage, initialPurchaseOrd
                             colour, as on the Projects board. */}
                         <div className="flex items-center gap-2.5 mb-4 rounded-xl bg-gray-50 px-4 py-3.5">
                           <div className={`w-2.5 h-2.5 rounded-full ${theme.dot}`} />
-                          <h3 className="text-base font-semibold text-gray-900">{theme.label}</h3>
+                          <h3 className="text-sm font-semibold text-gray-900">{theme.label}</h3>
                           <span className="ml-auto w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">{colItems.length}</span>
                         </div>
                         <div className="space-y-4">

@@ -21,6 +21,7 @@ import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
 import { MobileTaskList } from '@/app/components/ui/mobile/MobileTaskList'
 import { SearchInput } from '@/app/components/ui/SearchInput'
+import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
 
 /** Buckets used by the Due Date select in the filter panel. */
 function matchesDue(due: string | null, filter: TaskFilters['dueDate']): boolean {
@@ -214,8 +215,8 @@ export function TasksClient({
       </div>
 
       {/* Stat cards */}
-      <div className="hidden md:block flex-none px-8 py-5 bg-white">
-        <div className="grid grid-cols-4 gap-4">
+      <div className="hidden md:block flex-none bg-white">
+        <StatCardGrid className="px-8 pt-6">
           <StatCard
             label="Total Tasks"
             value={totalCount}
@@ -248,7 +249,7 @@ export function TasksClient({
             iconBg="bg-emerald-50"
             icon={<CheckCircle2 size={16} className="text-emerald-500" strokeWidth={1.9} />}
           />
-        </div>
+        </StatCardGrid>
       </div>
 
       {/* Toolbar */}
@@ -348,26 +349,6 @@ export function TasksClient({
         onConfirm={handleDeleteConfirm}
         taskName={deleteTarget?.title ?? ''}
       />
-    </div>
-  )
-}
-
-function StatCard({ label, value, sub, subColor, icon, iconBg }: {
-  label: string; value: number; sub: string; subColor: string
-  icon: React.ReactNode
-  /** Tinted tile behind the icon — the icon supplies its own colour. */
-  iconBg: string
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-4 min-h-[112px]">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-gray-500">{label}</p>
-        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
-      </div>
-      <div className="flex items-end justify-between gap-3">
-        <p className="text-[30px] font-semibold text-gray-900 leading-none">{value}</p>
-        {sub && <p className={`text-xs font-medium leading-none pb-0.5 text-right ${subColor}`}>{sub}</p>}
-      </div>
     </div>
   )
 }

@@ -1,18 +1,18 @@
 /**
  * Vertical rhythm shared by every portal list screen.
  *
- * The bands above the data — stat cards, tabs, then the toolbar that carries
- * the Kanban/List switch — sit 48px apart. The toolbar itself closes tighter,
- * 24px, so the view switch reads as attached to the cards or table it governs
- * rather than floating between the two.
+ * The stat band sits 48px above the tabs — it is a summary, separate from the
+ * controls that govern the data. Everything below that closes to 34px: the tabs
+ * and the toolbar read as one block attached to the cards or table they filter,
+ * rather than three bands floating apart.
  *
  *   stat cards
  *      ↕ BAND_GAP (48)
  *   tabs
- *      ↕ BAND_GAP (48)
- *   toolbar — Kanban / List, search, filter, primary action
- *      ↕ CONTENT_GAP (24)
+ *      ↕ CONTENT_GAP (34)
+ *   toolbar — Kanban/List switch, search, filter, primary action
+ *      ↕ CONTENT_GAP (34)
  *   cards or table
  */
 export const BAND_GAP    = 'mb-12'
-export const CONTENT_GAP = 'mb-6'
+export const CONTENT_GAP = 'mb-[34px]'

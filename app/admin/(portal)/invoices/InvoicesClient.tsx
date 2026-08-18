@@ -24,8 +24,9 @@ import {
   createRecurring, updateRecurring,
 } from './actions'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
-import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { CONTENT_GAP } from '@/app/components/ui/spacing'
 import { SearchInput } from '@/app/components/ui/SearchInput'
+import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
 
 // ─── Display maps ──────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<DbInvoiceStatus, string> = {
@@ -175,27 +176,6 @@ interface RecurringFormValues {
   description:  string
   next_date:    string
   status:       'active' | 'stopped'
-}
-
-// ─── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, subColor, icon, iconBg }: {
-  label: string; value: string; sub?: string; subColor?: string
-  icon: React.ReactNode
-  /** Tinted tile behind the icon — the icon supplies its own colour. */
-  iconBg: string
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-4 min-h-[112px]">
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-sm text-gray-500">{label}</span>
-        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
-      </div>
-      <div className="flex items-end justify-between gap-3">
-        <p className="text-[30px] font-semibold text-gray-900 leading-none">{value}</p>
-        {sub && <p className={`text-xs font-medium leading-none pb-0.5 text-right ${subColor}`}>{sub}</p>}
-      </div>
-    </div>
-  )
 }
 
 /** Card heading with a count chip, as on the Invoice / Recurring / Payment cards. */
@@ -1272,7 +1252,7 @@ export function InvoicesClient({
 
       <div className="flex-1 overflow-y-auto">
         {/* Stat cards */}
-        <div className={`grid grid-cols-4 gap-5 px-8 pt-6 ${BAND_GAP}`}>
+        <StatCardGrid className="px-8 pt-6">
           <StatCard label="Revenue This Month" value={fmtCurrency(revenueThisMonth)}
             sub={`${revenueUp ? '↑' : '↓'} vs last month`} subColor={revenueUp ? 'text-emerald-600' : 'text-red-500'}
             iconBg="bg-emerald-50" icon={<DollarSign size={16} className="text-emerald-500" strokeWidth={1.8}/>}/>
@@ -1282,7 +1262,7 @@ export function InvoicesClient({
             iconBg="bg-red-50" icon={<AlertCircle size={16} className="text-red-500" strokeWidth={1.8}/>}/>
           <StatCard label="Collection Rate" value={`${collectionRate}%`}
             iconBg="bg-blue-50" icon={<BarChart3 size={16} className="text-blue-500" strokeWidth={1.8}/>}/>
-        </div>
+        </StatCardGrid>
 
         <div className="px-8">
           {/* Tab bar */}

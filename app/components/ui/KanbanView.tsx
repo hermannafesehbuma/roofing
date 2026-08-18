@@ -66,7 +66,7 @@ function KanbanColumn({
       <div className="flex items-center justify-between mb-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
         <div className="flex items-center gap-2">
           {icon}
-          <h3 className="font-semibold text-gray-800">{title}</h3>
+          <h3 className="font-semibold text-sm text-gray-800">{title}</h3>
         </div>
         <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${badgeColor}`}>
           {count}

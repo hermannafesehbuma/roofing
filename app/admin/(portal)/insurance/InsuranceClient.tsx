@@ -11,7 +11,7 @@ import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
 import { PersonSelect } from '@/app/components/ui/PersonSelect'
 import { FilterButton, filterChipCls } from '@/app/components/ui/ToolbarButtons'
 import { SuccessModal } from '@/app/components/ui/SuccessModal'
-import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { CONTENT_GAP } from '@/app/components/ui/spacing'
 import { useEntry } from '@/app/components/ui/animations'
 import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
@@ -25,6 +25,7 @@ import {
 import { Toast } from '@/app/components/ui/Toast'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
 import { SearchInput } from '@/app/components/ui/SearchInput'
+import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
 
 // ─── Display maps ──────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<DbPolicyStatus, string> = {
@@ -178,27 +179,6 @@ function PaginationBar() {
       <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer">
         Next <ChevronRight size={14} />
       </button>
-    </div>
-  )
-}
-
-// ─── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, subColor, icon, iconBg }: {
-  label: string; value: number | string; sub?: string; subColor?: string
-  icon: React.ReactNode
-  /** Tint behind the icon — carries the card's status colour. */
-  iconBg: string
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-3 min-h-[104px]">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs text-gray-500">{label}</p>
-        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
-      </div>
-      <div className="flex items-end justify-between gap-3">
-        <p className="text-[26px] font-semibold text-gray-900 leading-none">{value}</p>
-        {sub && <p className={`text-[11px] font-medium leading-none ${subColor}`}>{sub}</p>}
-      </div>
     </div>
   )
 }
@@ -1352,7 +1332,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
         {toast && <Toast message={toast} />}
 
         {/* Stat cards */}
-        <div className={`grid grid-cols-4 gap-4 px-8 pt-5 flex-none ${BAND_GAP}`}>
+        <StatCardGrid className="px-8 pt-6 flex-none">
           <StatCard label="Active COIs" value={stats.active} sub="All policies tracked" subColor="text-emerald-500"
             iconBg="bg-emerald-50"
             icon={<ShieldCheck size={16} className="text-emerald-500" strokeWidth={1.8} />} />
@@ -1365,11 +1345,11 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
           <StatCard label="Cert Compliance" value={certCompliance}
             iconBg="bg-blue-50"
             icon={<UserCheck size={16} className="text-blue-500" strokeWidth={1.8} />} />
-        </div>
+        </StatCardGrid>
 
         {/* Tabs & Toolbar */}
         <div className="px-8 flex-none">
-          <div className={`flex items-center gap-3 ${BAND_GAP}`}>
+          <div className={`flex items-center gap-3 ${CONTENT_GAP}`}>
             <button onClick={() => setTab('coi')}
               className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${tab === 'coi' ? 'bg-[#0D1B2A] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               COI Policies ({policies.length})
@@ -1424,7 +1404,7 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
                   <div key={status} className="flex-1 min-w-[320px]">
                     <div className="flex items-center gap-2 mb-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
                       <div className={`w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />
-                      <span className="font-semibold text-gray-800 text-xs">{STATUS_LABEL[status]}</span>
+                      <span className="font-semibold text-gray-800 text-sm">{STATUS_LABEL[status]}</span>
                       <span className="ml-auto text-[10px] font-semibold text-gray-500">{colItems.length}</span>
                     </div>
                     <div className="space-y-4">

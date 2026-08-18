@@ -34,10 +34,10 @@ import {
 import { Toast } from '@/app/components/ui/Toast'
 import { FilterButton } from '@/app/components/ui/ToolbarButtons'
 import { FilterPanel, FilterChipGroup } from '@/app/components/ui/FilterPanel'
-import { BAND_GAP } from '@/app/components/ui/spacing'
 import { SearchInput } from '@/app/components/ui/SearchInput'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
 import { SlideOverPanel } from '@/app/components/ui/SlideOverPanel'
+import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
 
 type SupportClientProps = {
   initialTickets: SupportTicket[]
@@ -301,24 +301,22 @@ export default function SupportClient({ initialTickets }: SupportClientProps) {
       {/* Ticket list — the detail rides above it in a slide-over. */}
       <div className="flex-1 overflow-y-auto p-8">
           {/* Stats Cards Section */}
-          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 ${BAND_GAP}`}>
+          <StatCardGrid>
             {[
               { label: 'Total Ticket', value: totalTicketsCount, icon: FolderOpen, color: 'text-blue-500 bg-blue-50 border-blue-100' },
               { label: 'Opened Ticket', value: openedTicketsCount, icon: AlertCircle, color: 'text-amber-500 bg-amber-50 border-amber-100' },
               { label: 'Pending Ticket', value: pendingTicketsCount, icon: Clock, color: 'text-orange-500 bg-orange-50 border-orange-100' },
               { label: 'Resolved Ticket', value: resolvedTicketsCount, icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50 border-emerald-100' }
             ].map((stat, idx) => (
-              <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-100/80 shadow-sm flex items-center justify-between">
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{stat.label}</p>
-                  <p className="text-3xl font-semibold text-gray-900 tracking-tight">{stat.value}</p>
-                </div>
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center border ${stat.color}`}>
-                  <stat.icon size={20} />
-                </div>
-              </div>
+              <StatCard
+                key={idx}
+                label={stat.label}
+                value={stat.value}
+                iconBg={stat.color}
+                icon={<stat.icon size={16} />}
+              />
             ))}
-          </div>
+          </StatCardGrid>
 
           {/* Table Container Card */}
           <div className="bg-white rounded-2xl border border-gray-100/80 shadow-sm overflow-hidden flex flex-col">

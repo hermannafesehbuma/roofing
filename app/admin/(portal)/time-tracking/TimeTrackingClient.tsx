@@ -23,8 +23,9 @@ import { useDismiss } from '@/app/components/ui/useDismiss'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
 import { useCurrentUser } from '@/app/components/ui/useCurrentUser'
 import { FilterButton, ImportExportButton, filterChipCls } from '@/app/components/ui/ToolbarButtons'
-import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { CONTENT_GAP } from '@/app/components/ui/spacing'
 import { SearchInput } from '@/app/components/ui/SearchInput'
+import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316']
@@ -178,27 +179,6 @@ const STATUS_LABEL: Record<DbTimeStatus, string> = {
 
 const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all'
 const selectCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all'
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, subColor, icon, iconBg }: {
-  label: string; value: string; sub?: string; subColor?: string
-  icon: React.ReactNode
-  /** Tinted tile behind the icon — the icon supplies its own colour. */
-  iconBg: string
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-4 min-h-[112px]">
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-sm text-gray-500">{label}</span>
-        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>{icon}</span>
-      </div>
-      <div className="flex items-end justify-between gap-3">
-        <p className="text-[30px] font-semibold text-gray-900 leading-none">{value}</p>
-        {sub && <p className={`text-xs font-medium leading-none pb-0.5 text-right ${subColor}`}>{sub}</p>}
-      </div>
-    </div>
-  )
-}
 
 function ActionMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit: () => void; onDelete: () => void }) {
   // Shared dropdown so the menu matches every other table and, being portalled,
@@ -703,14 +683,6 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
       {/* Phones get the on-site clock: punch in/out plus this week's summary. */}
       <MobileClockScreen entries={entries} projects={projects} />
 
-      {/* Header */}
-      <div className="hidden md:block flex-none bg-white border-b border-gray-100 px-8 py-3">
-        <div className="flex items-center justify-end gap-3">
-          <Clock size={18} className="text-gray-400" />
-          <span className="text-sm font-medium text-gray-600">{entries.length} entries</span>
-        </div>
-      </div>
-
       <div className="hidden md:block flex-1 overflow-y-auto pb-10">
         {actionError && (
           <div className="mx-8 mt-6 flex items-start justify-between gap-4 rounded-xl border border-red-100 bg-red-50 px-5 py-3">
@@ -719,7 +691,7 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
           </div>
         )}
         {/* Stats */}
-        <div className={`grid grid-cols-4 gap-5 px-8 pt-6 ${BAND_GAP}`}>
+        <StatCardGrid className="px-8 pt-6">
           {/* Each tile carries its own hue — green for who is on site, blue for
               hours, amber for misses, purple for approvals. */}
           <StatCard label="Clocked In Now" value={String(todayIn)} sub="Live on site" subColor="text-emerald-600"
@@ -730,11 +702,11 @@ export function TimeTrackingClient({ initialEntries, employees, projects }: Prop
             subColor="text-orange-600" iconBg="bg-orange-50" icon={<AlertCircle size={16} className="text-orange-500" strokeWidth={1.9} />} />
           <StatCard label="Pending Approvals" value={String(pendingCount)}
             iconBg="bg-purple-50" icon={<CalendarCheck size={16} className="text-purple-500" strokeWidth={1.9} />} />
-        </div>
+        </StatCardGrid>
 
         <div className="px-8">
           {/* Tabs */}
-          <div className={`flex border-b border-gray-200 gap-6 ${BAND_GAP}`}>
+          <div className={`flex border-b border-gray-200 gap-6 ${CONTENT_GAP}`}>
             <button onClick={() => setTab('weekly')} className={`pb-3 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === 'weekly' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Weekly Timesheet</button>
             {/* Counts read inline in brackets, not as badges. */}
             <button onClick={() => setTab('log')} className={`pb-3 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === 'log' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>

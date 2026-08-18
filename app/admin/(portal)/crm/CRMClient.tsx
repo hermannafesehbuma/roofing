@@ -21,9 +21,10 @@ import {
 import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { ActionsDropdown } from '@/app/components/ui/ActionsDropdown'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
-import { BAND_GAP, CONTENT_GAP } from '@/app/components/ui/spacing'
+import { CONTENT_GAP } from '@/app/components/ui/spacing'
 import { SearchInput } from '@/app/components/ui/SearchInput'
 import { useEntry } from '@/app/components/ui/animations'
+import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
 
 // ─── Display mappings ─────────────────────────────────────────────────────────
 const STAGE_COLUMNS: { key: DbLeadStage; label: string; color: string }[] = [
@@ -95,29 +96,6 @@ interface LeadFormValues {
   email: string; phone: string; address: string
   stage: DbLeadStage; source: DbLeadSource | ''
   expectedValue: string; assignedRepId: string; notes: string
-}
-
-// ─── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, sub, subColor, icon, iconBg }: {
-  label: string; value: number | string; sub: string; subColor: string
-  icon: React.ReactNode
-  /** Solid tile behind the icon; the icon itself inherits white. */
-  iconBg: string
-}) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex flex-col justify-between gap-4 min-h-[112px]">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-gray-500">{label}</p>
-        <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-white ${iconBg}`}>
-          {icon}
-        </span>
-      </div>
-      <div className="flex items-end justify-between gap-3">
-        <p className="text-[30px] font-semibold text-gray-900 leading-none">{value}</p>
-        {sub && <p className={`text-xs font-medium leading-none pb-0.5 text-right ${subColor}`}>{sub}</p>}
-      </div>
-    </div>
-  )
 }
 
 // ─── Action Menu ───────────────────────────────────────────────────────────────
@@ -968,15 +946,15 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
         {/* Header */}
         <main className="flex-1 overflow-y-auto p-6">
           {/* Stat Cards */}
-          <div className={`grid grid-cols-2 xl:grid-cols-4 gap-4 ${BAND_GAP}`}>
+          <StatCardGrid>
             <StatCard label="Total Leads" value={leads.length} sub={`${leads.filter(l => l.stage === 'new_lead').length} new this period`} subColor="text-blue-600" iconBg="bg-[#3B82F6]" icon={<Users size={16} strokeWidth={2} />} />
             <StatCard label="Active Clients" value={clients.length} sub={`${clients.filter(c => c.portal_status === 'active').length} portal active`} subColor="text-emerald-600" iconBg="bg-[#F5B544]" icon={<UserCheck size={16} strokeWidth={2} />} />
             <StatCard label="Win Rate" value={`${winRate}%`} sub={`${wonCount} won · ${lostCount} lost`} subColor="text-purple-600" iconBg="bg-[#22C55E]" icon={<TrendingUp size={16} strokeWidth={2} />} />
             <StatCard label="Pipeline Value" value={pipelineValue >= 1000 ? `$${(pipelineValue / 1000).toFixed(0)}K` : `$${pipelineValue}`} sub="Excluding lost/closed" subColor="text-orange-600" iconBg="bg-[#EF4444]" icon={<Banknote size={16} strokeWidth={2} />} />
-          </div>
+          </StatCardGrid>
 
           {/* Section tabs — underlined text, not a pill group. */}
-          <div className={`flex items-center gap-6 border-b border-gray-200 ${BAND_GAP}`}>
+          <div className={`flex items-center gap-6 border-b border-gray-200 ${CONTENT_GAP}`}>
             {([
               { key: 'leads' as const,   label: 'Leads Pipeline', count: leads.length },
               { key: 'clients' as const, label: 'Clients',        count: clients.length },
@@ -1044,7 +1022,7 @@ export function CRMClient({ initialLeads, initialClients, reps }: {
                   <div key={col.key} className="shrink-0 w-[230px]">
                     <div className="flex items-center gap-2 mb-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
                       <span className={`w-2.5 h-2.5 rounded-full ${col.color}`} />
-                      <span className="text-xs font-semibold text-gray-700">{col.label}</span>
+                      <span className="text-sm font-semibold text-gray-700">{col.label}</span>
                       <span className="ml-auto text-[11px] font-medium text-gray-500">{colLeads.length}</span>
                     </div>
                     <div className="space-y-3">
