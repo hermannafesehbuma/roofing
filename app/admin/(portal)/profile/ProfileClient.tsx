@@ -3,14 +3,18 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Camera, LogOut, KeyRound } from 'lucide-react'
+import { Camera, LogOut, KeyRound, Settings as SettingsIcon } from 'lucide-react'
 import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
 import { Skeleton } from '@/app/components/ui/Skeleton'
 import { ROLE_TITLES } from '@/app/components/ui/ProfileMenu'
 import { initialsOf } from '@/app/components/ui/useCurrentUser'
 import { readSession, patchSession, clearSession } from '@/lib/session'
 import { formatShortDate } from '@/lib/format'
-import { getOwnProfile, updateOwnProfile, uploadProfilePhoto, type OwnProfile } from './actions'
+import Link from 'next/link'
+import {
+  getOwnProfile, updateOwnProfile, uploadProfilePhoto, getProfileRecords,
+  type OwnProfile, type ProfileRecords,
+} from './actions'
 
 /**
  * "My Profile" — the account screen behind the header avatar menu.
@@ -22,6 +26,7 @@ import { getOwnProfile, updateOwnProfile, uploadProfilePhoto, type OwnProfile } 
 export function ProfileClient() {
   const router = useRouter()
   const [profile, setProfile] = useState<OwnProfile | null>(null)
+  const [records, setRecords] = useState<ProfileRecords>({ certifications: [], payStubs: [] })
   const [loading, setLoading] = useState(true)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -34,6 +39,7 @@ export function ProfileClient() {
 
   useEffect(() => {
     const session = readSession()
+    getProfileRecords(session?.id ?? '').then(setRecords)
     getOwnProfile(session?.id ?? '').then((data) => {
       if (data) {
         setProfile(data)
@@ -88,7 +94,18 @@ export function ProfileClient() {
 
   return (
     <>
-      <MobileHeader title="Profile" />
+      <MobileHeader
+        title="Profile"
+        action={
+          <Link
+            href="/admin/profile/settings"
+            aria-label="Settings"
+            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+          >
+            <SettingsIcon size={18} />
+          </Link>
+        }
+      />
 
       <div className="flex-1 overflow-y-auto p-4 md:p-8">
         <div className="max-w-2xl mx-auto space-y-4">
@@ -199,6 +216,55 @@ export function ProfileClient() {
                 </section>
               )}
 
+              {/* Certifications — maintained from Insurance, read-only here. */}
+              {records.certifications.length > 0 && (
+                <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-4">Certification</h2>
+                  <ul className="divide-y divide-gray-50">
+                    {records.certifications.map((cert) => (
+                      <li key={cert.id} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{cert.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {cert.expiryDate ? `Expires: ${formatShortDate(cert.expiryDate)}` : 'No expiry'}
+                            {/* The countdown only earns its place while it is close. */}
+                            {cert.daysRemaining !== null && cert.daysRemaining >= 0 && cert.daysRemaining <= 60 &&
+                              ` — ${cert.daysRemaining} days`}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 px-2 py-1 rounded-md text-[11px] font-medium ${CERT_BADGE[cert.status] ?? CERT_BADGE.valid}`}>
+                          {CERT_LABEL[cert.status] ?? cert.status}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {/* Pay stubs — most recent period first. */}
+              {records.payStubs.length > 0 && (
+                <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-4">Pay Stubs</h2>
+                  <ul className="divide-y divide-gray-50">
+                    {records.payStubs.map((stub) => (
+                      <li key={stub.id} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {formatShortDate(stub.periodStart)} – {formatShortDate(stub.periodEnd)}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Regular{stub.hoursWorked !== null && ` · ${stub.hoursWorked} hrs`}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold text-emerald-600">
+                          {fmtPay(stub.netPay)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
               {/* Account actions */}
               <section className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
                 <a
@@ -209,9 +275,9 @@ export function ProfileClient() {
                 </a>
                 <button
                   onClick={handleSignOut}
-                  className="w-full flex items-center gap-3 px-6 py-4 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold text-red-600 bg-red-50/60 hover:bg-red-50 transition-colors"
                 >
-                  <LogOut size={16} /> Log Out
+                  Log Out <LogOut size={16} />
                 </button>
               </section>
             </>
@@ -220,6 +286,24 @@ export function ProfileClient() {
       </div>
     </>
   )
+}
+
+/** Certification status pills, matching the Insurance board's colours. */
+const CERT_BADGE: Record<string, string> = {
+  valid:         'text-emerald-700 bg-emerald-50',
+  expiring_soon: 'text-orange-700 bg-orange-50',
+  expired:       'text-red-700 bg-red-50',
+}
+
+const CERT_LABEL: Record<string, string> = {
+  valid:         'Valid',
+  expiring_soon: 'Expiring Soon',
+  expired:       'Expired',
+}
+
+/** Whole dollars — pay stubs are shown to the crew, not accounted here. */
+function fmtPay(v: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v)
 }
 
 const INPUT =
