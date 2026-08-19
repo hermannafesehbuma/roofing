@@ -24,6 +24,7 @@ import { CONTENT_GAP } from '@/app/components/ui/spacing'
 import { ViewToggle } from '@/app/components/ui/ViewToggle'
 import { SearchInput } from '@/app/components/ui/SearchInput'
 import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
+import { SegmentedTabs } from '@/app/components/ui/SegmentedTabs'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function computeStatus(qty: number, min: number): DbInventoryStatus {
@@ -883,22 +884,16 @@ export function InventoryClient({ initialItems, initialUsage, initialPurchaseOrd
             />
           </StatCardGrid>
 
-          {/* Tabs — segmented pills on a light track, active one filled navy. */}
-          <div className={`flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit ${CONTENT_GAP}`}>
-            {([
-              { id: 'items', label: 'Items',           count: totalSKUs },
-              { id: 'pos',   label: 'Purchase Orders', count: pos.length },
-              { id: 'usage', label: 'Usage Log',       count: null },
-            ] as const).map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${tab === t.id ? 'bg-[#0D1B2A] text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
-              >
-                {t.label}{t.count !== null && ` (${t.count})`}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            value={tab}
+            onChange={setTab}
+            className={CONTENT_GAP}
+            options={[
+              { value: 'items', label: 'Items',           count: totalSKUs },
+              { value: 'pos',   label: 'Purchase Orders', count: pos.length },
+              { value: 'usage', label: 'Usage Log',       count: null },
+            ] as const}
+          />
 
           {/* Toolbar */}
           <div className={`flex items-center justify-between ${CONTENT_GAP}`}>
@@ -977,7 +972,7 @@ export function InventoryClient({ initialItems, initialUsage, initialPurchaseOrd
                       <div key={colStatus} className="flex flex-col">
                         {/* Neutral header — only the dot carries the status
                             colour, as on the Projects board. */}
-                        <div className="flex items-center gap-2.5 mb-4 rounded-xl bg-gray-50 px-4 py-3.5">
+                        <div className="flex items-center gap-2.5 mb-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
                           <div className={`w-2.5 h-2.5 rounded-full ${theme.dot}`} />
                           <h3 className="text-sm font-semibold text-gray-900">{theme.label}</h3>
                           <span className="ml-auto w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">{colItems.length}</span>

@@ -27,18 +27,11 @@ import { useSlideOver } from '@/app/components/ui/useSlideOver'
 import { CONTENT_GAP } from '@/app/components/ui/spacing'
 import { SearchInput } from '@/app/components/ui/SearchInput'
 import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
+import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
+import { MobileInvoiceList } from '@/app/components/ui/mobile/MobileInvoiceList'
+import { STATUS_LABEL, STATUS_CONFIG, fmtCurrency, fmtDate, invoiceTotal } from './display'
 
 // ─── Display maps ──────────────────────────────────────────────────────────────
-const STATUS_LABEL: Record<DbInvoiceStatus, string> = {
-  draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue', partial: 'Partial',
-}
-const STATUS_CONFIG: Record<DbInvoiceStatus, { bg: string; text: string; dot: string }> = {
-  paid:    { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  overdue: { bg: 'bg-red-50',     text: 'text-red-700',     dot: 'bg-red-500'     },
-  draft:   { bg: 'bg-gray-100',   text: 'text-gray-600',    dot: 'bg-gray-400'    },
-  sent:    { bg: 'bg-blue-50',    text: 'text-blue-700',    dot: 'bg-blue-500'    },
-  partial: { bg: 'bg-amber-50',   text: 'text-amber-700',   dot: 'bg-amber-500'   },
-}
 const FREQ_LABEL: Record<DbFrequency, string> = {
   monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annual',
 }
@@ -60,23 +53,12 @@ function avatarColor(id: string) {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]
 }
 
-function fmtCurrency(v: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v)
-}
 /** Days between today and an ISO date; negative once the date has passed. */
 function daysUntil(iso: string) {
   if (!iso) return 0
   return Math.ceil((new Date(iso + 'T00:00:00').getTime() - Date.now()) / 86_400_000)
 }
 
-function fmtDate(iso: string) {
-  if (!iso) return '—'
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-function invoiceTotal(inv: InvoiceRow) {
-  const sub = inv.items.reduce((s, i) => s + i.qty * i.rate, 0)
-  return sub + sub * (inv.tax / 100)
-}
 function thisMonth(iso: string) {
   const d = new Date(iso + 'T00:00:00')
   const now = new Date()
@@ -291,6 +273,89 @@ function InvoiceFilterPopover({ filters, clients, onApply }: {
         </div>
       )}
     </div>
+  )
+}
+
+// ─── Mobile Filter Modal ───────────────────────────────────────────────────────
+/**
+ * The desktop filter is a popover anchored to its toolbar button; a phone has
+ * no toolbar to anchor to, so the same controls become a centred dialog over a
+ * blurred backdrop. Selections stage locally and land on Apply, as on desktop.
+ */
+function MobileFilterModal({ filters, onApply, onClose }: {
+  filters: InvoiceFilters; onApply: (f: InvoiceFilters) => void; onClose: () => void
+}) {
+  const { close, backdropCls, panelCls } = useSlideOver(onClose, 'zoom')
+  const [draft, setDraft] = useState<InvoiceFilters>(filters)
+
+  function toggle<K extends 'status' | 'amount' | 'date'>(key: K, value: InvoiceFilters[K][number]) {
+    const current = draft[key] as InvoiceFilters[K][number][]
+    const next = current.includes(value) ? current.filter(v => v !== value) : [...current, value]
+    setDraft({ ...draft, [key]: next })
+  }
+
+  const chip = (active: boolean) => `${filterChipCls(active)} w-full text-center px-3 py-2.5 text-xs`
+
+  return (
+    <>
+      <div className={`md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] ${backdropCls}`} onClick={close} />
+      <div className="md:hidden fixed inset-0 z-[101] flex items-center justify-center p-5 pointer-events-none">
+        <div className={`pointer-events-auto w-full max-w-sm max-h-[85vh] overflow-y-auto bg-white rounded-2xl shadow-2xl p-5 ${panelCls}`}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-semibold text-gray-900">Filter</h2>
+            <button onClick={close} aria-label="Close filter" className="w-8 h-8 -mr-1 flex items-center justify-center rounded-full text-gray-400 active:bg-gray-100">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="space-y-5">
+            <div>
+              <p className="text-xs font-semibold text-gray-700 mb-2.5">Status</p>
+              <div className="grid grid-cols-2 gap-3">
+                {DB_STATUSES.map(s => (
+                  <button key={s} onClick={() => toggle('status', s)} className={chip(draft.status.includes(s))}>
+                    {STATUS_LABEL[s]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-700 mb-2.5">Amount</p>
+              <div className="grid grid-cols-2 gap-3">
+                {AMOUNT_OPTIONS.map(({ key, label }) => (
+                  <button key={key} onClick={() => toggle('amount', key)} className={chip(draft.amount.includes(key))}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-700 mb-2.5">Date</p>
+              <div className="grid grid-cols-2 gap-3">
+                {DATE_OPTIONS.map(({ key, label }) => (
+                  <button key={key} onClick={() => toggle('date', key)} className={chip(draft.date.includes(key))}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <button onClick={() => { setDraft(EMPTY_FILTERS); onApply(EMPTY_FILTERS); close() }}
+                className="px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 active:bg-gray-50 transition-colors">
+                Clear All
+              </button>
+              <button onClick={() => { onApply(draft); close() }}
+                className="px-4 py-3 bg-[#0D1B2A] text-white rounded-xl text-sm font-semibold active:bg-[#162437] transition-colors">
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -990,6 +1055,8 @@ export function InvoicesClient({
   const [page, setPage]           = useState(1)
   const [toast, setToast]         = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  /** The phone filter dialog; desktop uses the toolbar popover instead. */
+  const [mobileFilter, setMobileFilter] = useState(false)
   const importInputRef            = useRef<HTMLInputElement>(null)
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
@@ -1010,6 +1077,13 @@ export function InvoicesClient({
   const paidCount    = invoices.filter(i => i.status === 'paid').length
   const closedCount  = invoices.filter(i => i.status === 'paid' || i.status === 'overdue' || i.status === 'partial').length
   const collectionRate = closedCount > 0 ? Math.round(paidCount / closedCount * 100) : 0
+
+  // The phone shows three tiles that must reconcile, so drafts — not yet money
+  // owed by anyone — are left out and outstanding is simply what is unpaid.
+  const issuedInvoices = invoices.filter(i => i.status !== 'draft')
+  const totalInvoiced  = issuedInvoices.reduce((s, i) => s + invoiceTotal(i), 0)
+  const totalPaid      = issuedInvoices.filter(i => i.status === 'paid').reduce((s, i) => s + invoiceTotal(i), 0)
+  const totalOutstanding = totalInvoiced - totalPaid
 
   // ─── Filters ────────────────────────────────────────────────────────────────
   // Every section is a union within itself and an intersection across sections:
@@ -1246,11 +1320,36 @@ export function InvoicesClient({
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
-      {/* Header */}
+      {/* Phones get no AppHeader, so the screen carries its own title bar. */}
+      <MobileHeader title="Invoices" />
+
       {/* Toast */}
       {toast && <Toast message={toast} variant={/^(Error|An unexpected)/.test(toast) ? 'error' : 'success'} />}
 
-      <div className="flex-1 overflow-y-auto">
+      {/* Phones get a card list — the table below needs 1000px to read. */}
+      <div className="md:hidden flex-1 overflow-y-auto p-4 bg-[#FCFCFD]">
+        <MobileInvoiceList
+          invoices={filteredInvoices}
+          totalInvoiced={totalInvoiced}
+          totalPaid={totalPaid}
+          outstanding={totalOutstanding}
+          search={search}
+          onSearchChange={v => { setSearch(v); setPage(1) }}
+          onOpenFilter={() => setMobileFilter(true)}
+          filterCount={filterCount(filters)}
+          onSelect={inv => setModal({ type: 'viewInvoice', invoice: inv })}
+        />
+      </div>
+
+      {mobileFilter && (
+        <MobileFilterModal
+          filters={filters}
+          onApply={applyFilters}
+          onClose={() => setMobileFilter(false)}
+        />
+      )}
+
+      <div className="hidden md:block flex-1 overflow-y-auto">
         {/* Stat cards */}
         <StatCardGrid className="px-8 pt-6">
           <StatCard label="Revenue This Month" value={fmtCurrency(revenueThisMonth)}

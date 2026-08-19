@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Filter, Search, X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
+import { FilterButton } from '@/app/components/ui/ToolbarButtons'
 import type {
   DbLeadStage, DbLeadSource, DbPortalStatus, RepOption,
 } from '@/app/admin/(portal)/crm/actions'
@@ -108,24 +109,10 @@ export function CRMFilterPopover({
 
   return (
     <div className="relative" ref={popoverRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1.5 px-3 py-2 text-xs border rounded-lg transition-colors ${
-          count > 0
-            ? 'border-[#0D1B2A]/20 bg-[#0D1B2A]/5 text-[#0D1B2A] font-medium'
-            : 'border-gray-200 text-gray-600 hover:bg-gray-50 bg-white'
-        }`}
-      >
-        <Filter size={13} /> Filter
-        {count > 0 && (
-          <span className="w-4 h-4 flex items-center justify-center rounded-full bg-[#0D1B2A] text-white text-[9px] font-semibold">
-            {count}
-          </span>
-        )}
-      </button>
+      <FilterButton onClick={() => setIsOpen(!isOpen)} active={isOpen} count={count} />
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-5 z-50">
+        <div className="absolute right-0 top-11 w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-5 z-50">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-semibold text-gray-900">
               Filter {tab === 'leads' ? 'Leads' : 'Clients'}

@@ -13,6 +13,7 @@ import { KanbanSquare, List, Download, Plus, Upload, FileDown, FileText, X } fro
 import Image from 'next/image';
 import { KanbanSkeleton, TableSkeleton, CardGridSkeleton } from '@/app/components/ui/Skeleton';
 import { useEntry } from '@/app/components/ui/animations';
+import { CONTENT_GAP } from '@/app/components/ui/spacing';
 import { getProjects, deleteProject, importProjects } from './actions';
 import { ViewToggle } from '@/app/components/ui/ViewToggle';
 import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader';
@@ -242,7 +243,7 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
       </div>
 
       {/* Toolbar */}
-      <div {...enter.fade('hidden md:flex flex-none px-7 py-3 bg-white items-center gap-3')}>
+      <div {...enter.fade(`hidden md:flex flex-none px-8 pt-3 ${CONTENT_GAP} bg-white items-center gap-3`)}>
         <ViewToggle
           value={viewMode}
           onChange={setViewMode}
@@ -285,7 +286,7 @@ export function ProjectsClient({ initialProjects }: { initialProjects: Project[]
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto px-8 pb-8">
         {loading ? (
           // Shaped like whichever view is about to appear, so nothing shifts.
           viewMode === 'kanban'

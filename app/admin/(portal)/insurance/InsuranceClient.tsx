@@ -26,6 +26,7 @@ import { Toast } from '@/app/components/ui/Toast'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
 import { SearchInput } from '@/app/components/ui/SearchInput'
 import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
+import { SegmentedTabs } from '@/app/components/ui/SegmentedTabs'
 
 // ─── Display maps ──────────────────────────────────────────────────────────────
 const STATUS_LABEL: Record<DbPolicyStatus, string> = {
@@ -1349,16 +1350,15 @@ export function InsuranceClient({ initialPolicies, initialCerts, employees }: {
 
         {/* Tabs & Toolbar */}
         <div className="px-8 flex-none">
-          <div className={`flex items-center gap-3 ${CONTENT_GAP}`}>
-            <button onClick={() => setTab('coi')}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${tab === 'coi' ? 'bg-[#0D1B2A] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-              COI Policies ({policies.length})
-            </button>
-            <button onClick={() => setTab('certs')}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${tab === 'certs' ? 'bg-[#0D1B2A] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-              Employee Certifications ({certs.length})
-            </button>
-          </div>
+          <SegmentedTabs
+            value={tab}
+            onChange={setTab}
+            className={CONTENT_GAP}
+            options={[
+              { value: 'coi',   label: 'COI Policies',            count: policies.length },
+              { value: 'certs', label: 'Employee Certifications', count: certs.length },
+            ] as const}
+          />
 
           <div {...enter.fade(`flex items-center gap-3 relative ${CONTENT_GAP}`)}>
             <ViewToggle

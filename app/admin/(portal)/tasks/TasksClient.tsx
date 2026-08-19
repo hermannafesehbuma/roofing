@@ -22,6 +22,7 @@ import { MobileHeader } from '@/app/components/ui/mobile/MobileHeader'
 import { MobileTaskList } from '@/app/components/ui/mobile/MobileTaskList'
 import { SearchInput } from '@/app/components/ui/SearchInput'
 import { StatCard, StatCardGrid } from '@/app/components/ui/StatCard'
+import { CONTENT_GAP } from '@/app/components/ui/spacing'
 
 /** Buckets used by the Due Date select in the filter panel. */
 function matchesDue(due: string | null, filter: TaskFilters['dueDate']): boolean {
@@ -253,7 +254,7 @@ export function TasksClient({
       </div>
 
       {/* Toolbar */}
-      <div {...enter.fade('hidden md:flex flex-none px-8 py-4 bg-white items-center gap-3')}>
+      <div {...enter.fade(`hidden md:flex flex-none px-8 ${CONTENT_GAP} bg-white items-center gap-3`)}>
         <ViewToggle
           value={viewMode}
           onChange={setViewMode}
@@ -289,7 +290,7 @@ export function TasksClient({
       </div>
 
       {/* Content */}
-      <div className="hidden md:block flex-1 overflow-hidden p-8 relative">
+      <div className="hidden md:block flex-1 overflow-hidden px-8 pb-8 relative">
         {toast && <Toast message={toast.message} variant={toast.type} />}
 
         {viewMode === 'kanban' && (
