@@ -29,7 +29,7 @@ export function MobileHeader({
 }) {
   if (backHref) {
     return (
-      <header className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-2">
+      <header className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 px-4 pt-[calc(env(safe-area-inset-top)+28px)] pb-4 flex items-center gap-2">
         <Link
           href={backHref}
           aria-label="Back"
@@ -45,7 +45,7 @@ export function MobileHeader({
   }
 
   return (
-    <header className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-5 flex items-center justify-between gap-3">
+    <header className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 px-4 pt-[calc(env(safe-area-inset-top)+32px)] pb-5 flex items-center justify-between gap-3">
       <h1 className="text-[26px] leading-tight font-semibold text-gray-900 truncate">{title}</h1>
       <div className="flex items-center gap-2 shrink-0">
         {action}

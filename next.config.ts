@@ -26,6 +26,19 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '12mb',
     },
   },
+  /*
+   * Inbox is switched off product-wide (see `DISABLED_ROUTES` in
+   * lib/navigation.ts, which hides it from every nav surface). This closes the
+   * last way in — a typed or bookmarked URL — by bouncing it to the dashboard.
+   * Temporary, not permanent: the redirect should not be cached by browsers if
+   * the feature comes back.
+   */
+  async redirects() {
+    return [
+      { source: '/admin/inbox', destination: '/admin/dashboard', permanent: false },
+      { source: '/admin/inbox/:path*', destination: '/admin/dashboard', permanent: false },
+    ]
+  },
   images: {
     remotePatterns: [
       {

@@ -11,6 +11,18 @@ export type NavItem = {
   href: string
 }
 
+/**
+ * Routes switched off across the whole product. They stay in the codebase and
+ * keep their pages, but disappear from every nav surface — sidebar, mobile tab
+ * bar and the client portal — and `next.config.ts` redirects the URL, so a
+ * typed address cannot reach them either. Re-enable by emptying this list.
+ */
+export const DISABLED_ROUTES: readonly string[] = ['/admin/inbox']
+
+export function isRouteDisabled(pathname: string): boolean {
+  return DISABLED_ROUTES.some((href) => pathname === href || pathname.startsWith(`${href}/`))
+}
+
 const ALL_NAV: NavItem[] = [
   { label: 'Dashboard',        icon: LayoutDashboard, href: '/admin/dashboard',     shortLabel: 'Home' },
   { label: 'Employees',        icon: Users,           href: '/admin/employees' },
@@ -42,11 +54,14 @@ export function homeRouteForRole(role: string) {
 }
 
 export function navForRole(role: string): NavItem[] {
+  const enabled = ALL_NAV.filter((item) => !isRouteDisabled(item.href))
   if (role === 'client') {
-    return CLIENT_ROUTES.map((href) => ALL_NAV.find((item) => item.href === href)!).filter(Boolean)
+    return CLIENT_ROUTES.map((href) => enabled.find((item) => item.href === href)).filter(
+      (item): item is NavItem => Boolean(item)
+    )
   }
   // Documents is a client-facing page; staff reach files through a project.
-  return ALL_NAV.filter((item) => item.href !== '/admin/documents')
+  return enabled.filter((item) => item.href !== '/admin/documents')
 }
 
 /**
@@ -56,6 +71,7 @@ export function navForRole(role: string): NavItem[] {
 export const SELF_SERVICE_ROUTES = ['/admin/profile'] as const
 
 export function isRouteAllowedForRole(pathname: string, role: string) {
+  if (isRouteDisabled(pathname)) return false
   if (role !== 'client') return true
   return [...CLIENT_ROUTES, ...SELF_SERVICE_ROUTES].some(
     (href) => pathname === href || pathname.startsWith(`${href}/`)
@@ -71,7 +87,9 @@ const CREW_TABS = ['/admin/dashboard', '/admin/projects', '/admin/tasks', '/admi
 
 export function mobileTabsForRole(role: string): NavItem[] {
   if (role === 'client') return navForRole('client')
-  return CREW_TABS.map((href) => ALL_NAV.find((item) => item.href === href)!).filter(Boolean)
+  return CREW_TABS.filter((href) => !isRouteDisabled(href))
+    .map((href) => ALL_NAV.find((item) => item.href === href))
+    .filter((item): item is NavItem => Boolean(item))
 }
 
 /**

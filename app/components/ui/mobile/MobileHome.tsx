@@ -89,19 +89,21 @@ export function MobileHome({
 
   return (
     <div className="md:hidden flex flex-col h-full overflow-hidden bg-[#F4F6F9]">
-      <header className="bg-white px-4 py-3 flex items-center justify-between border-b border-gray-100">
-        <div>
-          <p className="text-[11px] text-gray-400">{greeting(greetingHour)}</p>
-          <p className="text-lg font-semibold text-gray-900 leading-tight">
+      {/* Same rhythm as `MobileHeader`: the greeting block stands in for the
+          page title, so it carries the same padding and control sizes. */}
+      <header className="bg-white px-4 pt-[calc(env(safe-area-inset-top)+32px)] pb-5 flex items-center justify-between gap-3 border-b border-gray-100">
+        <div className="min-w-0">
+          <p className="text-xs text-gray-400">{greeting(greetingHour)}</p>
+          <p className="text-2xl font-semibold text-gray-900 leading-tight truncate">
             {shortName(profile?.name ?? '')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="relative w-9 h-9 flex items-center justify-center rounded-full bg-gray-50 border border-gray-100 text-gray-500">
-            <Bell size={16} />
+        <div className="flex items-center gap-2 shrink-0">
+          <button className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+            <Bell size={18} />
             <span className="absolute top-2 right-2.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
           </button>
-          <ProfileMenu />
+          <ProfileMenu size={44} />
         </div>
       </header>
 
