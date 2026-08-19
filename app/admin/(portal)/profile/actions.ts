@@ -15,6 +15,7 @@ export type OwnProfile = {
   employeeId: string | null
   startDate: string | null
   avatarUrl: string | null
+  status: string | null
 }
 
 export async function getOwnProfile(userId: string): Promise<OwnProfile | null> {
@@ -23,7 +24,7 @@ export async function getOwnProfile(userId: string): Promise<OwnProfile | null> 
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('users')
-    .select('id, first_name, last_name, email, phone, role, department, employee_id, start_date, avatar_url')
+    .select('id, first_name, last_name, email, phone, role, department, employee_id, start_date, avatar_url, status')
     .eq('id', userId)
     .maybeSingle()
 
@@ -40,6 +41,7 @@ export async function getOwnProfile(userId: string): Promise<OwnProfile | null> 
     employeeId: data.employee_id,
     startDate: data.start_date,
     avatarUrl: data.avatar_url,
+    status: data.status ?? null,
   }
 }
 

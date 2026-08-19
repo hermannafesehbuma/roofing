@@ -11,6 +11,7 @@ import { initialsOf } from '@/app/components/ui/useCurrentUser'
 import { readSession, patchSession, clearSession } from '@/lib/session'
 import { formatShortDate } from '@/lib/format'
 import Link from 'next/link'
+import { TechnicianProfile } from './TechnicianProfile'
 import {
   getOwnProfile, updateOwnProfile, uploadProfilePhoto, getProfileRecords,
   type OwnProfile, type ProfileRecords,
@@ -96,6 +97,7 @@ export function ProfileClient() {
     <>
       <MobileHeader
         title="Profile"
+        hideAvatar
         action={
           <Link
             href="/admin/profile/settings"
@@ -134,6 +136,10 @@ export function ProfileClient() {
             </div>
           ) : !profile ? (
             <p className="py-16 text-center text-sm text-gray-400">We could not load your profile.</p>
+          ) : profile.role === 'technician' ? (
+            /* The crew get the read-only screen from the design: identity,
+               certifications, pay, sign out. Editing lives behind the gear. */
+            <TechnicianProfile profile={profile} records={records} onSignOut={handleSignOut} />
           ) : (
             <>
               {/* Identity */}
@@ -216,55 +222,6 @@ export function ProfileClient() {
                 </section>
               )}
 
-              {/* Certifications — maintained from Insurance, read-only here. */}
-              {records.certifications.length > 0 && (
-                <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                  <h2 className="text-sm font-semibold text-gray-900 mb-4">Certification</h2>
-                  <ul className="divide-y divide-gray-50">
-                    {records.certifications.map((cert) => (
-                      <li key={cert.id} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{cert.name}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {cert.expiryDate ? `Expires: ${formatShortDate(cert.expiryDate)}` : 'No expiry'}
-                            {/* The countdown only earns its place while it is close. */}
-                            {cert.daysRemaining !== null && cert.daysRemaining >= 0 && cert.daysRemaining <= 60 &&
-                              ` — ${cert.daysRemaining} days`}
-                          </p>
-                        </div>
-                        <span className={`shrink-0 px-2 py-1 rounded-md text-[11px] font-medium ${CERT_BADGE[cert.status] ?? CERT_BADGE.valid}`}>
-                          {CERT_LABEL[cert.status] ?? cert.status}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {/* Pay stubs — most recent period first. */}
-              {records.payStubs.length > 0 && (
-                <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                  <h2 className="text-sm font-semibold text-gray-900 mb-4">Pay Stubs</h2>
-                  <ul className="divide-y divide-gray-50">
-                    {records.payStubs.map((stub) => (
-                      <li key={stub.id} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {formatShortDate(stub.periodStart)} – {formatShortDate(stub.periodEnd)}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            Regular{stub.hoursWorked !== null && ` · ${stub.hoursWorked} hrs`}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-sm font-semibold text-emerald-600">
-                          {fmtPay(stub.netPay)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
               {/* Account actions */}
               <section className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
                 <a
@@ -286,24 +243,6 @@ export function ProfileClient() {
       </div>
     </>
   )
-}
-
-/** Certification status pills, matching the Insurance board's colours. */
-const CERT_BADGE: Record<string, string> = {
-  valid:         'text-emerald-700 bg-emerald-50',
-  expiring_soon: 'text-orange-700 bg-orange-50',
-  expired:       'text-red-700 bg-red-50',
-}
-
-const CERT_LABEL: Record<string, string> = {
-  valid:         'Valid',
-  expiring_soon: 'Expiring Soon',
-  expired:       'Expired',
-}
-
-/** Whole dollars — pay stubs are shown to the crew, not accounted here. */
-function fmtPay(v: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v)
 }
 
 const INPUT =
