@@ -21,6 +21,7 @@ import { ConfirmDeleteModal } from '@/app/components/ui/ConfirmDeleteModal'
 import { Toast } from '@/app/components/ui/Toast'
 import { FilterButton } from '@/app/components/ui/ToolbarButtons'
 import { useSlideOver } from '@/app/components/ui/useSlideOver'
+import { UsersAccessTab } from './UsersAccessTab'
 
 // --- Color Helpers ---
 const avatarColors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#6366F1', '#EC4899']
@@ -364,7 +365,7 @@ export function SettingsClient({
   initialAuditLogs
 }: SettingsClientProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'Staff Directory' | 'Permissions' | 'Audit log' | 'Security'>('Staff Directory')
+  const [activeTab, setActiveTab] = useState<'Staff Directory' | 'Users & Access' | 'Permissions' | 'Audit log' | 'Security'>('Staff Directory')
   const [isPending, startTransition] = useTransition()
   const [employees, setEmployees] = useState<EmployeeRow[]>(initialEmployees)
   const [stats, setStats] = useState<SettingsStats>(initialStats)
@@ -408,8 +409,10 @@ export function SettingsClient({
       if (!p) return false
       return !!p[userRole as keyof Permission]
     }
-    const tabs: ('Staff Directory' | 'Permissions' | 'Audit log' | 'Security')[] = []
+    const tabs: ('Staff Directory' | 'Users & Access' | 'Permissions' | 'Audit log' | 'Security')[] = []
     if (hasPerm('manage_staff_accounts')) tabs.push('Staff Directory')
+    // Onboarding state spans staff and clients, so it is Admin-only.
+    if (userRole === 'admin') tabs.push('Users & Access')
     if (userRole === 'admin') {
       tabs.push('Permissions')
       tabs.push('Audit log')
@@ -710,6 +713,10 @@ export function SettingsClient({
 
             {/* TAB CONTENT */}
             <div className="p-6">
+              {activeTab === 'Users & Access' && (
+                <UsersAccessTab onNotify={(message, type) => setToast({ message, type })} />
+              )}
+
               {/* STAFF DIRECTORY TAB */}
               {activeTab === 'Staff Directory' && (
                 <div className="space-y-4">

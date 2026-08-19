@@ -1,21 +1,7 @@
 'use server'
 
-import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-async function getSiteUrl() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '')
-  }
-
-  const headerList = await headers()
-  const origin = headerList.get('origin')
-  if (origin) return origin
-
-  const host = headerList.get('host') ?? 'localhost:3000'
-  const proto = headerList.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https')
-  return `${proto}://${host}`
-}
+import { getSiteUrl } from '@/lib/site-url'
 
 export async function requestPasswordReset(email: string) {
   const trimmed = email.trim()

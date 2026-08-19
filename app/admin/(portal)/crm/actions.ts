@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendInvite } from '@/lib/email/sendInvite'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type DbLeadStage = 'new_lead' | 'contacted' | 'proposal_sent' | 'lost' | 'won' | 'closed'
@@ -219,7 +220,9 @@ export async function deleteLead(id: string) {
   return { success: true }
 }
 
-export async function convertLeadToClient(leadId: string): Promise<{ clientId: string } | { error: string }> {
+export async function convertLeadToClient(
+  leadId: string
+): Promise<{ clientId: string; inviteError?: string } | { error: string }> {
   const admin = createAdminClient()
 
   // Fetch the lead
@@ -272,8 +275,106 @@ export async function convertLeadToClient(leadId: string): Promise<{ clientId: s
     converted_client_id: client.id,
   }).eq('id', leadId)
 
+  // A won lead becomes a project the client can actually see — setting
+  // client_id here is what makes it appear in their portal (Addendum Task 4).
+  await createProjectForClient(client.id, {
+    name: lead.company?.trim() || `${lead.first_name} ${lead.last_name}`.trim(),
+    location: lead.address ?? null,
+    managerId: lead.assigned_rep_id ?? null,
+  })
+
+  const invite = await provisionClientPortal(client.id, {
+    email: lead.email,
+    name: `${lead.first_name} ${lead.last_name}`.trim(),
+  })
+
   revalidatePath('/admin/crm')
-  return { clientId: client.id }
+  revalidatePath('/admin/projects')
+  return invite.sent
+    ? { clientId: client.id }
+    : { clientId: client.id, inviteError: invite.error }
+}
+
+/**
+ * Gives a client a portal login and mails them the activation link.
+ *
+ * The auth user and the `users` row are created together so the portal can be
+ * scoped by `clients.portal_user_id` before the client ever signs in; the
+ * password is random and never communicated, exactly as with staff.
+ */
+async function provisionClientPortal(
+  clientId: string,
+  contact: { email: string; name: string }
+): Promise<{ sent: true } | { sent: false; error: string }> {
+  const admin = createAdminClient()
+
+  const { data: existingUser } = await admin
+    .from('users')
+    .select('id')
+    .ilike('email', contact.email)
+    .maybeSingle()
+
+  let portalUserId = existingUser?.id ?? null
+
+  if (!portalUserId) {
+    const [firstName, ...rest] = contact.name.split(' ')
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email: contact.email,
+      email_confirm: true,
+      password: crypto.randomUUID(),
+      user_metadata: { full_name: contact.name },
+    })
+    if (authError || !authData.user) {
+      return { sent: false, error: authError?.message ?? 'Could not create the portal login' }
+    }
+
+    const { data: created, error: userErr } = await admin
+      .from('users')
+      .insert({
+        supabase_id: authData.user.id,
+        email: contact.email,
+        first_name: firstName || contact.name,
+        last_name: rest.join(' '),
+        role: 'client',
+        onboarding_status: 'invited',
+      })
+      .select('id')
+      .single()
+
+    if (userErr || !created) {
+      await admin.auth.admin.deleteUser(authData.user.id)
+      return { sent: false, error: userErr?.message ?? 'Could not create the portal login' }
+    }
+    portalUserId = created.id
+  }
+
+  await admin
+    .from('clients')
+    .update({ portal_user_id: portalUserId, portal_status: 'invited' })
+    .eq('id', clientId)
+
+  return sendInvite({ email: contact.email, name: contact.name, table: 'clients', id: clientId })
+}
+
+/** Project codes are sequential and unique; derive the next one from the count. */
+async function createProjectForClient(
+  clientId: string,
+  input: { name: string; location: string | null; managerId: string | null }
+) {
+  const admin = createAdminClient()
+
+  const { count } = await admin.from('projects').select('id', { count: 'exact', head: true })
+  const code = `PRJ-${String((count ?? 0) + 1).padStart(4, '0')}`
+
+  await admin.from('projects').insert({
+    code,
+    name: input.name || 'New Project',
+    type: 'residential',
+    status: 'in_progress',
+    location: input.location,
+    manager_id: input.managerId,
+    client_id: clientId,
+  })
 }
 
 // ─── Client detail panel ──────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { uploadToStorage, StorageFolder } from '@/lib/storage'
+import { sendInvite } from '@/lib/email/sendInvite'
 
 export type EmployeeRow = {
   id: string
@@ -67,7 +68,10 @@ export type CreateEmployeeInput = {
 export async function createEmployee(input: CreateEmployeeInput) {
   const admin = createAdminClient()
 
-  // Create auth user — temp password, user should reset via email
+  // The auth user has to exist first so the employee row can hold its
+  // supabase_id. It is created with a random password that is never stored,
+  // shown, or sent — the invite below is the only way in, and the invitee sets
+  // the real password themselves (Addendum Task 4).
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: input.email,
     email_confirm: true,
@@ -96,6 +100,7 @@ export async function createEmployee(input: CreateEmployeeInput) {
       rate_of_pay: input.rateOfPay,
       start_date: input.startDate || null,
       avatar_url: input.avatarUrl,
+      onboarding_status: 'invited',
     })
     .select('id')
     .single()
@@ -106,8 +111,18 @@ export async function createEmployee(input: CreateEmployeeInput) {
     return { error: dbError.message }
   }
 
+  // The account is unreachable until this lands, but a mail failure should not
+  // undo a created employee — surface it and let an Admin resend.
+  const invite = await sendInvite({
+    email: input.email,
+    name: `${input.firstName} ${input.lastName}`,
+    table: 'users',
+    id: data.id,
+  })
+
   revalidatePath('/admin/employees')
-  return { id: data.id }
+  revalidatePath('/admin/settings')
+  return invite.sent ? { id: data.id } : { id: data.id, inviteError: invite.error }
 }
 
 export type UpdateEmployeeInput = {

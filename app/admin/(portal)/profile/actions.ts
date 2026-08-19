@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { uploadToStorage, StorageFolder } from '@/lib/storage'
+import {
+  defaultNotificationPreferences, type NotificationPreferences,
+} from '@/lib/onboarding'
 
 export type OwnProfile = {
   id: string
@@ -13,7 +16,13 @@ export type OwnProfile = {
   role: string
   department: string | null
   employeeId: string | null
+  employeeType: string | null
+  rateOfPay: number | null
   startDate: string | null
+  managerName: string | null
+  emergencyContactName: string | null
+  emergencyContactPhone: string | null
+  notificationPreferences: NotificationPreferences
   avatarUrl: string | null
   status: string | null
 }
@@ -24,11 +33,14 @@ export async function getOwnProfile(userId: string): Promise<OwnProfile | null> 
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('users')
-    .select('id, first_name, last_name, email, phone, role, department, employee_id, start_date, avatar_url, status')
+    .select('id, first_name, last_name, email, phone, role, department, employee_id, employee_type, rate_of_pay, start_date, avatar_url, status, emergency_contact_name, emergency_contact_phone, notification_preferences, manager:users!users_manager_id_fkey(first_name, last_name)')
     .eq('id', userId)
     .maybeSingle()
 
   if (error || !data) return null
+
+  const manager = data.manager as unknown as { first_name?: string; last_name?: string } | null
+  const storedPrefs = (data.notification_preferences ?? {}) as NotificationPreferences
 
   return {
     id: data.id,
@@ -39,7 +51,15 @@ export async function getOwnProfile(userId: string): Promise<OwnProfile | null> 
     role: data.role,
     department: data.department,
     employeeId: data.employee_id,
+    employeeType: data.employee_type,
+    rateOfPay: data.rate_of_pay,
     startDate: data.start_date,
+    managerName: manager ? `${manager.first_name ?? ''} ${manager.last_name ?? ''}`.trim() || null : null,
+    emergencyContactName: data.emergency_contact_name,
+    emergencyContactPhone: data.emergency_contact_phone,
+    // Anything never toggled falls back to the default, so a newly added
+    // notification type does not arrive switched off for everyone.
+    notificationPreferences: { ...defaultNotificationPreferences(), ...storedPrefs },
     avatarUrl: data.avatar_url,
     status: data.status ?? null,
   }
@@ -162,4 +182,41 @@ export async function getProfileRecords(userId: string): Promise<ProfileRecords>
       status: p.status ?? 'draft',
     })),
   }
+}
+
+/**
+ * Technician Profile Settings save (Addendum Task 8).
+ *
+ * Same guarantee as `updateOwnProfile`: the Admin-controlled fields — role,
+ * status, Employee ID, Department, Employee Type, Rate of Pay, Start Date and
+ * Manager — are not in the payload at all, so they cannot be written from a
+ * page the field crew can reach, however the form is tampered with.
+ */
+export async function updateProfileSettings(input: {
+  id: string
+  phone: string
+  emergencyContactName: string
+  emergencyContactPhone: string
+  notificationPreferences: NotificationPreferences
+  avatarUrl?: string | null
+}): Promise<{ success: true } | { error: string }> {
+  if (!input.id) return { error: 'Not signed in' }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('users')
+    .update({
+      phone: input.phone.trim() || null,
+      emergency_contact_name: input.emergencyContactName.trim() || null,
+      emergency_contact_phone: input.emergencyContactPhone.trim() || null,
+      notification_preferences: input.notificationPreferences,
+      avatar_url: input.avatarUrl ?? undefined,
+    })
+    .eq('id', input.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/profile')
+  revalidatePath('/admin/settings')
+  return { success: true }
 }
