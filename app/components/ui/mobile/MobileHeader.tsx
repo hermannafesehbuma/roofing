@@ -1,9 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { ArrowLeft, MoreVertical } from 'lucide-react'
-import { useCurrentUser, initialsOf } from '@/app/components/ui/useCurrentUser'
+import { ProfileMenu } from '@/app/components/ui/ProfileMenu'
 
 /**
  * Mobile screen header. Either a page title with the signed-in user's avatar,
@@ -19,8 +18,6 @@ export function MobileHeader({
   backHref?: string
   action?: React.ReactNode
 }) {
-  const profile = useCurrentUser()
-
   if (backHref) {
     return (
       <header className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
@@ -38,31 +35,8 @@ export function MobileHeader({
       <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
       <div className="flex items-center gap-2">
         {action}
-        <MobileAvatar name={profile?.name ?? ''} avatarUrl={profile?.avatarUrl ?? null} />
+        <ProfileMenu />
       </div>
     </header>
-  )
-}
-
-export function MobileAvatar({
-  name,
-  avatarUrl,
-  size = 36,
-}: {
-  name: string
-  avatarUrl: string | null
-  size?: number
-}) {
-  return (
-    <div
-      style={{ width: size, height: size }}
-      className="rounded-full overflow-hidden relative shrink-0 bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center"
-    >
-      {avatarUrl ? (
-        <Image src={avatarUrl} alt={name} fill sizes={`${size}px`} className="object-cover" />
-      ) : (
-        <span className="text-white text-xs font-semibold">{initialsOf(name)}</span>
-      )}
-    </div>
   )
 }

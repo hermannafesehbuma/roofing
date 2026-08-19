@@ -48,6 +48,7 @@ const pageNames: Record<string, string> = {
   '/admin/inventory': 'Inventory',
   '/admin/inbox': 'Inbox',
   '/admin/support': 'Help & Support',
+  '/admin/profile': 'My Profile',
 }
 
 export default function PageAccessGuard({ children }: { children: React.ReactNode }) {

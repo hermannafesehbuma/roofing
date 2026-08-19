@@ -23,6 +23,7 @@ const PAGE_TITLES: { prefix: string; title: string; subtitle: string }[] = [
   { prefix: '/admin/inbox',         title: 'Inbox',                     subtitle: 'Team messages, project threads, and client communications.' },
   { prefix: '/admin/documents',     title: 'Documents',                 subtitle: 'Contracts, permits, and project paperwork in one place.' },
   { prefix: '/admin/support',       title: 'Help & Support',            subtitle: 'Manage and respond to user support requests.' },
+  { prefix: '/admin/profile',       title: 'My Profile',                subtitle: 'Your account details, photo, and sign-in.' },
 ]
 
 export default function AppHeader() {

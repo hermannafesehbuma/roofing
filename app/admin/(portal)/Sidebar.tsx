@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Settings, HelpCircle, ChevronDown, LogOut } from 'lucide-react'
+import { Settings, HelpCircle, ChevronDown, LogOut, User } from 'lucide-react'
 import { clearSession } from '@/lib/session'
 import { useCurrentUser } from '@/app/components/ui/useCurrentUser'
 import { navForRole, isActiveRoute } from '@/lib/navigation'
@@ -211,6 +211,14 @@ export default function Sidebar() {
               <p className="font-medium text-gray-700">{userEmail}</p>
               <p className="text-[10px] text-gray-400 mt-0.5 capitalize">{roleTitles[displayRole] || displayRole}</p>
             </div>
+            <Link
+              href="/admin/profile"
+              onClick={() => setShowMenu(false)}
+              className="w-full px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+            >
+              <User size={13} className="text-gray-400" />
+              My Profile
+            </Link>
             <button
               onClick={handleSignOut}
               className="w-full text-left px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100 mt-1 flex items-center gap-2"

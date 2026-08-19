@@ -12,7 +12,7 @@ import {
   type TimeEntryRow,
 } from '@/app/admin/(portal)/time-tracking/actions'
 import { useCurrentUser } from '@/app/components/ui/useCurrentUser'
-import { MobileAvatar } from './MobileHeader'
+import { ProfileMenu } from '@/app/components/ui/ProfileMenu'
 import { MobileClockCard } from './MobileClockCard'
 
 function greeting(hour: number) {
@@ -101,7 +101,7 @@ export function MobileHome({
             <Bell size={16} />
             <span className="absolute top-2 right-2.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
           </button>
-          <MobileAvatar name={profile?.name ?? ''} avatarUrl={profile?.avatarUrl ?? null} />
+          <ProfileMenu />
         </div>
       </header>
 

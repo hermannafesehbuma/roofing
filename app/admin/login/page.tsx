@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, CircleAlert } from 'lucide-react'
 import { loginUser } from './actions'
@@ -173,21 +174,18 @@ export default function AdminLoginPage() {
       </div>
 
       {/* Right panel — hero */}
-      <div
-        className="hidden lg:flex lg:w-[55%] relative items-end p-14 overflow-hidden"
-        style={{
-          background: 'linear-gradient(160deg, #1a3a5c 0%, #0D1B2A 60%)',
-        }}
-      >
-        {/* Decorative circles */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[-120px] right-[-80px] w-[500px] h-[500px] rounded-full border border-white/5" />
-          <div className="absolute top-[-60px] right-[-20px] w-[360px] h-[360px] rounded-full border border-white/5" />
-          <div className="absolute bottom-[100px] left-[-100px] w-[300px] h-[300px] rounded-full bg-blue-500/5" />
-        </div>
+      <div className="hidden lg:flex lg:w-[55%] relative items-end p-14 overflow-hidden bg-[#0D1B2A]">
+        <Image
+          src="/login.jpg"
+          alt=""
+          fill
+          priority
+          sizes="55vw"
+          className="object-cover"
+        />
 
-        {/* Illustration placeholder — replace with a real site image */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0D1B2A]/80" />
+        {/* Scrim — the headline sits at the bottom, so the photo darkens into it. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0D1B2A] via-[#0D1B2A]/70 to-[#0D1B2A]/20" />
 
         <div className="relative z-10 max-w-lg">
           <h2 className="text-5xl font-semibold text-white leading-tight mb-5">

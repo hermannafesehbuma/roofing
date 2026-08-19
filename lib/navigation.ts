@@ -49,9 +49,17 @@ export function navForRole(role: string): NavItem[] {
   return ALL_NAV.filter((item) => item.href !== '/admin/documents')
 }
 
+/**
+ * Account screens every signed-in user reaches from the header avatar menu.
+ * Kept out of `CLIENT_ROUTES` so they stay off the sidebar and the tab bar.
+ */
+export const SELF_SERVICE_ROUTES = ['/admin/profile'] as const
+
 export function isRouteAllowedForRole(pathname: string, role: string) {
   if (role !== 'client') return true
-  return CLIENT_ROUTES.some((href) => pathname === href || pathname.startsWith(`${href}/`))
+  return [...CLIENT_ROUTES, ...SELF_SERVICE_ROUTES].some(
+    (href) => pathname === href || pathname.startsWith(`${href}/`)
+  )
 }
 
 /**
